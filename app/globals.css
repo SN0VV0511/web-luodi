@@ -52,9 +52,9 @@ a {
 
 .landing-shell {
   background: var(--paper);
-  margin: 0 auto;
-  max-width: 1440px;
+  margin: 0;
   min-height: 100vh;
+  width: 100%;
 }
 
 .site-header {
@@ -229,8 +229,7 @@ main {
   --spot-x: -300px;
   --spot-y: -300px;
   height: 600px;
-  margin: 0 auto;
-  max-width: 1440px;
+  margin: 0;
   position: relative;
   transform: perspective(1200px) rotateX(var(--peel-angle));
   transform-origin: 50%;
