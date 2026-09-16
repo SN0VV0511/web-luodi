@@ -4,8 +4,9 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SN0VV - Explore and Build",
-  description: "SN0VV 的个人智能体、实验项目与联系入口。",
+  title: "SN0VV CITY — 把想法，建成一座城",
+  description:
+    "探索 SN0VV 的沿海城市，在三个生活街区、中央公园、沙滩与货运港之间漫游，走进量化事务所、智能体总部和自托管应用空间。",
 };
 
 type RootLayoutProps = Readonly<{
