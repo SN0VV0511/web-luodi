@@ -515,7 +515,7 @@ export function buildCityWorld(): CityWorld {
   });
   materials.add(billboardMaterial);
   nightMaterials.push({ material: billboardMaterial, day: 0.14, night: 0.85 });
-  const signGeometry = new THREE.PlaneGeometry(61, 20);
+  const signGeometry = new THREE.PlaneGeometry(61, 21);
   geometries.add(signGeometry);
   const sign = new THREE.Mesh(signGeometry, billboardMaterial);
   sign.position.set(-25, 22, 111.5);
@@ -524,9 +524,9 @@ export function buildCityWorld(): CityWorld {
   const billboardMetal = solid("#30383b", 0.34, 0.65);
   const billboardCopper = solid("#b28a60", 0.4, 0.45);
   // 层叠金属框与前置画面留出真实厚度；承重支脚仍贴着步道边缘。
-  box(billboardMetal, -25, 22, 110.1, 62.8, 21.8, 1.8, "about");
-  box(billboardCopper, -25, 22, 111.12, 62.2, 21.2, 0.28, "about");
-  box(billboardMetal, -25, 22, 111.29, 61.5, 20.5, 0.06, "about");
+  box(billboardMetal, -25, 22, 110.1, 62.8, 22.8, 1.8, "about");
+  box(billboardCopper, -25, 22, 111.12, 62.2, 22.2, 0.28, "about");
+  box(billboardMetal, -25, 22, 111.29, 61.5, 21.5, 0.06, "about");
   box(lamp, -25, 11.48, 111.35, 59.6, 0.1, 0.12, "about");
   for (const x of [-45, -5]) {
     box(billboardMetal, x, 6, 110.6, 1.15, 11.6, 1.15, "about");
