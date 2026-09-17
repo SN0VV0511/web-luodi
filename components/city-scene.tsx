@@ -7,7 +7,8 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { cityBuildings, type PlaceId } from "@/lib/city-content";
 import { cityLots } from "@/lib/city-map";
 import { buildCityWorld } from "@/lib/city-world";
-import { createQuantBoard, parseSnapshot } from "@/lib/quant-board";
+import { parseSnapshot } from "@/lib/quant-board";
+import { createAssetBoard, parseAssetSnapshot } from "@/lib/asset-board";
 import type { Locale } from "@/lib/site-content";
 
 type CityView = "aerial" | "district" | "street";
@@ -197,9 +198,9 @@ export default function CityScene(props: CitySceneProps) {
     selection.visible = false;
     scene.add(selection);
 
-    // 持仓行情大屏独立于城市实例批次：屏面内容与拾取目标都由模块自己管理。
-    const board = createQuantBoard();
-    scene.add(board.group);
+    // 左牌(billboardSign)动态轮播: 品牌帧/数据帧10秒切换, 数据60秒拉取。
+    const assetBoard = createAssetBoard();
+    world.billboardSign.material = new THREE.MeshBasicMaterial({ map: assetBoard.texture, toneMapped: false });
 
     let width = 1;
     let height = 1;
@@ -500,7 +501,7 @@ export default function CityScene(props: CitySceneProps) {
       const bounds = renderer.domElement.getBoundingClientRect();
       pointer.set(((clientX - bounds.left) / bounds.width) * 2 - 1, (-(clientY - bounds.top) / bounds.height) * 2 + 1);
       raycaster.setFromCamera(pointer, camera);
-      return raycaster.intersectObject(board.pickTarget, false).length > 0;
+      return raycaster.intersectObject(world.billboardSign, false).length > 0;
     }
 
     // 大屏独立于城市拾取集合，且遮住身后楼宇时应优先命中。
@@ -665,11 +666,11 @@ export default function CityScene(props: CitySceneProps) {
         const data = parseSnapshot(await response.json());
         if (!data) throw new Error("positions payload invalid");
         boardFailures = 0;
-        board.setState({ kind: "data", data });
+        assetBoard.update(data);
       } catch (error) {
         if (boardAbort.signal.aborted) return;
         boardFailures += 1;
-        if (boardFailures >= 2) board.setState({ kind: "offline" });
+        if (boardFailures >= 2) assetBoard.update(null);
       }
     };
     void refreshBoard();
@@ -711,7 +712,7 @@ export default function CityScene(props: CitySceneProps) {
       boardStopped = true;
       boardAbort.abort();
       window.clearInterval(boardTimer);
-      board.dispose();
+      assetBoard.dispose();
       world.dispose();
       selectionGeometry.dispose();
       selectionMaterial.dispose();

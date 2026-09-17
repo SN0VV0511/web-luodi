@@ -7,6 +7,7 @@ import { buildCityCoast } from "./city-coast";
 
 export type CityWorld = {
   group: THREE.Group;
+  billboardSign: THREE.Mesh;
   anchors: Map<PlaceId, THREE.Vector3>;
   pickables: THREE.Object3D[];
   animate: (seconds: number, night: boolean) => void;
@@ -519,7 +520,7 @@ export function buildCityWorld(): CityWorld {
   geometries.add(signGeometry);
   const sign = new THREE.Mesh(signGeometry, billboardMaterial);
   sign.position.set(-25, 22, 111.5);
-  sign.userData.place = "about";
+  sign.userData.place = "quant";
   group.add(sign); pickables.push(sign);
   const billboardMetal = solid("#30383b", 0.34, 0.65);
   const billboardCopper = solid("#b28a60", 0.4, 0.45);
@@ -781,7 +782,7 @@ export function buildCityWorld(): CityWorld {
   group.userData.vehicleCount = carCount;
   animate(0, false);
   return {
-    group, anchors, pickables, animate, setNight,
+    group, billboardSign: sign, anchors, pickables, animate, setNight,
     dispose: () => {
       geometries.forEach((geometry) => geometry.dispose());
       materials.forEach((material) => material.dispose());
