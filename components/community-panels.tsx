@@ -11,6 +11,7 @@ import {
   readingList,
   type GuestbookDraft,
 } from "@/lib/community-content";
+import News from "@/components/news";
 import type { Locale } from "@/lib/site-content";
 
 const copy = {
@@ -151,6 +152,7 @@ export function CommunityPanels({ locale }: Readonly<{ locale: Locale }>) {
           {t.journal}
           <span>01—03</span>
         </p>
+        <News locale={locale} />
         <div className="community-heading">
           <h2 id={`${id}-journal`}>{t.journalTitle}</h2>
           <p>{t.journalIntro}</p>

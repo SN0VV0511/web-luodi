@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#16213e"/>
+  <text x="200" y="150" text-anchor="middle" fill="#4ade80" font-size="48" font-family="Arial">🔍</text>
+  <text x="200" y="200" text-anchor="middle" fill="#ffffff" font-size="24" font-family="Arial">SearXNG</text>
+</svg>

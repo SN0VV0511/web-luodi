@@ -33,7 +33,7 @@ import {
   Sun,
   X,
 } from "lucide-react";
-import { cityBuildings, safeAppUrl, type PlaceId } from "@/lib/city-content";
+import { cityBuildings, cityPlaces, safeAppUrl, type PlaceId } from "@/lib/city-content";
 import { CITY_BOUNDS, ROAD_SEGMENTS, cityLots, civicLots, parkLots } from "@/lib/city-map";
 import {
   pickLocale,
@@ -121,6 +121,10 @@ export function LandingPage(): ReactNode {
     setSelectionKey((value) => value + 1);
     setTouring(false);
     setPanel(id === "news" || id === "guestbook" || id === "about" ? id : null);
+    const href = cityPlaces.find((place) => place.id === id)?.href;
+    if (href) {
+      window.open(href, "_blank", "noopener,noreferrer");
+    }
   }, []);
   function openPanel(next: Panel): void {
     if (next && next !== "directory") {

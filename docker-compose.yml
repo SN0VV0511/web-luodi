@@ -1,0 +1,18 @@
+services:
+  news-api:
+    build: ./news
+    container_name: news-api
+    restart: always
+    ports:
+      - "127.0.0.1:3003:3003"
+    volumes:
+      - ./news/data:/app/data
+
+  guestbook:
+    build: ./guestbook
+    container_name: guestbook
+    restart: always
+    ports:
+      - "127.0.0.1:3002:3002"
+    volumes:
+      - ./guestbook/data:/app/data
