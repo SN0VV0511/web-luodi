@@ -271,6 +271,25 @@ export function createQuantBoard(): QuantBoard {
   crown.castShadow = true;
   group.add(crown);
 
+  // 支脚：对齐 SN0VV 广告牌的三层立柱结构(金属柱/铜基座/混凝土垫)。
+  const legMetalMaterial = new THREE.MeshStandardMaterial({ color: "#30383b", roughness: 0.55, metalness: 0.4 });
+  const legCopperMaterial = new THREE.MeshStandardMaterial({ color: "#b28a60", roughness: 0.45, metalness: 0.45 });
+  const legConcreteMaterial = new THREE.MeshStandardMaterial({ color: "#8a8f8c", roughness: 0.85, metalness: 0.05 });
+  const legMetalGeometry = new THREE.BoxGeometry(1.15, 11.5, 1.15);
+  const legCopperGeometry = new THREE.BoxGeometry(1.45, 0.4, 1.45);
+  const legConcreteGeometry = new THREE.BoxGeometry(2.4, 1.2, 2.4);
+  for (const side of [-1, 1]) {
+    const metal = new THREE.Mesh(legMetalGeometry, legMetalMaterial);
+    metal.position.set(side * 16, 5.75, -0.4);
+    metal.castShadow = true;
+    const copper = new THREE.Mesh(legCopperGeometry, legCopperMaterial);
+    copper.position.set(side * 16, 11.7, -0.4);
+    const concrete = new THREE.Mesh(legConcreteGeometry, legConcreteMaterial);
+    concrete.position.set(side * 16, 0.6, -0.4);
+    concrete.castShadow = true;
+    group.add(metal, copper, concrete);
+  }
+
   const setState = (state: BoardState) => {
     if (!context) return;
     drawBoard(context, state);
@@ -291,6 +310,12 @@ export function createQuantBoard(): QuantBoard {
       frameGeometry.dispose();
       screenGeometry.dispose();
       crownGeometry.dispose();
+      legMetalMaterial.dispose();
+      legCopperMaterial.dispose();
+      legConcreteMaterial.dispose();
+      legMetalGeometry.dispose();
+      legCopperGeometry.dispose();
+      legConcreteGeometry.dispose();
       group.clear();
     },
   };
