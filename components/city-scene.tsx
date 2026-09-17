@@ -454,11 +454,6 @@ export default function CityScene(props: CitySceneProps) {
         renderer.shadowMap.needsUpdate = true;
         lastShadowFrame = now;
       }
-      // 持仓大屏始终正对相机(billboard)：任何视角下屏面都朝向观察者。
-      board.group.rotation.y = Math.atan2(
-        camera.position.x - board.group.position.x,
-        camera.position.z - board.group.position.z
-      );
       renderer.render(scene, camera);
       if (!hasRendered) {
         hasRendered = true;

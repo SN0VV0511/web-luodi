@@ -34,10 +34,10 @@ const CANVAS_HEIGHT = 512;
 const MAX_ROWS = 6;
 
 // 大屏立于中央海岸公园北缘公路前（district中景视角的公园正后方），公园级地标大屏。
-const BOARD_X = 45;
-const BOARD_Z = -60;
-const BOARD_ROTATION = 0.54;
-const BOARD_CENTER_Y = 11.25;
+const BOARD_X = 28;
+const BOARD_Z = 111;
+const BOARD_ROTATION = 0;
+const BOARD_CENTER_Y = 22;
 
 /** 红涨绿跌：正收益红、负收益绿，两位小数内视为持平。 */
 export function pnlColor(pct: number): string {
