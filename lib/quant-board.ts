@@ -33,10 +33,10 @@ const CANVAS_WIDTH = 1024;
 const CANVAS_HEIGHT = 512;
 const MAX_ROWS = 6;
 
-// 大屏立于城市中心东南广场（正对默认航拍机位俯瞰视线），放大版便于鸟瞰阅读。
-const BOARD_X = 78;
-const BOARD_Z = 150;
-const BOARD_ROTATION = 0.42;
+// 大屏立于中央海岸公园南部草坪（district中景与aerial航拍双视角正前方），广场级大屏。
+const BOARD_X = 10;
+const BOARD_Z = 30;
+const BOARD_ROTATION = 0.78;
 const BOARD_CENTER_Y = 19;
 
 /** 红涨绿跌：正收益红、负收益绿，两位小数内视为持平。 */
@@ -257,27 +257,27 @@ export function createQuantBoard(): QuantBoard {
   const frameMaterial = new THREE.MeshStandardMaterial({ color: "#232b2d", roughness: 0.55, metalness: 0.4 });
   const trimMaterial = new THREE.MeshStandardMaterial({ color: "#3a4a41", roughness: 0.6, metalness: 0.25 });
 
-  const frameGeometry = new THREE.BoxGeometry(22, 12, 0.8);
-  const screenGeometry = new THREE.PlaneGeometry(20, 10);
-  const legGeometry = new THREE.BoxGeometry(0.9, 12.5, 0.9);
-  const padGeometry = new THREE.BoxGeometry(2, 0.4, 2);
-  const crownGeometry = new THREE.BoxGeometry(23, 0.7, 1.3);
+  const frameGeometry = new THREE.BoxGeometry(26, 13, 0.9);
+  const screenGeometry = new THREE.PlaneGeometry(24, 12);
+  const legGeometry = new THREE.BoxGeometry(1, 12.6, 1);
+  const padGeometry = new THREE.BoxGeometry(2.4, 0.4, 2.4);
+  const crownGeometry = new THREE.BoxGeometry(27, 0.8, 1.5);
   const frame = new THREE.Mesh(frameGeometry, frameMaterial);
   frame.position.set(0, BOARD_CENTER_Y, 0);
   frame.castShadow = true;
   const screen = new THREE.Mesh(screenGeometry, screenMaterial);
-  screen.position.set(0, BOARD_CENTER_Y, 0.45);
+  screen.position.set(0, BOARD_CENTER_Y, 0.5);
   group.add(frame, screen);
   for (const side of [-1, 1]) {
     const leg = new THREE.Mesh(legGeometry, frameMaterial);
-    leg.position.set(side * 7.4, 6.25, -0.15);
+    leg.position.set(side * 8.5, 6.3, -0.2);
     leg.castShadow = true;
     const pad = new THREE.Mesh(padGeometry, trimMaterial);
-    pad.position.set(side * 7.4, 0.2, -0.15);
+    pad.position.set(side * 8.5, 0.2, -0.2);
     group.add(leg, pad);
   }
   const crown = new THREE.Mesh(crownGeometry, trimMaterial);
-  crown.position.set(0, BOARD_CENTER_Y + 6.35, 0);
+  crown.position.set(0, BOARD_CENTER_Y + 6.85, 0);
   crown.castShadow = true;
   group.add(crown);
 
