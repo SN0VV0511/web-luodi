@@ -113,23 +113,6 @@ function drawChrome(context: CanvasRenderingContext2D): void {
   background.addColorStop(1, "#121314");
   context.fillStyle = background;
   context.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-  context.strokeStyle = "#a58160";
-  context.lineWidth = 2;
-  context.strokeRect(14, 14, CANVAS_WIDTH - 28, CANVAS_HEIGHT - 28);
-  context.strokeStyle = "rgba(165, 129, 96, 0.7)";
-  context.lineWidth = 3;
-  for (const [x, y, dx, dy] of [
-    [14, 14, 1, 1], [CANVAS_WIDTH - 14, 14, -1, 1],
-    [14, CANVAS_HEIGHT - 14, 1, -1], [CANVAS_WIDTH - 14, CANVAS_HEIGHT - 14, -1, -1],
-  ] as const) {
-    context.beginPath();
-    context.moveTo(x + dx * 26, y);
-    context.lineTo(x, y);
-    context.lineTo(x, y + dy * 26);
-    context.stroke();
-  }
-  context.fillStyle = AMBER;
-  context.fillRect(36, 42, 9, 46);
   context.font = `bold 52px ${FONT}`;
   context.fillStyle = "#f3eee2";
   context.textAlign = "left";
@@ -256,17 +239,12 @@ export function createQuantBoard(): QuantBoard {
 
   const frameGeometry = new THREE.BoxGeometry(45, 22.5, 1.8);
   const screenGeometry = new THREE.PlaneGeometry(42, 21);
-  const crownGeometry = new THREE.BoxGeometry(46, 1.3, 2.2);
   const frame = new THREE.Mesh(frameGeometry, frameMaterial);
   frame.position.set(0, BOARD_CENTER_Y, 0);
   frame.castShadow = true;
   const screen = new THREE.Mesh(screenGeometry, screenMaterial);
   screen.position.set(0, BOARD_CENTER_Y, 0.95);
   group.add(frame, screen);
-  const crown = new THREE.Mesh(crownGeometry, trimMaterial);
-  crown.position.set(0, BOARD_CENTER_Y + 11.9, 0);
-  crown.castShadow = true;
-  group.add(crown);
 
   // 支脚：对齐 SN0VV 广告牌的三层立柱结构(金属柱/铜基座/混凝土垫)。
   const legMetalMaterial = new THREE.MeshStandardMaterial({ color: "#0d0d0d", roughness: 0.5, metalness: 0.35 });
@@ -306,7 +284,6 @@ export function createQuantBoard(): QuantBoard {
       trimMaterial.dispose();
       frameGeometry.dispose();
       screenGeometry.dispose();
-      crownGeometry.dispose();
       legMetalMaterial.dispose();
       legCopperMaterial.dispose();
       legConcreteMaterial.dispose();
