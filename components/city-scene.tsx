@@ -7,6 +7,7 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { cityBuildings, type PlaceId } from "@/lib/city-content";
 import { cityLots } from "@/lib/city-map";
 import { buildCityWorld } from "@/lib/city-world";
+import { createQuantBoard, parseSnapshot } from "@/lib/quant-board";
 import type { Locale } from "@/lib/site-content";
 
 type CityView = "aerial" | "district" | "street";
@@ -196,6 +197,10 @@ export default function CityScene(props: CitySceneProps) {
     selection.visible = false;
     scene.add(selection);
 
+    // 持仓行情大屏独立于城市实例批次：屏面内容与拾取目标都由模块自己管理。
+    const board = createQuantBoard();
+    scene.add(board.group);
+
     let width = 1;
     let height = 1;
     let visible = true;
@@ -209,6 +214,7 @@ export default function CityScene(props: CitySceneProps) {
     let lastAnimatedTime = -1;
     let worldTime = 0;
     let hovered: PlaceId | null = null;
+    let boardHovered = false;
     let flight: CameraFlight | null = null;
     let referenceDistance = 450;
     let lastReportedZoom = 1;
@@ -294,7 +300,7 @@ export default function CityScene(props: CitySceneProps) {
         element.classList.toggle("is-selected", placeId === current.current.selected);
         element.classList.toggle("is-hovered", placeId === hovered);
       }
-      renderer.domElement.style.cursor = hovered ? "pointer" : "grab";
+      renderer.domElement.style.cursor = hovered || boardHovered ? "pointer" : "grab";
       lastOcclusionCheck = -Infinity;
       schedule();
     }
@@ -490,6 +496,19 @@ export default function CityScene(props: CitySceneProps) {
       return null;
     }
 
+    function hitBoard(clientX: number, clientY: number): boolean {
+      const bounds = renderer.domElement.getBoundingClientRect();
+      pointer.set(((clientX - bounds.left) / bounds.width) * 2 - 1, (-(clientY - bounds.top) / bounds.height) * 2 + 1);
+      raycaster.setFromCamera(pointer, camera);
+      return raycaster.intersectObject(board.pickTarget, false).length > 0;
+    }
+
+    // 大屏独立于城市拾取集合，且遮住身后楼宇时应优先命中。
+    function pickAt(clientX: number, clientY: number): { id: PlaceId | null; board: boolean } {
+      const overBoard = hitBoard(clientX, clientY);
+      return { id: overBoard ? null : hit(clientX, clientY), board: overBoard };
+    }
+
     function pointerMove(event: PointerEvent) {
       if (activePointers.has(event.pointerId) && Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) > 6)
         tapCandidate = false;
@@ -498,9 +517,10 @@ export default function CityScene(props: CitySceneProps) {
       if (now - lastHoverCheck < 80) return;
       lastHoverCheck = now;
       lastPointer = { x: event.clientX, y: event.clientY };
-      const id = hit(event.clientX, event.clientY);
-      if (hovered !== id) {
+      const { id, board: overBoard } = pickAt(event.clientX, event.clientY);
+      if (hovered !== id || boardHovered !== overBoard) {
         hovered = id;
+        boardHovered = overBoard;
         updateHighlight();
       }
     }
@@ -518,8 +538,12 @@ export default function CityScene(props: CitySceneProps) {
       const isTap = tapCandidate && activePointers.size === 1 && activePointers.has(event.pointerId);
       activePointers.delete(event.pointerId);
       tapCandidate = false;
-      renderer.domElement.style.cursor = hovered ? "pointer" : "grab";
+      renderer.domElement.style.cursor = hovered || boardHovered ? "pointer" : "grab";
       if (!isTap || Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) > 6) return;
+      if (hitBoard(event.clientX, event.clientY)) {
+        window.open("/quantify/", "_blank", "noopener,noreferrer");
+        return;
+      }
       const id = hit(event.clientX, event.clientY);
       if (id) current.current.onSelect(id);
     }
@@ -531,6 +555,7 @@ export default function CityScene(props: CitySceneProps) {
 
     function pointerLeave() {
       hovered = null;
+      boardHovered = false;
       lastPointer = null;
       updateHighlight();
     }
@@ -554,7 +579,7 @@ export default function CityScene(props: CitySceneProps) {
 
     function controlsEnd() {
       if (lastPointer) {
-        hovered = hit(lastPointer.x, lastPointer.y);
+        ({ id: hovered, board: boardHovered } = pickAt(lastPointer.x, lastPointer.y));
         updateHighlight();
       }
       schedule();
@@ -628,6 +653,28 @@ export default function CityScene(props: CitySceneProps) {
         updateHighlight();
       },
     };
+    // 行情大屏每分钟拉取一次同源静态快照；失败保留上一幅画面，连续失败才提示维护。
+    const boardAbort = new AbortController();
+    let boardStopped = false;
+    let boardFailures = 0;
+    const refreshBoard = async () => {
+      if (boardStopped || document.hidden) return;
+      try {
+        const response = await fetch("/api/positions.json", { signal: boardAbort.signal, cache: "no-store" });
+        if (!response.ok) throw new Error(`positions ${response.status}`);
+        const data = parseSnapshot(await response.json());
+        if (!data) throw new Error("positions payload invalid");
+        boardFailures = 0;
+        board.setState({ kind: "data", data });
+      } catch (error) {
+        if (boardAbort.signal.aborted) return;
+        boardFailures += 1;
+        if (boardFailures >= 2) board.setState({ kind: "offline" });
+      }
+    };
+    void refreshBoard();
+    const boardTimer = window.setInterval(() => { void refreshBoard(); }, 60_000);
+
     applyLighting();
     resize();
     // 让驱动并行准备着色器，避免首帧集中编译阻塞界面；卸载后不再启动渲染。
@@ -661,6 +708,10 @@ export default function CityScene(props: CitySceneProps) {
       renderer.domElement.removeEventListener("webglcontextlost", contextLost);
       document.removeEventListener("visibilitychange", visibilityChange);
       reducedMotion.removeEventListener("change", applyLighting);
+      boardStopped = true;
+      boardAbort.abort();
+      window.clearInterval(boardTimer);
+      board.dispose();
       world.dispose();
       selectionGeometry.dispose();
       selectionMaterial.dispose();
