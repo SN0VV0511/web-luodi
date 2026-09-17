@@ -36,8 +36,8 @@ const MAX_ROWS = 6;
 // 大屏立于中央海岸公园北缘公路前（district中景视角的公园正后方），公园级地标大屏。
 const BOARD_X = 10;
 const BOARD_Z = -90;
-const BOARD_ROTATION = 0.78;
-const BOARD_CENTER_Y = 19;
+const BOARD_ROTATION = 0.54;
+const BOARD_CENTER_Y = 11.25;
 
 /** 红涨绿跌：正收益红、负收益绿，两位小数内视为持平。 */
 export function pnlColor(pct: number): string {
@@ -257,27 +257,17 @@ export function createQuantBoard(): QuantBoard {
   const frameMaterial = new THREE.MeshStandardMaterial({ color: "#232b2d", roughness: 0.55, metalness: 0.4 });
   const trimMaterial = new THREE.MeshStandardMaterial({ color: "#3a4a41", roughness: 0.6, metalness: 0.25 });
 
-  const frameGeometry = new THREE.BoxGeometry(30, 15, 1);
-  const screenGeometry = new THREE.PlaneGeometry(28, 14);
-  const legGeometry = new THREE.BoxGeometry(1.2, 14, 1.2);
-  const padGeometry = new THREE.BoxGeometry(2.8, 0.5, 2.8);
-  const crownGeometry = new THREE.BoxGeometry(31, 0.9, 1.7);
+  const frameGeometry = new THREE.BoxGeometry(45, 22.5, 1.2);
+  const screenGeometry = new THREE.PlaneGeometry(42, 21);
+  const crownGeometry = new THREE.BoxGeometry(46, 1.3, 2.2);
   const frame = new THREE.Mesh(frameGeometry, frameMaterial);
   frame.position.set(0, BOARD_CENTER_Y, 0);
   frame.castShadow = true;
   const screen = new THREE.Mesh(screenGeometry, screenMaterial);
-  screen.position.set(0, BOARD_CENTER_Y, 0.5);
+  screen.position.set(0, BOARD_CENTER_Y, 0.65);
   group.add(frame, screen);
-  for (const side of [-1, 1]) {
-    const leg = new THREE.Mesh(legGeometry, frameMaterial);
-    leg.position.set(side * 10, 7, -0.25);
-    leg.castShadow = true;
-    const pad = new THREE.Mesh(padGeometry, trimMaterial);
-    pad.position.set(side * 10, 0.25, -0.25);
-    group.add(leg, pad);
-  }
   const crown = new THREE.Mesh(crownGeometry, trimMaterial);
-  crown.position.set(0, BOARD_CENTER_Y + 7.95, 0);
+  crown.position.set(0, BOARD_CENTER_Y + 11.9, 0);
   crown.castShadow = true;
   group.add(crown);
 
@@ -300,8 +290,6 @@ export function createQuantBoard(): QuantBoard {
       trimMaterial.dispose();
       frameGeometry.dispose();
       screenGeometry.dispose();
-      legGeometry.dispose();
-      padGeometry.dispose();
       crownGeometry.dispose();
       group.clear();
     },
