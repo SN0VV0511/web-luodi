@@ -257,14 +257,14 @@ export function createQuantBoard(): QuantBoard {
   const frameMaterial = new THREE.MeshStandardMaterial({ color: "#232b2d", roughness: 0.55, metalness: 0.4 });
   const trimMaterial = new THREE.MeshStandardMaterial({ color: "#3a4a41", roughness: 0.6, metalness: 0.25 });
 
-  const frameGeometry = new THREE.BoxGeometry(45, 22.5, 1.2);
+  const frameGeometry = new THREE.BoxGeometry(45, 22.5, 1.8);
   const screenGeometry = new THREE.PlaneGeometry(42, 21);
   const crownGeometry = new THREE.BoxGeometry(46, 1.3, 2.2);
   const frame = new THREE.Mesh(frameGeometry, frameMaterial);
   frame.position.set(0, BOARD_CENTER_Y, 0);
   frame.castShadow = true;
   const screen = new THREE.Mesh(screenGeometry, screenMaterial);
-  screen.position.set(0, BOARD_CENTER_Y, 0.65);
+  screen.position.set(0, BOARD_CENTER_Y, 0.95);
   group.add(frame, screen);
   const crown = new THREE.Mesh(crownGeometry, trimMaterial);
   crown.position.set(0, BOARD_CENTER_Y + 11.9, 0);
