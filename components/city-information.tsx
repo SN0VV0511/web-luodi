@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, Github, X } from "lucide-react";
+import { ArrowUpRight, Github, Mail, X } from "lucide-react";
 import { CommunityPanels } from "@/components/community-panels";
 import {
   aboutParagraphs,
@@ -85,6 +85,11 @@ export function CityInformation({
             >
               <Github size={16} aria-hidden="true" />
               <span>{locale === "zh" ? "在 GitHub 继续探索" : "Explore on GitHub"}<small>@SN0VV0511</small></span>
+              <ArrowUpRight size={17} aria-hidden="true" />
+            </a>
+            <a className="city-builder-link" href="mailto:dsxue51@gmail.com">
+              <Mail size={16} aria-hidden="true" />
+              <span>{locale === "zh" ? "写邮件给城主" : "Email the builder"}<small>dsxue51@gmail.com</small></span>
               <ArrowUpRight size={17} aria-hidden="true" />
             </a>
           </div>

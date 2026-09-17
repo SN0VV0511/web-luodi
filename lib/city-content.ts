@@ -49,7 +49,8 @@ export const cityPlaces: readonly CityPlace[] = [
       en: "Documents, whiteboards, and ideas share a home. A studio for thinking freely.",
     },
     color: "#729582",
-    href: process.env.NEXT_PUBLIC_AFFINE_URL,
+    // 环境变量优先；部署机上未注入时回退到站点公开路径，避免常住应用显示“待配置”。
+    href: process.env.NEXT_PUBLIC_AFFINE_URL ?? "https://sn0vv.top/affine/",
   },
   {
     id: "agents",
@@ -86,7 +87,38 @@ export const cityPlaces: readonly CityPlace[] = [
 /** 给 slot-5 至 slot-12 填写租户即可入驻，三维标牌和应用目录会同步更新。 */
 export const officeTenants: Partial<
   Record<`slot-${number}`, Omit<CityPlace, "id" | "number" | "vacant">>
-> = {};
+> = {
+  "slot-5": {
+    name: "LunaTV",
+    category: { zh: "影视剧场 · MEDIA STREAMING", en: "MEDIA STREAMING" },
+    description: {
+      zh: "自托管影视聚合服务，支持多源在线播放。",
+      en: "Self-hosted media aggregation service with multi-source streaming.",
+    },
+    color: "#c08a97",
+    href: "https://tv.sn0vv.top/",
+  },
+  "slot-6": {
+    name: "LunaTV 源浏览器",
+    category: { zh: "影视检索 · SOURCE BROWSER", en: "SOURCE BROWSER" },
+    description: {
+      zh: "按源搜索和浏览影视资源，快速定位想看的内容。",
+      en: "Search and browse media sources, quickly find what you want to watch.",
+    },
+    color: "#94a7c4",
+    href: "https://sn0vv.top/sources/",
+  },
+  "slot-7": {
+    name: "微信推送",
+    category: { zh: "消息驿站 · WECHAT PUSH", en: "WECHAT PUSH" },
+    description: {
+      zh: "新闻、量化盯盘与告警的微信推送通道，掉线后扫码一键恢复。",
+      en: "WeChat push channel for news, quant alerts and daily reports. Scan to re-link when the session drops.",
+    },
+    color: "#85ab90",
+    href: "https://sn0vv.top/wxqr/",
+  },
+};
 
 /** 预留楼与正式项目共用数据，避免模型与跳转目录各自维护。 */
 export const cityBuildings: readonly CityPlace[] = [

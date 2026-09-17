@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState, type KeyboardEvent } from "react";
 
 type NewsItem = {
   id: number;
@@ -19,74 +19,106 @@ type NewsResponse = {
   pages: number;
 };
 
+const PAGE_SIZE = 5;
+/** 正文超过该字数才显示“展开”提示；折叠由 CSS 行数截断完成。 */
+const EXPAND_THRESHOLD = 80;
+
 export default function News({ locale }: { locale: "zh" | "en" }) {
+  const zh = locale === "zh";
   const [news, setNews] = useState<NewsItem[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [reloadKey, setReloadKey] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const categories = [
-    { key: null, label: locale === "zh" ? "全部" : "All" },
-    { key: "国际新闻", label: "🌍 " + (locale === "zh" ? "国际新闻" : "International") },
-    { key: "AI资讯", label: "🤖 AI" },
-    { key: "科技数码", label: "📱 " + (locale === "zh" ? "科技数码" : "Tech") },
-    { key: "财经动态", label: "💰 " + (locale === "zh" ? "财经动态" : "Finance") },
+    { key: null, label: zh ? "全部" : "All" },
+    { key: "国际新闻", label: zh ? "国际" : "World" },
+    { key: "AI资讯", label: "AI" },
+    { key: "科技数码", label: zh ? "科技" : "Tech" },
+    { key: "财经动态", label: zh ? "财经" : "Finance" },
   ];
 
   useEffect(() => {
-    fetchNews();
-  }, [page, selectedCategory]);
-
-  const fetchNews = async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: "5",
-      });
-      if (selectedCategory) params.append("category", selectedCategory);
-      
-      const res = await fetch(`/news/api/news?${params}`);
-      const data: NewsResponse = await res.json();
-      setNews(data.news);
-      setTotalPages(data.pages);
-    } catch (err) {
-      console.error("Failed to fetch news:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    // 切换分类或翻页时中断旧请求，避免慢响应覆盖新结果。
+    const controller = new AbortController();
+    (async () => {
+      setStatus("loading");
+      try {
+        const params = new URLSearchParams({
+          page: page.toString(),
+          limit: PAGE_SIZE.toString(),
+        });
+        if (selectedCategory) params.append("category", selectedCategory);
+        const res = await fetch(`/news/api/news?${params}`, {
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data: NewsResponse = await res.json();
+        setNews(Array.isArray(data.news) ? data.news : []);
+        setTotalPages(Number.isFinite(data.pages) ? data.pages : 0);
+        setStatus("ready");
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        console.error("Failed to fetch news:", err);
+        setStatus("error");
+      }
+    })();
+    return () => controller.abort();
+  }, [page, selectedCategory, reloadKey]);
 
   const formatDate = (ts: string) => {
     const d = new Date(ts + "Z");
-    return d.toLocaleDateString(locale === "zh" ? "zh-CN" : "en-US", {
+    return d.toLocaleDateString(zh ? "zh-CN" : "en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
     });
   };
 
+  const toggleExpanded = (id: number): void => {
+    setExpandedId((current) => (current === id ? null : id));
+  };
+
+  const cardKeyDown = (event: KeyboardEvent<HTMLElement>, id: number): void => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      toggleExpanded(id);
+    }
+  };
+
+  const turnPage = (next: number): void => {
+    setPage(next);
+    setExpandedId(null);
+  };
+
   return (
-    <section aria-labelledby="news-title" className="content-section" id="news">
+    <section aria-labelledby="news-title" className="content-section">
       <header className="section-heading">
-        <h2 id="news-title">{locale === "zh" ? "每日新闻" : "Daily News"}</h2>
-        <p>
-          {locale === "zh"
-            ? "AI 整理的每日热点新闻，自动更新。"
-            : "AI-curated daily news, updated automatically."}
-        </p>
+        <div>
+          <h2 id="news-title">{zh ? "每日新闻" : "Daily News"}</h2>
+          <p>
+            {zh
+              ? "AI 整理的每日热点新闻，自动更新。"
+              : "AI-curated daily news, updated automatically."}
+          </p>
+        </div>
+        <span aria-hidden="true">AUTO · DAILY</span>
       </header>
       <div className="news-inner">
-        <div className="news-categories">
+        <div className="news-categories" role="group" aria-label={zh ? "新闻分类" : "News categories"}>
           {categories.map((cat) => (
             <button
               key={cat.key || "all"}
+              type="button"
               className={`news-cat-btn ${selectedCategory === cat.key ? "active" : ""}`}
+              aria-pressed={selectedCategory === cat.key}
               onClick={() => {
                 setSelectedCategory(cat.key);
                 setPage(1);
+                setExpandedId(null);
               }}
             >
               {cat.label}
@@ -94,41 +126,51 @@ export default function News({ locale }: { locale: "zh" | "en" }) {
           ))}
         </div>
 
-        {loading ? (
-          <div className="news-loading">
-            {locale === "zh" ? "加载中..." : "Loading..."}
+        {status === "loading" ? (
+          <div className="news-list" aria-hidden="true">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div className="news-card is-skeleton" key={index}>
+                <div className="skeleton-row skeleton-tag" />
+                <div className="skeleton-row" style={{ width: "86%" }} />
+                <div className="skeleton-row" style={{ width: "64%" }} />
+              </div>
+            ))}
+          </div>
+        ) : status === "error" ? (
+          <div className="news-empty">
+            <p>{zh ? "今天的报纸还没送到，稍后再试试。" : "The paper has not arrived yet. Try again later."}</p>
+            <button type="button" className="news-retry" onClick={() => setReloadKey((value) => value + 1)}>
+              {zh ? "重新加载" : "Reload"}
+            </button>
           </div>
         ) : news.length === 0 ? (
           <div className="news-empty">
-            {locale === "zh" ? "暂无新闻" : "No news yet"}
+            {zh ? "今天还没有新闻，晚点再来看看。" : "No news yet today. Check back later."}
           </div>
         ) : (
           <div className="news-list">
             {news.map((item) => {
               const isExpanded = expandedId === item.id;
+              const expandable = item.content.length > EXPAND_THRESHOLD;
               return (
                 <article
                   className={`news-card${isExpanded ? " is-expanded" : ""}`}
                   key={item.id}
-                  onClick={() => setExpandedId(isExpanded ? null : item.id)}
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={expandable ? isExpanded : undefined}
+                  onClick={() => toggleExpanded(item.id)}
+                  onKeyDown={(event) => cardKeyDown(event, item.id)}
                 >
                   <div className="news-card-header">
                     <span className="news-badge">{item.category}</span>
                     <time className="news-time">{formatDate(item.created_at)}</time>
                   </div>
                   <h3 className="news-card-title">{item.title}</h3>
-                  <p className="news-card-content">
-                    {isExpanded
-                      ? item.content
-                      : item.content.length > 80
-                        ? item.content.slice(0, 80) + "..."
-                        : item.content}
-                  </p>
-                  {item.content.length > 80 && (
-                    <span className="news-expand-hint">
-                      {isExpanded
-                        ? locale === "zh" ? "收起" : "Collapse"
-                        : locale === "zh" ? "展开详情" : "Expand"}
+                  <p className="news-card-content">{item.content}</p>
+                  {expandable && (
+                    <span className="news-expand-hint" aria-hidden="true">
+                      {isExpanded ? (zh ? "收起" : "Collapse") : zh ? "展开全文" : "Expand"}
                     </span>
                   )}
                 </article>
@@ -137,12 +179,14 @@ export default function News({ locale }: { locale: "zh" | "en" }) {
           </div>
         )}
 
-        {totalPages > 1 && (
+        {totalPages > 1 && status === "ready" && (
           <div className="news-pagination">
             <button
+              type="button"
               className="news-page-btn"
               disabled={page <= 1}
-              onClick={() => setPage(p => p - 1)}
+              aria-label={zh ? "上一页" : "Previous page"}
+              onClick={() => turnPage(page - 1)}
             >
               ←
             </button>
@@ -150,9 +194,11 @@ export default function News({ locale }: { locale: "zh" | "en" }) {
               {page} / {totalPages}
             </span>
             <button
+              type="button"
               className="news-page-btn"
               disabled={page >= totalPages}
-              onClick={() => setPage(p => p + 1)}
+              aria-label={zh ? "下一页" : "Next page"}
+              onClick={() => turnPage(page + 1)}
             >
               →
             </button>

@@ -758,8 +758,14 @@ export function LandingPage(): ReactNode {
           "LEFT DRAG TO PAN · RIGHT DRAG TO ORBIT · SCROLL TO ZOOM",
         )}
       </p>
-
-
+      <a
+        className="icp-record"
+        href="https://beian.miit.gov.cn/"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        京ICP备2026030364号-1
+      </a>
     </main>
   );
 }

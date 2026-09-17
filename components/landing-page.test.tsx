@@ -69,12 +69,12 @@ describe("城市主页", () => {
     fireEvent.click(directory.getByRole("button", { name: /^预留空间/ }));
     expect(directory.getByRole("status")).toHaveTextContent("没有找到这栋楼");
     fireEvent.click(directory.getByRole("button", { name: "清除搜索" }));
-    expect(directory.getAllByRole("button", { name: /^探索 / })).toHaveLength(8);
+    expect(directory.getAllByRole("button", { name: /^探索 / })).toHaveLength(5);
     expect(directory.getByRole("button", { name: "探索 Office 12" })).toBeInTheDocument();
     expect(directory.queryByRole("button", { name: "探索 AFFiNE" })).not.toBeInTheDocument();
 
     fireEvent.click(directory.getByRole("button", { name: /^已入驻/ }));
-    expect(directory.getAllByRole("button", { name: /^探索 / })).toHaveLength(4);
+    expect(directory.getAllByRole("button", { name: /^探索 / })).toHaveLength(7);
     fireEvent.change(search, { target: { value: "03" } });
     expect(directory.getByRole("button", { name: "探索 Agent Base" })).toBeInTheDocument();
     fireEvent.click(directory.getByRole("button", { name: "关闭应用目录" }));
