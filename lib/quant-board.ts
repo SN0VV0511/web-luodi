@@ -34,8 +34,8 @@ const CANVAS_HEIGHT = 512;
 const MAX_ROWS = 6;
 
 // 大屏立于中央海岸公园北缘公路前（district中景视角的公园正后方），公园级地标大屏。
-const BOARD_X = 10;
-const BOARD_Z = -90;
+const BOARD_X = 45;
+const BOARD_Z = -60;
 const BOARD_ROTATION = 0.54;
 const BOARD_CENTER_Y = 11.25;
 
