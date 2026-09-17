@@ -108,11 +108,20 @@ function fitText(context: CanvasRenderingContext2D, text: string, maxWidth: numb
 
 function drawChrome(context: CanvasRenderingContext2D): void {
   const background = context.createLinearGradient(0, 0, CANVAS_WIDTH, 0);
-  background.addColorStop(0, "#191b1d");
-  background.addColorStop(0.55, "#0e0f10");
-  background.addColorStop(1, "#121314");
+  background.addColorStop(0, "#263034");
+  background.addColorStop(0.55, "#11191e");
+  background.addColorStop(1, "#1d2529");
   context.fillStyle = background;
   context.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+  // 金线: SN0VV牌同款顶部/底部装饰线
+  context.strokeStyle = "#a58160";
+  context.lineWidth = 1.5;
+  context.beginPath();
+  context.moveTo(36, 26);
+  context.lineTo(988, 26);
+  context.moveTo(36, 492);
+  context.lineTo(988, 492);
+  context.stroke();
   context.font = `bold 52px ${FONT}`;
   context.fillStyle = "#f3eee2";
   context.textAlign = "left";
