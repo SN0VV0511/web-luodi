@@ -665,7 +665,7 @@ export default function CityScene(props: CitySceneProps) {
     const refreshBoard = async () => {
       if (boardStopped || document.hidden) return;
       try {
-        const response = await fetch("/api/positions.json", { signal: boardAbort.signal, cache: "no-store" });
+        const response = await fetch("/quantify/api/public/positions", { signal: boardAbort.signal, cache: "no-store" });
         if (!response.ok) throw new Error(`positions ${response.status}`);
         const data = parseSnapshot(await response.json());
         if (!data) throw new Error("positions payload invalid");
