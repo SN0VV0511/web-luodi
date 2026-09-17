@@ -765,7 +765,7 @@ export function LandingPage(): ReactNode {
         rel="noopener noreferrer"
       >
         京ICP备2026030364号-1
-      </a>
+       · BUILD 0917-1533</a>
     </main>
   );
 }
