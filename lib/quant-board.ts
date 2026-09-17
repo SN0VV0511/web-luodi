@@ -20,13 +20,13 @@ export type QuantBoard = {
   dispose: () => void;
 };
 
-const UP_COLOR = "#ff5d55";
-const DOWN_COLOR = "#2fe08d";
-const FLAT_COLOR = "#9fbfae";
-const AMBER = "#ffd66b";
-const TEXT = "#eafff2";
-const DIM = "#6fae8c";
-const LABEL = "#4f8a6c";
+const UP_COLOR = "#e8605a";
+const DOWN_COLOR = "#7fae95";
+const FLAT_COLOR = "#8a8a8a";
+const AMBER = "#d6b490";
+const TEXT = "#f3eee2";
+const DIM = "#d6b490";
+const LABEL = "#a58160";
 const FONT = '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif';
 const MONO = '"SFMono-Regular", Menlo, Consolas, "Courier New", monospace';
 const CANVAS_WIDTH = 1024;
@@ -107,19 +107,16 @@ function fitText(context: CanvasRenderingContext2D, text: string, maxWidth: numb
 }
 
 function drawChrome(context: CanvasRenderingContext2D): void {
-  const background = context.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
-  background.addColorStop(0, "#0c1811");
-  background.addColorStop(0.55, "#08110c");
-  background.addColorStop(1, "#060d09");
+  const background = context.createLinearGradient(0, 0, CANVAS_WIDTH, 0);
+  background.addColorStop(0, "#191b1d");
+  background.addColorStop(0.55, "#0e0f10");
+  background.addColorStop(1, "#121314");
   context.fillStyle = background;
   context.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-  // LED 扫描线让深色底仍有屏体质感。
-  context.fillStyle = "rgba(150, 255, 196, 0.03)";
-  for (let y = 18; y < CANVAS_HEIGHT - 18; y += 5) context.fillRect(18, y, CANVAS_WIDTH - 36, 1.3);
-  context.strokeStyle = "rgba(108, 240, 172, 0.28)";
+  context.strokeStyle = "#a58160";
   context.lineWidth = 2;
   context.strokeRect(14, 14, CANVAS_WIDTH - 28, CANVAS_HEIGHT - 28);
-  context.strokeStyle = "rgba(255, 214, 107, 0.55)";
+  context.strokeStyle = "rgba(165, 129, 96, 0.7)";
   context.lineWidth = 3;
   for (const [x, y, dx, dy] of [
     [14, 14, 1, 1], [CANVAS_WIDTH - 14, 14, -1, 1],
@@ -134,11 +131,11 @@ function drawChrome(context: CanvasRenderingContext2D): void {
   context.fillStyle = AMBER;
   context.fillRect(36, 42, 9, 46);
   context.font = `bold 52px ${FONT}`;
-  context.fillStyle = "#ffe9b3";
+  context.fillStyle = "#f3eee2";
   context.textAlign = "left";
   context.textBaseline = "alphabetic";
   context.fillText("SN0VV 资产大屏", 62, 86);
-  context.strokeStyle = "rgba(112, 255, 178, 0.24)";
+  context.strokeStyle = "rgba(165, 129, 96, 0.55)";
   context.lineWidth = 2;
   context.beginPath();
   context.moveTo(36, 112);
@@ -163,7 +160,7 @@ function drawData(context: CanvasRenderingContext2D, data: BoardData): void {
   context.textAlign = "right";
   context.fillText("现价", 660, 150);
   context.fillText("涨跌幅", 988, 150);
-  context.strokeStyle = "rgba(112, 255, 178, 0.12)";
+  context.strokeStyle = "rgba(165, 129, 96, 0.35)";
   context.beginPath();
   context.moveTo(36, 162);
   context.lineTo(988, 162);
@@ -177,7 +174,7 @@ function drawData(context: CanvasRenderingContext2D, data: BoardData): void {
     context.fillText(fitText(context, position.name, 360), 36, baseline);
     context.font = `bold 33px ${MONO}`;
     context.textAlign = "right";
-    context.fillStyle = "#dcf7e8";
+    context.fillStyle = "#f3eee2";
     context.fillText(position.price.toFixed(2), 660, baseline);
     const pct = Math.round(position.pnlPct * 100) / 100;
     context.fillStyle = pnlColor(position.pnlPct);
@@ -254,8 +251,8 @@ export function createQuantBoard(): QuantBoard {
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 8;
   const screenMaterial = new THREE.MeshBasicMaterial({ map: texture, toneMapped: false });
-  const frameMaterial = new THREE.MeshStandardMaterial({ color: "#232b2d", roughness: 0.55, metalness: 0.4 });
-  const trimMaterial = new THREE.MeshStandardMaterial({ color: "#3a4a41", roughness: 0.6, metalness: 0.25 });
+  const frameMaterial = new THREE.MeshStandardMaterial({ color: "#0d0d0d", roughness: 0.5, metalness: 0.35 });
+  const trimMaterial = new THREE.MeshStandardMaterial({ color: "#b28a60", roughness: 0.45, metalness: 0.45 });
 
   const frameGeometry = new THREE.BoxGeometry(45, 22.5, 1.8);
   const screenGeometry = new THREE.PlaneGeometry(42, 21);
@@ -272,7 +269,7 @@ export function createQuantBoard(): QuantBoard {
   group.add(crown);
 
   // 支脚：对齐 SN0VV 广告牌的三层立柱结构(金属柱/铜基座/混凝土垫)。
-  const legMetalMaterial = new THREE.MeshStandardMaterial({ color: "#30383b", roughness: 0.55, metalness: 0.4 });
+  const legMetalMaterial = new THREE.MeshStandardMaterial({ color: "#0d0d0d", roughness: 0.5, metalness: 0.35 });
   const legCopperMaterial = new THREE.MeshStandardMaterial({ color: "#b28a60", roughness: 0.45, metalness: 0.45 });
   const legConcreteMaterial = new THREE.MeshStandardMaterial({ color: "#8a8f8c", roughness: 0.85, metalness: 0.05 });
   const legMetalGeometry = new THREE.BoxGeometry(1.15, 11.5, 1.15);
