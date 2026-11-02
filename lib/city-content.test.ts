@@ -7,16 +7,18 @@ afterEach(() => {
 });
 
 describe("城市部署配置", () => {
-  it("只开放有效 HTTP(S) URL，并拒绝脚本、相对路径和含凭据地址", () => {
+  it("开放同源根路径与有效 HTTP(S) URL，并拒绝脚本、协议相对路径和含凭据地址", () => {
     expect(safeAppUrl("https://example.com/app?q=1#home")).toBe(
       "https://example.com/app?q=1#home",
     );
     expect(safeAppUrl("http://localhost:3000")).toBe("http://localhost:3000/");
+    expect(safeAppUrl("/biglink/index.html")).toBe("/biglink/index.html");
+    expect(safeAppUrl("/lora/index.html")).toBe("/lora/index.html");
     for (const value of [
       undefined,
       "",
-      "/app",
       "//example.com",
+      "/\\example.com",
       "not a url",
       "javascript:alert(1)",
       "data:text/html,hello",
@@ -29,7 +31,7 @@ describe("城市部署配置", () => {
     }
   });
 
-  it("未配置时不冒充环境地址，官方部署入口回退且保留五间空办公室", async () => {
+  it("未配置时不冒充环境地址，官方部署入口回退且保留三间空办公室", async () => {
     for (const key of [
       "QUANT",
       "AFFINE",
@@ -51,7 +53,7 @@ describe("城市部署配置", () => {
       "https://sn0vv.top/affine/",
     );
     expect(communityLinks).toEqual({ news: undefined, guestbook: undefined });
-    expect(cityBuildings.filter((place) => place.vacant)).toHaveLength(5);
+    expect(cityBuildings.filter((place) => place.vacant)).toHaveLength(3);
     expect(new Set(cityBuildings.map((place) => place.id)).size).toBe(
       cityBuildings.length,
     );
@@ -70,6 +72,16 @@ describe("城市部署配置", () => {
     expect(cityBuildings.find((place) => place.id === "slot-7")).toMatchObject({
       name: "微信推送",
       href: "https://sn0vv.top/wxqr/",
+    });
+    expect(cityBuildings.find((place) => place.id === "slot-8")).toMatchObject({
+      name: "Biglink 财税智能体",
+      href: "/biglink/index.html",
+      vacant: false,
+    });
+    expect(cityBuildings.find((place) => place.id === "slot-9")).toMatchObject({
+      name: "LoRA 微调记录",
+      href: "/lora/index.html",
+      vacant: false,
     });
   });
 

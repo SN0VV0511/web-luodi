@@ -118,6 +118,32 @@ export const officeTenants: Partial<
     color: "#85ab90",
     href: "https://sn0vv.top/wxqr/",
   },
+  "slot-8": {
+    name: "Biglink 财税智能体",
+    category: {
+      zh: "架构手册 · MULTI-AGENT DOCS",
+      en: "MULTI-AGENT DOCS",
+    },
+    description: {
+      zh: "基于本地微调 Gemma 与云端大模型混合路由的六域财税多智能体平台架构与面试全景手册。",
+      en: "Architecture design and full-stack handbook for the Biglink six-domain FinTax multi-agent platform.",
+    },
+    color: "#6b92b5",
+    href: "/biglink/index.html",
+  },
+  "slot-9": {
+    name: "LoRA 微调记录",
+    category: {
+      zh: "微调实验 · LORA CLASSROOM",
+      en: "LORA CLASSROOM",
+    },
+    description: {
+      zh: "Gemma QLoRA 微调记录与交互式拆解课堂：涵盖中文术语、公式推导、逐段代码与实验复盘。",
+      en: "Interactive LoRA & QLoRA fine-tuning notes with formula breakdowns, code walkthroughs, and experiments.",
+    },
+    color: "#5f9ea0",
+    href: "/lora/index.html",
+  },
 };
 
 /** 预留楼与正式项目共用数据，避免模型与跳转目录各自维护。 */
@@ -141,9 +167,12 @@ export const cityBuildings: readonly CityPlace[] = [
   ),
 ];
 
-/** 只允许浏览器可安全打开的 HTTP(S) 地址。 */
+/** 只允许浏览器可安全打开的同源根路径或 HTTP(S) 地址。 */
 export function safeAppUrl(value: string | undefined): string | undefined {
   if (!value) return undefined;
+  if (value.startsWith("/") && !value.startsWith("//") && !/[\s\\]/.test(value)) {
+    return value;
+  }
   try {
     const url = new URL(value);
     return ["http:", "https:"].includes(url.protocol) &&

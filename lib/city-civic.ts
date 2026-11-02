@@ -539,5 +539,13 @@ export function buildCivicDistrict(kit: CivicKit): { landmarks: CivicLandmark[] 
     part(yellow,cube,x+0.33,0.66,z,0.13,0.04,0.06);
   }
 
+  // 湖湾睡莲叶簇与系泊在木栈桥旁的木质手划小船
+  for (const [lx, lz, r] of [[-26, -18, 0.55], [-24.8, -19.1, 0.42], [-27.2, -17.3, 0.48], [6, -34, 0.52], [7.2, -33.2, 0.4], [-18, 14, 0.5]]) {
+    part(hedge, cylinder, lx, 0.37, lz, r, 0.025, r);
+    part(flowers[1], sphere, lx + 0.08, 0.42, lz - 0.05, 0.11, 0.09, 0.11);
+  }
+  part(timber, cylinder, -22.5, 0.42, -6.2, 0.85, 0.28, 2.3, undefined, 0.35);
+  part(ivory, cube, -22.5, 0.52, -6.2, 1.1, 0.08, 0.28, undefined, 0.35);
+
   return { landmarks };
 }

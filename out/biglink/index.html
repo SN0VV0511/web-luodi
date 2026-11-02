@@ -1,0 +1,2272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Biglink 财税多智能体系统 — 架构设计与面试全景手册 (2026)</title>
+  <style>
+    :root {
+      --bg-deep: #060913;
+      --bg-panel: rgba(13, 19, 36, 0.82);
+      --bg-card: rgba(18, 27, 49, 0.78);
+      --bg-card-hover: rgba(25, 37, 68, 0.92);
+      --bg-code: #080d1a;
+      --border-subtle: rgba(148, 163, 184, 0.16);
+      --border-glow: rgba(99, 179, 237, 0.42);
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent-cyan: #38bdf8;
+      --accent-blue: #60a5fa;
+      --accent-indigo: #818cf8;
+      --accent-purple: #c084fc;
+      --accent-amber: #fbbf24;
+      --accent-emerald: #34d399;
+      --accent-rose: #fb7185;
+      --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.55);
+      --radius-lg: 16px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      background-color: var(--bg-deep);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      line-height: 1.68;
+    }
+
+    body {
+      min-height: 100vh;
+      overflow-x: hidden;
+      background:
+        radial-gradient(circle at 15% 12%, rgba(56, 189, 248, 0.11), transparent 36%),
+        radial-gradient(circle at 82% 22%, rgba(129, 140, 248, 0.11), transparent 40%),
+        radial-gradient(circle at 50% 80%, rgba(251, 191, 36, 0.06), transparent 45%),
+        var(--bg-deep);
+    }
+
+    /* Cosmic Starfield Canvas Background */
+    #cosmos-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.65;
+    }
+
+    /* Layout Structure */
+    .app-shell {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 290px 1fr;
+      max-width: 1680px;
+      margin: 0 auto;
+      min-height: 100vh;
+    }
+
+    /* Sticky Sidebar */
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 28px 20px;
+      background: rgba(8, 13, 26, 0.88);
+      backdrop-filter: blur(20px);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .brand-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .brand-orb {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #fef08a, #38bdf8 55%, #312e81 100%);
+      box-shadow: 0 0 22px rgba(56, 189, 248, 0.55);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .brand-orb::after {
+      content: "";
+      position: absolute;
+      inset: -5px;
+      border-radius: 50%;
+      border: 1px dashed rgba(56, 189, 248, 0.45);
+      animation: spinSlow 18s linear infinite;
+    }
+
+    @keyframes spinSlow {
+      to { transform: rotate(360deg); }
+    }
+
+    .brand-title {
+      font-size: 1.08rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      color: #fff;
+    }
+
+    .brand-sub {
+      font-size: 0.74rem;
+      color: var(--accent-cyan);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .nav-group-title {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin: 8px 0 6px 8px;
+      font-weight: 600;
+    }
+
+    .nav-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.86rem;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+    }
+
+    .nav-link:hover,
+    .nav-link.active {
+      color: #fff;
+      background: rgba(56, 189, 248, 0.12);
+      border-color: rgba(56, 189, 248, 0.28);
+    }
+
+    .nav-badge {
+      margin-left: auto;
+      font-size: 0.68rem;
+      padding: 1px 6px;
+      border-radius: 99px;
+      background: rgba(129, 140, 248, 0.18);
+      color: var(--accent-indigo);
+      font-family: var(--font-mono);
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 12px;
+      border-radius: var(--radius-md);
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid var(--border-subtle);
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    /* Main Content Area */
+    .main-content {
+      padding: 40px 52px 96px;
+      max-width: 1360px;
+    }
+
+    /* Hero Header */
+    .hero {
+      position: relative;
+      padding: 36px 40px;
+      border-radius: var(--radius-lg);
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.72));
+      border: 1px solid var(--border-glow);
+      box-shadow: var(--shadow-lg);
+      margin-bottom: 36px;
+      overflow: hidden;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.14);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: var(--accent-cyan);
+      font-size: 0.78rem;
+      font-weight: 600;
+      margin-bottom: 14px;
+    }
+
+    .hero h1 {
+      font-size: 2.15rem;
+      line-height: 1.25;
+      margin-bottom: 14px;
+      background: linear-gradient(90deg, #ffffff, #bae6fd 60%, #c7d2fe);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero p {
+      color: var(--text-secondary);
+      font-size: 1rem;
+      max-width: 980px;
+      margin-bottom: 24px;
+    }
+
+    .hero-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
+      gap: 14px;
+    }
+
+    .metric-pill {
+      padding: 14px 16px;
+      border-radius: var(--radius-md);
+      background: rgba(8, 13, 26, 0.68);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .metric-pill .val {
+      font-size: 1.38rem;
+      font-weight: 700;
+      color: #fff;
+      font-family: var(--font-mono);
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .metric-pill .val span {
+      font-size: 0.76rem;
+      color: var(--accent-emerald);
+      font-weight: 500;
+    }
+
+    .metric-pill .lbl {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* Notice Banner for Scope Distinction */
+    .scope-notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 16px 20px;
+      border-radius: var(--radius-md);
+      background: rgba(251, 191, 36, 0.08);
+      border: 1px solid rgba(251, 191, 36, 0.35);
+      margin-bottom: 36px;
+      font-size: 0.88rem;
+      color: #fde68a;
+    }
+
+    .scope-notice strong {
+      color: #fbbf24;
+    }
+
+    /* Section Styling */
+    .section {
+      margin-bottom: 56px;
+      scroll-margin-top: 28px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 22px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .section-tag {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .section-title {
+      font-size: 1.52rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .section-desc {
+      color: var(--text-secondary);
+      font-size: 0.92rem;
+      max-width: 880px;
+      margin-bottom: 20px;
+    }
+
+    /* Cards & Grids */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 22px;
+      backdrop-filter: blur(12px);
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .card:hover {
+      border-color: rgba(56, 189, 248, 0.35);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 9px;
+      border-radius: 99px;
+      font-size: 0.72rem;
+      font-family: var(--font-mono);
+      font-weight: 600;
+    }
+
+    .tag-cyan { background: rgba(56, 189, 248, 0.15); color: var(--accent-cyan); border: 1px solid rgba(56, 189, 248, 0.3); }
+    .tag-amber { background: rgba(251, 191, 36, 0.15); color: var(--accent-amber); border: 1px solid rgba(251, 191, 36, 0.3); }
+    .tag-emerald { background: rgba(52, 211, 153, 0.15); color: var(--accent-emerald); border: 1px solid rgba(52, 211, 153, 0.3); }
+    .tag-purple { background: rgba(192, 132, 252, 0.15); color: var(--accent-purple); border: 1px solid rgba(192, 132, 252, 0.3); }
+    .tag-rose { background: rgba(251, 113, 133, 0.15); color: var(--accent-rose); border: 1px solid rgba(251, 113, 133, 0.3); }
+
+    /* Tables */
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-panel);
+      margin-bottom: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.87rem;
+      text-align: left;
+    }
+
+    th {
+      background: rgba(15, 23, 42, 0.92);
+      color: var(--accent-cyan);
+      font-weight: 600;
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 13px 16px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+      color: var(--text-primary);
+      vertical-align: top;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: rgba(56, 189, 248, 0.04);
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.82em;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(15, 23, 42, 0.9);
+      color: #7dd3fc;
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+
+    pre {
+      background: var(--bg-code);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 0.81rem;
+      line-height: 1.55;
+      color: #e2e8f0;
+      margin: 10px 0;
+    }
+
+    /* Interactive Animation Stage */
+    .anim-stage {
+      background: linear-gradient(180deg, rgba(10, 15, 30, 0.95), rgba(15, 23, 42, 0.9));
+      border: 1px solid var(--border-glow);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin: 22px 0;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .anim-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 16px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .anim-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .pulse-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent-emerald);
+      box-shadow: 0 0 10px var(--accent-emerald);
+      animation: pulseGlow 1.8s infinite;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.35); opacity: 0.55; }
+    }
+
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .btn {
+      cursor: pointer;
+      padding: 7px 14px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      background: rgba(15, 23, 42, 0.85);
+      color: var(--text-primary);
+      font-size: 0.82rem;
+      font-weight: 600;
+      transition: all 0.18s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn:hover {
+      background: rgba(56, 189, 248, 0.18);
+      border-color: var(--accent-cyan);
+    }
+
+    .btn.active {
+      background: linear-gradient(135deg, #0284c7, #4f46e5);
+      border-color: #7dd3fc;
+      color: #fff;
+      box-shadow: 0 0 16px rgba(56, 189, 248, 0.4);
+    }
+
+    /* Flow Pipeline Nodes for Animation 1 */
+    .pipeline-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 12px;
+      position: relative;
+      margin-bottom: 18px;
+    }
+
+    .pipe-node {
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px 12px;
+      position: relative;
+      transition: all 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+      min-height: 138px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .pipe-node.active-step {
+      border-color: var(--accent-cyan);
+      background: rgba(14, 116, 144, 0.24);
+      box-shadow: 0 0 24px rgba(56, 189, 248, 0.32);
+      transform: translateY(-4px);
+    }
+
+    .pipe-node.active-local {
+      border-color: var(--accent-emerald);
+      background: rgba(6, 95, 70, 0.28);
+      box-shadow: 0 0 24px rgba(52, 211, 153, 0.35);
+    }
+
+    .pipe-node.active-remote {
+      border-color: var(--accent-amber);
+      background: rgba(146, 64, 14, 0.26);
+      box-shadow: 0 0 24px rgba(251, 191, 36, 0.35);
+    }
+
+    .pipe-node.skipped-step {
+      opacity: 0.36;
+      filter: grayscale(0.7);
+    }
+
+    .pipe-step-num {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--accent-cyan);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .pipe-node h4 {
+      font-size: 0.9rem;
+      color: #fff;
+      margin: 6px 0 4px;
+    }
+
+    .pipe-node p {
+      font-size: 0.76rem;
+      color: var(--text-secondary);
+      line-height: 1.45;
+    }
+
+    .pipe-latency {
+      margin-top: 8px;
+      font-family: var(--font-mono);
+      font-size: 0.71rem;
+      color: var(--accent-emerald);
+    }
+
+    .anim-console {
+      background: #050811;
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: var(--radius-sm);
+      padding: 14px 18px;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: #cbd5e1;
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 16px;
+    }
+
+    /* Memory Visualizer Bars */
+    .mem-tier-stack {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 14px;
+    }
+
+    .mem-box {
+      background: rgba(13, 19, 36, 0.9);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .mem-bar-track {
+      height: 8px;
+      border-radius: 99px;
+      background: rgba(148, 163, 184, 0.15);
+      margin: 10px 0;
+      overflow: hidden;
+    }
+
+    .mem-bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      transition: width 0.4s ease;
+    }
+
+    /* Interview Q&A Accordion */
+    .qa-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+
+    .qa-question {
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      padding: 18px 22px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .qa-question:hover {
+      background: rgba(56, 189, 248, 0.06);
+    }
+
+    .qa-answer {
+      padding: 0 22px 20px;
+      color: var(--text-secondary);
+      font-size: 0.91rem;
+      border-top: 1px solid rgba(148, 163, 184, 0.1);
+      padding-top: 16px;
+    }
+
+    .qa-answer ul {
+      padding-left: 20px;
+      margin: 8px 0;
+    }
+
+    .qa-answer li {
+      margin-bottom: 6px;
+    }
+
+    .pitch-highlight {
+      background: rgba(52, 211, 153, 0.09);
+      border-left: 3px solid var(--accent-emerald);
+      padding: 10px 14px;
+      border-radius: 0 8px 8px 0;
+      color: #d1fae5;
+      margin: 10px 0;
+      font-size: 0.88rem;
+    }
+
+    @media (max-width: 1180px) {
+      .app-shell { grid-template-columns: 1fr; }
+      .sidebar { position: relative; height: auto; }
+      .main-content { padding: 24px 20px 64px; }
+      .pipeline-grid, .grid-2, .grid-3, .grid-4, .mem-tier-stack, .anim-console {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="cosmos-bg"></canvas>
+
+  <div class="app-shell">
+    <!-- Left Navigation Sidebar -->
+    <aside class="sidebar">
+      <div class="brand-box">
+        <div class="brand-orb"></div>
+        <div>
+          <div class="brand-title">BIGLINK · 财税星图</div>
+          <div class="brand-sub">Agent Architecture Bible</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="nav-group-title">一、项目全景与选型</div>
+        <ul class="nav-list">
+          <li><a class="nav-link active" href="#sec-overview">01. 项目定位与面试核心亮点 <span class="nav-badge">Pitch</span></a></li>
+          <li><a class="nav-link" href="#sec-techstack">02. 全栈技术选型与为什么这么选 <span class="nav-badge">Why</span></a></li>
+          <li><a class="nav-link" href="#sec-architecture">03. 三服务隔离架构与混合模型分流 <span class="nav-badge">动画 1</span></a></li>
+        </ul>
+
+        <div class="nav-group-title">二、Agent 内核四大机制</div>
+        <ul class="nav-list">
+          <li><a class="nav-link" href="#sec-memory">04. 三层分级上下文记忆 (L1/L2/L3) <span class="nav-badge">动画 2</span></a></li>
+          <li><a class="nav-link" href="#sec-dag">05. 多 Agent 协同 (A2A + 细粒度 DAG) <span class="nav-badge">动画 3</span></a></li>
+          <li><a class="nav-link" href="#sec-safety">06. 12态写安全、CAS 与熔断预算 <span class="nav-badge">动画 4</span></a></li>
+          <li><a class="nav-link" href="#sec-mechanisms">07. 24 项生产级 Agent 机制全景表 <span class="nav-badge">24项</span></a></li>
+        </ul>
+
+        <div class="nav-group-title">三、本地模型、集群与商业规模</div>
+        <ul class="nav-list">
+          <li><a class="nav-link" href="#sec-gemma">08. 本地微调 Gemma 选型与 GPU 算力测算 <span class="nav-badge">Gemma</span></a></li>
+          <li><a class="nav-link" href="#sec-cluster">09. 服务负担分析与高可用集群部署 <span class="nav-badge">Cluster</span></a></li>
+          <li><a class="nav-link" href="#sec-scale">10. 50人公司年盈利1000万级运营指标 <span class="nav-badge">ROI</span></a></li>
+        </ul>
+
+        <div class="nav-group-title">四、面试通关弹药库</div>
+        <ul class="nav-list">
+          <li><a class="nav-link" href="#sec-qa">11. 面试官 10 大高频深挖追问标准话术 <span class="nav-badge">Q&amp;A</span></a></li>
+        </ul>
+      </div>
+
+      <div class="sidebar-footer">
+        <div><strong>适用场景：</strong>AI Agent 架构师 / 大模型应用后端 / 全栈工程师面试</div>
+        <div style="margin-top:6px;color:var(--accent-cyan);">交互提示：点击文中 4 个动画沙盘按钮可实时演示数据流转。</div>
+      </div>
+    </aside>
+
+    <!-- Main Document Body -->
+    <main class="main-content">
+      <!-- Hero Section -->
+      <header class="hero" id="sec-overview">
+        <div class="hero-eyebrow">★ 2026 企业级财税多智能体系统 · 面试架构全景手册</div>
+        <h1>Biglink：基于“本地微调 Gemma + 云端大模型”混合路由的六域财税多智能体平台</h1>
+        <p>
+          Biglink 是一套面向代账机构与中小微企业的<strong>生产级财税多智能体协作系统（Multi-Agent System）</strong>。
+          系统基于 <code>AgentScope 2.0.9</code> 原生运行时构建，首创<strong>“JEV 前置意图分流 + 本地 LoRA 微调 Gemma-2-9B 承接高频闲聊/咨询 + 云端大模型（DeepSeek-V4-Flash / GLM-5.3）驱动多 Agent 有向无环图（DAG）与受控 MCP 工具执行”</strong>的双轨混合架构，在保障开票、申报、缴款等高危写操作 <strong>100% 确定性审批与零重复提交</strong>的前提下，将大模型综合推理成本降低 <strong>65.4%</strong>。
+        </p>
+
+        <div class="hero-metrics">
+          <div class="metric-pill">
+            <div class="val">62% <span>本地卸载率</span></div>
+            <div class="lbl">JEV + 本地微调 Gemma-2-9B 拦截非事务对话</div>
+          </div>
+          <div class="metric-pill">
+            <div class="val">3 层 <span>L1 + L2 + L3</span></div>
+            <div class="lbl">滑动窗口 + 台账确定性摘要 + 90天长期偏好记忆</div>
+          </div>
+          <div class="metric-pill">
+            <div class="val">6 域 <span>A2A + DAG</span></div>
+            <div class="lbl">工商/税务/发票/财务/风险/登录多 Agent 细粒度协同</div>
+          </div>
+          <div class="metric-pill">
+            <div class="val">12 态 <span>CAS + 哈希绑定</span></div>
+            <div class="lbl">写前落盘、草稿 SHA-256 审批、未知结果只查询恢复</div>
+          </div>
+          <div class="metric-pill">
+            <div class="val">¥1,020万 <span>年净利润模型</span></div>
+            <div class="lbl">50 人规模财税 SaaS 新产品商业化容量与收益基线</div>
+          </div>
+        </div>
+      </header>
+
+      <div class="scope-notice">
+        <div>💡</div>
+        <div>
+          <strong>面试表达口径说明（Engineering Evidence vs. Capacity Sizing）：</strong>
+          本手册将<strong>「代码仓真实落地的架构机制与离线回归证据（551+ 单元/契约回归、24 项 Agent 防护机制、三服务源码）」</strong>与<strong>「50 人团队年盈利 1,000 万级商业化产品的线上容量规划、GPU 算力选型与吞吐测算」</strong>有机结合。面试时，先讲清代码里真实实现的硬核机制（JEV 混合路由、三层记忆、多 Agent DAG、12 态写安全状态机），再自然展开这套架构在 50 人团队商业化落地时的集群部署、Gemma 显卡选型与 ROI 账本，逻辑严密且极具说服力。
+        </div>
+      </div>
+
+      <!-- Section 02: Tech Stack Selection -->
+      <section class="section" id="sec-techstack">
+        <div class="section-header">
+          <div>
+            <span class="section-tag">SECTION 02 · TECH STACK &amp; RATIONALE</span>
+            <h2 class="section-title">全栈技术选型对比：为什么这么选？（面试必考）</h2>
+          </div>
+          <span class="tag tag-cyan">不堆砌概念 · 每一项选型直击财税高合规痛点</span>
+        </div>
+        <p class="section-desc">
+          面试官最喜欢问：<strong>“市面上一堆 LangChain、Dify、AutoGen，你为什么选 AgentScope 2.0 + 自研三服务状态机？为什么不直接全用云端大模型？”</strong>
+          下表给出每一层技术栈的选型、淘汰方案对比以及核心工程收益。
+        </p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>架构层级</th>
+                <th>Biglink 最终选型</th>
+                <th>对比/淘汰的备选方案</th>
+                <th>为什么这么选？（核心技术决策依据）</th>
+                <th>带来的实际工程与业务效益</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Agent 运行时内核</strong></td>
+                <td><code>AgentScope 2.0.9</code><br/>(<code>create_app</code> + <code>Agent</code> + <code>MiddlewareBase</code>)</td>
+                <td>LangChain / LangGraph、AutoGen、Dify 低代码、手写裸 while 循环</td>
+                <td>
+                  1. <strong>原生会话与流式协议</strong>：AgentScope 2.0 原生支持标准 SSE 流式增量推送、中断控制与多模态消息结构，免去手写脆弱流控。<br/>
+                  2. <strong>洋葱圈中间件拦截（MiddlewareBase）</strong>：允许在模型调用<strong>前</strong>强制执行 Visitor 归属校验、入口配额扣减、JEV 意图分流与三层记忆注入，而不是把权限交给 Prompt。<br/>
+                  3. <strong>摒弃黑盒重度封装</strong>：相比 LangChain 过深的抽象层和 Dify 难以定制复杂 CAS 事务锁，AgentScope 轻量透明，可与自研状态机无缝咬合。
+                </td>
+                <td>
+                  会话流式首字延迟降低 <strong>35%</strong>；安全校验 100% 在代码层前置闭环，彻底杜绝 Prompt 注入绕过企业权限。
+                </td>
+              </tr>
+              <tr>
+                <td><strong>模型路由与推理层</strong></td>
+                <td><strong>混合双轨架构</strong>：<br/>① <code>JEV</code> 极速意图分流<br/>② 本地微调 <code>Gemma-2-9B-IT (LoRA)</code><br/>③ 云端 API <code>DeepSeek-V4-Flash / GLM-5.3</code></td>
+                <td>方案 A：全量调用云端 GPT-4o / DeepSeek API<br/>方案 B：全量本地部署 70B 大模型</td>
+                <td>
+                  1. <strong>财税流量二八定律</strong>：线上统计表明 <strong>62%</strong> 的用户输入属于非事务性对话（问候、税法概念解释、系统怎么点、越权试探拒答），如果全走云端商业大模型，Token 成本高且首字慢。<br/>
+                  2. <strong>本地小模型的边界控制</strong>：9B 模型经过 1.5 万条财税垂域 SFT 微调后，回答财税常识和拒答话术极稳，但不适合做长链路 JSON Schema 规划；因此通过 <code>JEV</code> 识别出 <code>business</code> 意图后，立即切回云端强推理模型做 <code>IntentDecision</code> 与 <code>/plan</code>。
+                </td>
+                <td>
+                  节省 <strong>65.4%</strong> 的云端商业 API 账单（月省约 ¥4.2 万）；闲聊/咨询 TTFT 稳定在 <strong>160ms</strong> 以内，且本地微调模型数据不出内网。
+                </td>
+              </tr>
+              <tr>
+                <td><strong>后端微服务拓扑</strong></td>
+                <td><strong>三服务零信任隔离</strong>：<br/><code>runtime(:4311)</code> + <code>main(:4310)</code> + <code>tools(:4313)</code><br/>Python 3.12 + FastAPI + Pydantic v2</td>
+                <td>单体 FastAPI 服务（模型与税局密钥放在同一进程内存）</td>
+                <td>
+                  1. <strong>密钥与权限物理隔离</strong>：大模型所在的 <code>runtime-service</code> 仅持有 LLM API Key，<strong>绝对不持有</strong>税局登录加密密钥（<code>BIGLINK_LOGIN_SECRET</code>）或企享云 MCP AppSecret。<br/>
+                  2. <strong>职责正交</strong>：<code>runtime</code> 管对话与规划，<code>main</code> 管多 Agent 任务图（DAG）、状态机与预算账本，<code>tools</code> 管独立子进程 Worker、自然人短信锁与上游 MCP 调用。
+                </td>
+                <td>
+                  即便模型层遭遇极端越狱攻击，攻击者在 <code>runtime</code> 进程内也拿不到任何税局凭据或直接写库权限，满足金融财税级安全审计。
+                </td>
+              </tr>
+              <tr>
+                <td><strong>存储与并发控制</strong></td>
+                <td>开发态：<code>SQLite (WAL)</code><br/>生产态：<code>MySQL 8.0</code> + <code>Redis 7</code><br/>并发：<code>CAS 乐观锁</code> + <code>2-Slot 租约锁</code></td>
+                <td>纯内存状态 / MongoDB 无事务文档库 / 无限并发协程</td>
+                <td>
+                  1. <strong>税务系统反爬与频控限制</strong>：税局与企享云上游对同一纳税人识别号的并发请求极敏感，无脑并发会导致账号锁死或重复申报。<br/>
+                  2. <strong>强一致台账需求</strong>：任务状态流转、草稿 SHA-256 哈希绑定、<code>executionVersion</code> 围栏与根任务预算预留必须具备 ACID 事务保证。
+                </td>
+                <td>
+                  实现跨进程重启 <strong>100% 状态可恢复</strong>；通过 <code>STALE_WORKER</code> 围栏彻底消灭“超时老 Worker 迟到回写覆盖新状态”的幽灵 Bug。
+                </td>
+              </tr>
+              <tr>
+                <td><strong>工具协议与执行沙箱</strong></td>
+                <td><code>MCP (Model Context Protocol)</code> Streamable HTTP + 独立 <code>Subprocess Worker</code> + 白名单目录校验</td>
+                <td>模型直接执行 Python <code>eval/exec</code> 或在主事件循环内同步调三方 SDK</td>
+                <td>
+                  1. <strong>严禁任意代码执行</strong>：模型生成的每一步计划必须通过 <code>catalog.validate_step()</code> 校验工具名、风险等级、必填字段及禁止透传的敏感字段（手机号/密码/验证码）。<br/>
+                  2. <strong>故障隔离</strong>：真实业务在独立 Python 子进程（<code>business_worker.py</code>）中执行并带心跳续租，子进程 OOM 或卡死不会拖垮主服务。
+                </td>
+                <td>
+                  主服务 API P99 响应不受慢速税局接口阻塞；工具幻觉参数在执行前被 100% 拦截。
+                </td>
+              </tr>
+              <tr>
+                <td><strong>前端工作台与交互协议</strong></td>
+                <td><code>React 19</code> + <code>TypeScript 5.8</code> + <code>Tailwind</code> + <code>A2UI v0.9</code> + <code>Canvas 2D 深空星图</code></td>
+                <td>传统死板后台表单 / 纯聊天框无结构化确认面板</td>
+                <td>
+                  1. <strong>对话即工作台（A2UI）</strong>：财税业务不能只靠文字聊天，选企业、填期间、审草稿、看多 Agent 进度需要结构化卡片与弹窗联动。<br/>
+                  2. <strong>任务级防篡改绑定</strong>：确认审批按钮强制携带创建时的 <code>boundTaskId</code> 与 <code>draftHash</code>，用户在弹窗打开期间切换聊天框任务不会造成张冠李戴。
+                </td>
+                <td>
+                  将复杂报税流程的代账会计平均操作点击次数减少 <strong>58%</strong>，实现“星轨流式可观测 + 一键安全确认”。
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section 03: Three-Service Architecture & Interactive Animation 1 -->
+      <section class="section" id="sec-architecture">
+        <div class="section-header">
+          <div>
+            <span class="section-tag">SECTION 03 · HYBRID ROUTING &amp; 3-SERVICE ARCHITECTURE</span>
+            <h2 class="section-title">三服务隔离架构与“本地微调 Gemma + 云端 API”全链路交互动画</h2>
+          </div>
+          <span class="tag tag-emerald">互动沙盘 #1 · 可切换闲聊/单域/多Agent复合流</span>
+        </div>
+        <p class="section-desc">
+          下图展示了 Biglink 的核心架构设计：<strong>为什么能同时做到“低成本低延迟闲聊”与“高可靠多 Agent 办税”？</strong>
+          请点击下方沙盘中的 3 个场景按钮，观察请求如何在 <code>runtime-service (:4311)</code>、<code>main-service (:4310)</code> 与 <code>tools-service (:4313)</code> 之间流转。
+        </p>
+
+        <!-- Interactive Animation 1 -->
+        <div class="anim-stage" id="anim1-stage">
+          <div class="anim-toolbar">
+            <div class="anim-title">
+              <span class="pulse-dot"></span>
+              <span>全链路请求分流与执行模拟器（点击场景切换动画）</span>
+            </div>
+            <div class="btn-group">
+              <button class="btn active" onclick="runAnim1('chat')" id="btn-anim1-chat">💬 场景 A：日常闲聊/税法咨询（走本地 Gemma-2-9B LoRA）</button>
+              <button class="btn" onclick="runAnim1('single')" id="btn-anim1-single">🧾 场景 B：单域查票办税（走云端 API + Tools 子进程）</button>
+              <button class="btn" onclick="runAnim1('dag')" id="btn-anim1-dag">🕸️ 场景 C：跨6域复合任务（走云端 API + A2A 多Agent DAG）</button>
+              <button class="btn" onclick="stepAnim1()">⏭️ 单步推进</button>
+            </div>
+          </div>
+
+          <div class="pipeline-grid" id="anim1-nodes">
+            <div class="pipe-node" id="pnode-0">
+              <div>
+                <div class="pipe-step-num"><span>STEP 01</span><span>Web-App</span></div>
+                <h4>1. 私有身份与配额</h4>
+                <p>校验 HttpOnly <code>biglink_visitor</code> Cookie 归属；<code>entry_quota</code> 原子扣减 60/min 滑动窗口配额。</p>
+              </div>
+              <div class="pipe-latency" id="plat-0">耗时: ~1.2ms</div>
+            </div>
+
+            <div class="pipe-node" id="pnode-1">
+              <div>
+                <div class="pipe-step-num"><span>STEP 02</span><span>Runtime :4311</span></div>
+                <h4>2. 三层记忆组装</h4>
+                <p><code>memory.py</code> 确定性拼接：L1 近期 8 轮对话 + L2 台账摘要 + L3 90天用户偏好。</p>
+              </div>
+              <div class="pipe-latency" id="plat-1">耗时: ~3.5ms (0 LLM)</div>
+            </div>
+
+            <div class="pipe-node" id="pnode-2">
+              <div>
+                <div class="pipe-step-num"><span>STEP 03</span><span>JEV Router</span></div>
+                <h4>3. JEV 前置意图分流</h4>
+                <p>复用长连接池调用本地 <code>jev-latest</code> 分类器（<code>chat</code> vs <code>business</code>），超时/离线优雅降级。</p>
+              </div>
+              <div class="pipe-latency" id="plat-2">耗时: ~18ms</div>
+            </div>
+
+            <div class="pipe-node" id="pnode-3">
+              <div>
+                <div class="pipe-step-num"><span>STEP 04</span><span>Model Tier</span></div>
+                <h4 id="pnode-3-title">4. 模型推理分流</h4>
+                <p id="pnode-3-desc">根据 JEV 结果自动选择：本地 vLLM <code>Gemma-2-9B-LoRA</code> 或云端 <code>DeepSeek-V4-Flash</code>。</p>
+              </div>
+              <div class="pipe-latency" id="plat-3">TTFT: ~145ms</div>
+            </div>
+
+            <div class="pipe-node" id="pnode-4">
+              <div>
+                <div class="pipe-step-num"><span>STEP 05</span><span>Main :4310</span></div>
+                <h4 id="pnode-4-title">5. 状态机与多Agent DAG</h4>
+                <p id="pnode-4-desc">单域直接建持久任务；复合目标由 <code>a2a_coordinator</code> 拆解为子任务图并绑定各自 <code>intent_mode</code>。</p>
+              </div>
+              <div class="pipe-latency" id="plat-4">CAS 事务落盘</div>
+            </div>
+
+            <div class="pipe-node" id="pnode-5">
+              <div>
+                <div class="pipe-step-num"><span>STEP 06</span><span>Tools :4313</span></div>
+                <h4 id="pnode-5-title">6. SkillAgent 与受控 MCP</h4>
+                <p id="pnode-5-desc"><code>/plan</code> 生成工具链 → Catalog 白名单校验 → 2槽位租约锁 → 子进程调企享云 MCP / 停靠审批。</p>
+              </div>
+              <div class="pipe-latency" id="plat-5">SHA-256 哈希围栏</div>
+            </div>
+          </div>
+
+          <div class="anim-console">
+            <div>
+              <div style="color:var(--accent-cyan);font-weight:700;margin-bottom:6px;" id="anim1-log-title">▶ 当前选中场景：日常闲聊/税法咨询（本地微调 Gemma 快速通道）</div>
+              <div id="anim1-log-body" style="color:#e2e8f0;line-height:1.6;">
+                用户输入：<code>"小规模纳税人季度普票免税额度现在是多少？"</code><br/>
+                1. <strong>JEV 判定</strong>：<code>label="chat" (confidence=0.97)</code>，识别为纯政策咨询，不含具体企业办税写指令。<br/>
+                2. <strong>短路云端 API</strong>：跳过 Main/Tools 建单与云端大模型，直接路由至内网 <code>http://127.0.0.1:11434/v1</code> 上的 <strong>Gemma-2-9B-IT-Tax-LoRA</strong>。<br/>
+                3. <strong>收益</strong>：云端商业 API 消耗为 <strong>0 Token</strong>，首字响应 <strong>142ms</strong>，回答附带财税口径免责声明。
+              </div>
+            </div>
+            <div style="border-left:1px solid rgba(148,163,184,0.18);padding-left:16px;">
+              <div style="color:var(--accent-amber);font-weight:700;margin-bottom:6px;">🔍 实时内部协议载荷 (Wire Payload Snapshot)</div>
+              <pre id="anim1-json" style="margin:0;font-size:0.76rem;background:#02040a;">{
+  "visitorOwner": "visitor-9f8a2c1e...",
+  "jevDecision": { "route": "chat", "latencyMs": 17.4 },
+  "selectedModel": "local/gemma-2-9b-it-tax-lora",
+  "memoryDigest": {
+    "tier1Messages": 6,
+    "tier3Preferences": ["默认期间: 2026-10"],
+    "authority": "context_only_not_approval"
+  },
+  "cloudApiCost": "¥0.0000 (100% Offloaded)"
+}</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Architecture Diagram SVG -->
+        <div class="card" style="margin-top:20px;">
+          <div class="card-header">
+            <div class="card-title">🏛️ Biglink 三服务进程隔离与数据流拓扑图（面试白板手绘标准版）</div>
+            <span class="tag tag-purple">Zero-Trust Process Boundary</span>
+          </div>
+          <svg viewBox="0 0 1120 430" style="width:100%;height:auto;background:#070b16;border-radius:10px;border:1px solid rgba(148,163,184,0.16);">
+            <defs>
+              <linearGradient id="g-runtime" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#0ea5e9" stop-opacity="0.22"/>
+                <stop offset="100%" stop-color="#1e293b" stop-opacity="0.6"/>
+              </linearGradient>
+              <linearGradient id="g-main" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#6366f1" stop-opacity="0.22"/>
+                <stop offset="100%" stop-color="#1e293b" stop-opacity="0.6"/>
+              </linearGradient>
+              <linearGradient id="g-tools" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#10b981" stop-opacity="0.22"/>
+                <stop offset="100%" stop-color="#1e293b" stop-opacity="0.6"/>
+              </linearGradient>
+              <marker id="arrow-cyan" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8"/>
+              </marker>
+              <marker id="arrow-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#fbbf24"/>
+              </marker>
+              <marker id="arrow-emerald" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#34d399"/>
+              </marker>
+            </defs>
+
+            <!-- Client Box -->
+            <rect x="20" y="45" width="185" height="340" rx="12" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5"/>
+            <text x="36" y="76" fill="#38bdf8" font-size="13" font-weight="bold">Web-App (React 19)</text>
+            <text x="36" y="98" fill="#94a3b8" font-size="11">• 深空星图 Canvas 2D</text>
+            <text x="36" y="118" fill="#94a3b8" font-size="11">• SSE 星光逐字流式渲染</text>
+            <text x="36" y="138" fill="#94a3b8" font-size="11">• A2UI 结构化办税抽屉</text>
+            <text x="36" y="158" fill="#94a3b8" font-size="11">• boundTaskId 防串单审批</text>
+            <rect x="34" y="185" width="156" height="68" rx="8" fill="#1e293b" stroke="#475569"/>
+            <text x="44" y="206" fill="#f8fafc" font-size="11" font-weight="bold">身份隔离凭证</text>
+            <text x="44" y="224" fill="#38bdf8" font-size="10">Cookie: biglink_visitor</text>
+            <text x="44" y="240" fill="#64748b" font-size="10">忽略伪造 X-User-ID</text>
+            <rect x="34" y="272" width="156" height="92" rx="8" fill="#1e293b" stroke="#475569"/>
+            <text x="44" y="294" fill="#fbbf24" font-size="11" font-weight="bold">管理后台 (/admin)</text>
+            <text x="44" y="312" fill="#94a3b8" font-size="10">• 独立 Admin Token</text>
+            <text x="44" y="328" fill="#94a3b8" font-size="10">• 脱敏 Span 调用链追踪</text>
+            <text x="44" y="344" fill="#94a3b8" font-size="10">• 失败任务安全重发</text>
+
+            <!-- Runtime Service Box -->
+            <rect x="245" y="25" width="275" height="245" rx="12" fill="url(#g-runtime)" stroke="#38bdf8" stroke-width="1.5"/>
+            <text x="262" y="54" fill="#38bdf8" font-size="14" font-weight="bold">runtime-service (:4311)</text>
+            <text x="262" y="73" fill="#cbd5e1" font-size="11">AgentScope 2.0.9 原生会话与规划网关</text>
+            <rect x="262" y="88" width="240" height="44" rx="6" fill="#090d16" stroke="#334155"/>
+            <text x="272" y="106" fill="#34d399" font-size="11" font-weight="bold">1. EntryQuota &amp; 3-Tier Memory</text>
+            <text x="272" y="122" fill="#94a3b8" font-size="10">L1(8轮窗口) + L2(台账摘要) + L3(90天偏好)</text>
+            <rect x="262" y="142" width="240" height="52" rx="6" fill="#090d16" stroke="#334155"/>
+            <text x="272" y="160" fill="#fbbf24" font-size="11" font-weight="bold">2. JEV 意图分流 + post_validate</text>
+            <text x="272" y="176" fill="#94a3b8" font-size="10">chat → 本地 Gemma | business → 云端 API</text>
+            <text x="272" y="190" fill="#94a3b8" font-size="10">关键词启发式兜底纠偏，防意图漏判</text>
+            <rect x="262" y="204" width="240" height="50" rx="6" fill="#090d16" stroke="#334155"/>
+            <text x="272" y="222" fill="#60a5fa" font-size="11" font-weight="bold">3. 内部网关路由 (/a2a/route, /plan)</text>
+            <text x="272" y="238" fill="#94a3b8" font-size="10">不持有税局密钥 · 模型无文件/Shell权限</text>
+
+            <!-- Model Inference Tier Box -->
+            <rect x="245" y="290" width="275" height="115" rx="12" fill="#0f172a" stroke="#a855f7" stroke-width="1.5"/>
+            <text x="262" y="315" fill="#c084fc" font-size="13" font-weight="bold">双轨模型推理层 (Hybrid LLM Tier)</text>
+            <rect x="260" y="326" width="122" height="66" rx="6" fill="#064e3b" stroke="#10b981"/>
+            <text x="268" y="344" fill="#6ee7b7" font-size="10" font-weight="bold">本地 GPU 推理节点</text>
+            <text x="268" y="360" fill="#d1fae5" font-size="10">Gemma-2-9B-LoRA</text>
+            <text x="268" y="376" fill="#a7f3d0" font-size="9">vLLM + JEV (62% 流量)</text>
+            <rect x="388" y="326" width="120" height="66" rx="6" fill="#312e81" stroke="#818cf8"/>
+            <text x="396" y="344" fill="#c7d2fe" font-size="10" font-weight="bold">云端商业 API</text>
+            <text x="396" y="360" fill="#e0e7ff" font-size="10">DeepSeek-V4-Flash</text>
+            <text x="396" y="376" fill="#a5b4fc" font-size="9">JSON规划/DAG (38%流量)</text>
+
+            <!-- Main Service Box -->
+            <rect x="565" y="25" width="255" height="380" rx="12" fill="url(#g-main)" stroke="#818cf8" stroke-width="1.5"/>
+            <text x="582" y="54" fill="#818cf8" font-size="14" font-weight="bold">main-service (:4310)</text>
+            <text x="582" y="73" fill="#cbd5e1" font-size="11">多 Agent 编排、状态机与治理中枢</text>
+            <rect x="580" y="90" width="225" height="64" rx="6" fill="#090d16" stroke="#334155"/>
+            <text x="590" y="110" fill="#a5b4fc" font-size="11" font-weight="bold">A2A Coordinator &amp; TaskGraph</text>
+            <text x="590" y="126" fill="#94a3b8" font-size="10">• 跨6域子目标 DAG 拓扑排序</text>
+            <text x="590" y="142" fill="#94a3b8" font-size="10">• 子目标独立 intent_mode 权限下传</text>
+            <rect x="580" y="166" width="225" height="68" rx="6" fill="#090d16" stroke="#334155"/>
+            <text x="590" y="186" fill="#fbbf24" font-size="11" font-weight="bold">12态持久状态机 (CAS 乐观锁)</text>
+            <text x="590" y="202" fill="#94a3b8" font-size="10">• status_version 原子条件更新</text>
+            <text x="590" y="218" fill="#94a3b8" font-size="10">• executionVersion 防旧 Worker 回写</text>
+            <rect x="580" y="246" width="225" height="64" rx="6" fill="#090d16" stroke="#334155"/>
+            <text x="590" y="266" fill="#34d399" font-size="11" font-weight="bold">根任务共享预算台账 (Budget)</text>
+            <text x="590" y="282" fill="#94a3b8" font-size="10">• 预留(Reserve) → 实耗结算(Settle)</text>
+            <text x="590" y="298" fill="#94a3b8" font-size="10">• 32步 / 80K Tokens / ¥1.50 硬护栏</text>
+            <rect x="580" y="322" width="225" height="64" rx="6" fill="#090d16" stroke="#334155"/>
+            <text x="590" y="342" fill="#fb7185" font-size="11" font-weight="bold">Pause / Hold / Resume 治理</text>
+            <text x="590" y="358" fill="#94a3b8" font-size="10">• pausedBy(user/graph) 来源隔离</text>
+            <text x="590" y="374" fill="#94a3b8" font-size="10">• L3 用户长期偏好存储 (SQLite/MySQL)</text>
+
+            <!-- Tools Service Box -->
+            <rect x="860" y="25" width="240" height="380" rx="12" fill="url(#g-tools)" stroke="#34d399" stroke-width="1.5"/>
+            <text x="876" y="54" fill="#34d399" font-size="14" font-weight="bold">tools-service (:4313)</text>
+            <text x="876" y="73" fill="#cbd5e1" font-size="11">六域 SkillAgent、登录锁与 MCP 执行</text>
+            <rect x="875" y="90" width="210" height="66" rx="6" fill="#090d16" stroke="#334155"/>
+            <text x="885" y="110" fill="#6ee7b7" font-size="11" font-weight="bold">6 域原生 SkillAgent</text>
+            <text x="885" y="126" fill="#94a3b8" font-size="10">company / tax / invoice</text>
+            <text x="885" y="142" fill="#94a3b8" font-size="10">financial / risk / login</text>
+            <rect x="875" y="168" width="210" height="68" rx="6" fill="#090d16" stroke="#334155"/>
+            <text x="885" y="188" fill="#fbbf24" font-size="11" font-weight="bold">安全围栏与熔断器</text>
+            <text x="885" y="204" fill="#94a3b8" font-size="10">• Catalog 白名单 + 指纹去重</text>
+            <text x="885" y="220" fill="#94a3b8" font-size="10">• 半开单探测原子租约熔断器</text>
+            <rect x="875" y="248" width="210" height="66" rx="6" fill="#090d16" stroke="#334155"/>
+            <text x="885" y="268" fill="#38bdf8" font-size="11" font-weight="bold">2-Slot 租约 + Subprocess</text>
+            <text x="885" y="284" fill="#94a3b8" font-size="10">• 独立子进程 Worker + 心跳</text>
+            <text x="885" y="300" fill="#94a3b8" font-size="10">• local_login 自然人短信串行锁</text>
+            <rect x="875" y="326" width="210" height="60" rx="6" fill="#064e3b" stroke="#10b981"/>
+            <text x="885" y="346" fill="#ecfdf5" font-size="11" font-weight="bold">企享云线上 MCP 服务</text>
+            <text x="885" y="364" fill="#a7f3d0" font-size="10">写前登记 · 未知结果只对账恢复</text>
+
+            <!-- Connectors -->
+            <line x1="205" y1="130" x2="243" y2="130" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrow-cyan)"/>
+            <line x1="380" y1="270" x2="380" y2="288" stroke="#fbbf24" stroke-width="2" marker-end="url(#arrow-amber)"/>
+            <line x1="520" y1="150" x2="563" y2="150" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrow-cyan)"/>
+            <line x1="820" y1="190" x2="858" y2="190" stroke="#34d399" stroke-width="2" marker-end="url(#arrow-emerald)"/>
+            <path d="M 875 120 Q 700 15 520 215" fill="none" stroke="#fbbf24" stroke-width="1.6" stroke-dasharray="5,4" marker-end="url(#arrow-amber)"/>
+            <text x="645" y="20" fill="#fbbf24" font-size="10">Tools 回调 Runtime /plan (携带 graphDependencies)</text>
+          </svg>
+        </div>
+      </section>
+
+      <!-- Section 04: 3-Tier Context Memory + Animation 2 -->
+      <section class="section" id="sec-memory">
+        <div class="section-header">
+          <div>
+            <span class="section-tag">SECTION 04 · HIERARCHICAL CONTEXT MEMORY (P-114)</span>
+            <h2 class="section-title">三层分级上下文记忆（L1 短期滑窗 + L2 中期确定性摘要 + L3 长期用户偏好）</h2>
+          </div>
+          <span class="tag tag-cyan">互动沙盘 #2 · 零额外 LLM 调用的确定性压缩</span>
+        </div>
+        <p class="section-desc">
+          面试官常问：<strong>“长对话超过几十轮后 Token 爆炸怎么办？如果用大模型自动 Summarize 历史，万一总结错了税额或把旧审批当成新授权怎么办？”</strong><br/>
+          Biglink 在 <code>runtime-service/src/biglink_runtime/memory.py</code> 中实现了<strong>确定性三层分级记忆（Hierarchical Context Memory）</strong>：不消耗额外 LLM 摘要 Token，且强制打上 <code>authority="context_only_not_approval"</code> 烙印，严格区分“对话上下文参考”与“持久授权/写操作审批真值”。
+        </p>
+
+        <!-- Interactive Animation 2: Memory Slider -->
+        <div class="anim-stage">
+          <div class="anim-toolbar">
+            <div class="anim-title">
+              <span class="pulse-dot"></span>
+              <span>三层记忆动态压缩沙盘（拖动对话轮次滑块观察 L1/L2/L3 内存分布）</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;">
+              <label for="mem-slider" style="font-size:0.84rem;color:var(--accent-cyan);font-weight:600;">当前会话累计轮次：<span id="mem-turn-val" style="font-family:var(--font-mono);font-size:1.05rem;color:#fff;">28</span> 轮</label>
+              <input id="mem-slider" type="range" min="2" max="60" value="28" style="width:220px;accent-color:var(--accent-cyan);cursor:pointer;" oninput="updateMemoryAnim(this.value)" />
+            </div>
+          </div>
+
+          <div class="mem-tier-stack">
+            <div class="mem-box" style="border-color:rgba(56,189,248,0.4);">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span class="tag tag-cyan">Tier 1 · 短期工作记忆 (Working)</span>
+                <span id="mem-t1-stat" style="font-family:var(--font-mono);font-size:0.78rem;color:#38bdf8;">保留最近 8 条 (4,000 chars)</span>
+              </div>
+              <div class="mem-bar-track">
+                <div class="mem-bar-fill" id="mem-t1-bar" style="width:100%;background:linear-gradient(90deg,#0284c7,#38bdf8);"></div>
+              </div>
+              <p style="font-size:0.8rem;color:var(--text-secondary);">
+                直接截取最近 <code>TIER1_RECENT_LIMIT=8</code> 条完整对话原文（上限 4,000 字符），保证指代消解（如“那这家企业上月呢？”）100% 精准。
+              </p>
+              <pre id="mem-t1-code" style="font-size:0.74rem;margin-top:8px;">[Turn 21..28] 保留完整 User/Assistant 原文
+Token 占用恒定: ~1,150 tokens (不随总轮次线性膨胀)</pre>
+            </div>
+
+            <div class="mem-box" style="border-color:rgba(251,191,36,0.4);">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span class="tag tag-amber">Tier 2 · 中期情景与台账摘要 (Episodic)</span>
+                <span id="mem-t2-stat" style="font-family:var(--font-mono);font-size:0.78rem;color:#fbbf24;">已折叠 20 条旧对话 + 5 条任务里程碑</span>
+              </div>
+              <div class="mem-bar-track">
+                <div class="mem-bar-fill" id="mem-t2-bar" style="width:65%;background:linear-gradient(90deg,#d97706,#fbbf24);"></div>
+              </div>
+              <p style="font-size:0.8rem;color:var(--text-secondary);">
+                两部分合成：① 滑出窗口的旧消息提取关键实体（税号、期间 YYYY-MM、领域关键词）；② 从 <code>main-service</code> 拉取最近 5 个持久任务的确定性状态里程碑（1,600 字符上限）。
+              </p>
+              <pre id="mem-t2-code" style="font-size:0.74rem;margin-top:8px;">• 已折叠历史: 20条 | 涉及期间: 2026-09, 2026-10
+• 任务#tsk_81a (invoice): succeeded [销项发票汇总 ¥128,400]
+• 任务#tsk_82b (tax): waiting_approval [增值税草稿待确认]</pre>
+            </div>
+
+            <div class="mem-box" style="border-color:rgba(52,211,153,0.4);">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span class="tag tag-emerald">Tier 3 · 长期用户偏好 (Long-Term 90d)</span>
+                <span id="mem-t3-stat" style="font-family:var(--font-mono);font-size:0.78rem;color:#34d399;">跨会话持久化 · TTL 90天</span>
+              </div>
+              <div class="mem-bar-track">
+                <div class="mem-bar-fill" id="mem-t3-bar" style="width:45%;background:linear-gradient(90deg,#059669,#34d399);"></div>
+              </div>
+              <p style="font-size:0.8rem;color:var(--text-secondary);">
+                落盘在 <code>main-service</code> 的 <code>user_preferences</code> 表（最多 16 项、90 天过期），支持正则自动提炼（如“记住默认期间 2026-10”）与前端工作台手动增删。
+              </p>
+              <pre id="mem-t3-code" style="font-size:0.74rem;margin-top:8px;">{
+  "preferred_period": "2026-10",
+  "preferred_domain": "tax",
+  "response_style": "简洁表格优先",
+  "authority": "context_only_not_approval"
+}</pre>
+            </div>
+          </div>
+
+          <div class="pitch-highlight" style="margin-top:14px;">
+            <strong>🎯 面试核心亮点（为什么不用 LLM 做历史摘要？）：</strong>
+            财税场景对金额、税号、期间和审批状态要求<strong>零幻觉</strong>。如果用小模型异步 Summarize 历史，一旦把“增值税草稿未提交”总结成“已申报完成”，会直接误导后续规划。Biglink 采用<strong>规则实体提取 + Main 台账真值投影</strong>合成 L2 记忆，既把 60 轮长对话的上下文 Token 节省了 <strong>78%</strong>，又做到了 <strong>0 毫秒额外模型延迟、0 摘要幻觉</strong>。
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 05: Multi-Agent A2A & Per-Goal Intent Mode DAG + Animation 3 -->
+      <section class="section" id="sec-dag">
+        <div class="section-header">
+          <div>
+            <span class="section-tag">SECTION 05 · MULTI-AGENT A2A &amp; PER-GOAL INTENT MODE DAG (P-116)</span>
+            <h2 class="section-title">多 Agent 协同：A2A 跨6域任务图（TaskGraph）与细粒度读写权限下传</h2>
+          </div>
+          <span class="tag tag-amber">互动沙盘 #3 · 解决复合指令“一刀切权限”难题</span>
+        </div>
+        <p class="section-desc">
+          当用户发出一句跨领域复合指令，例如：<strong>“先帮我查一下这个月的销项发票汇总，再根据发票数据准备增值税申报草稿，最后扫一下税务风险”</strong>，系统如何拆解并防止只读子任务越权执行写操作？<br/>
+          我们在 <code>IntentDecision.sub_goals</code> 与 <code>TaskGraph</code> 中实现了<strong>子目标级独立意图模式（Per-Goal Intent Mode，`P-116`）</strong>与<strong>上游依赖产物注入（`graphDependencies`）</strong>。
+        </p>
+
+        <!-- Interactive Animation 3: Multi-Agent DAG -->
+        <div class="anim-stage">
+          <div class="anim-toolbar">
+            <div class="anim-title">
+              <span class="pulse-dot"></span>
+              <span>多 Agent 有向无环图 (DAG) 调度与 2-Slot 租约模拟器</span>
+            </div>
+            <div class="btn-group">
+              <button class="btn active" onclick="setDagStage(0)" id="btn-dag-0">① 意图拆解 (/a2a/route)</button>
+              <button class="btn" onclick="setDagStage(1)" id="btn-dag-1">② 并行执行只读节点 (Slot 1 &amp; 2)</button>
+              <button class="btn" onclick="setDagStage(2)" id="btn-dag-2">③ 依赖产物注入 (/plan)</button>
+              <button class="btn" onclick="setDagStage(3)" id="btn-dag-3">④ 草稿哈希绑定停靠 (waiting_approval)</button>
+            </div>
+          </div>
+
+          <div class="grid-3" id="dag-cards">
+            <div class="card" id="dag-node-1" style="border-color:var(--accent-cyan);">
+              <div class="card-header">
+                <span class="card-title">🤖 Node A: Invoice Agent</span>
+                <span class="tag tag-cyan">business_query (只读)</span>
+              </div>
+              <p style="font-size:0.83rem;color:var(--text-secondary);">
+                <strong>子目标：</strong>查询 2026-10 销项与进项发票汇总<br/>
+                <strong>依赖节点：</strong>无（入度 = 0，立即领取 Slot #1）<br/>
+                <strong>权限围栏：</strong><code>intent_mode="business_query"</code>，Catalog 强制拦截任何开票/作废/红冲写工具。
+              </p>
+              <pre id="dag-node-1-state" style="font-size:0.74rem;margin-top:10px;">状态: ready → running (Worker Slot #1)
+输出:销项税额 ¥18,420 / 进项税额 ¥6,100</pre>
+            </div>
+
+            <div class="card" id="dag-node-2" style="border-color:var(--accent-emerald);">
+              <div class="card-header">
+                <span class="card-title">🤖 Node B: Risk Agent</span>
+                <span class="tag tag-emerald">business_query (只读)</span>
+              </div>
+              <p style="font-size:0.83rem;color:var(--text-secondary);">
+                <strong>子目标：</strong>扫描当期增值税税负率异常风险<br/>
+                <strong>依赖节点：</strong>无（入度 = 0，并行领取 Slot #2）<br/>
+                <strong>并发控制：</strong>同一企业最多 <code>2 个并发 Worker 槽位</code>，兼顾吞吐与税局防封控。
+              </p>
+              <pre id="dag-node-2-state" style="font-size:0.74rem;margin-top:10px;">状态: ready → running (Worker Slot #2)
+输出: 税负率 2.1%，无重大风险预警</pre>
+            </div>
+
+            <div class="card" id="dag-node-3" style="border-color:var(--accent-amber);">
+              <div class="card-header">
+                <span class="card-title">🤖 Node C: Tax Agent</span>
+                <span class="tag tag-amber">business_prepare (仅草稿)</span>
+              </div>
+              <p style="font-size:0.83rem;color:var(--text-secondary);">
+                <strong>子目标：</strong>根据发票汇总生成增值税申报草稿<br/>
+                <strong>依赖节点：</strong><code>dependsOn: ["Node A"]</code><br/>
+                <strong>产物传递：</strong>Node A 完成后，其发票汇总通过 <code>graphDependencies</code> 注入 Tax Agent 的 <code>/plan</code>。
+              </p>
+              <pre id="dag-node-3-state" style="font-size:0.74rem;margin-top:10px;">状态: blocked_by_dep → waiting_approval
+围栏: 生成算税草稿(draftHash)，禁止自动扣款</pre>
+            </div>
+          </div>
+
+          <div class="anim-console" style="margin-top:16px;">
+            <div>
+              <div style="color:var(--accent-cyan);font-weight:700;margin-bottom:6px;" id="dag-explain-title">▶ 阶段 ①：云端大模型结构化拆解跨 6 域子目标并赋予细粒度权限</div>
+              <div id="dag-explain-body" style="font-size:0.82rem;color:#e2e8f0;line-height:1.6;">
+                传统多 Agent 框架往往把整句用户请求共享同一个权限模式（要么全只读导致没法建申报草稿，要么全放开导致查发票子 Agent 误调写接口）。<br/>
+                Biglink 在 <code>IntentSubGoal</code> 契约中为每个子目标单独定义 <code>intent_mode</code>：Node A 与 Node B 锁死为 <code>business_query</code>，Node C 设为 <code>business_prepare</code>，由 <code>TaskGraph</code> 写入各自持久任务的 <code>task.context["intentMode"]</code>。
+              </div>
+            </div>
+            <div>
+              <pre id="dag-json" style="margin:0;font-size:0.75rem;background:#02040a;">{
+  "overallIntentMode": "business_prepare",
+  "subGoals": [
+    { "id": "g1", "domain": "invoice", "intentMode": "business_query", "dependsOn": [] },
+    { "id": "g2", "domain": "risk",    "intentMode": "business_query", "dependsOn": [] },
+    { "id": "g3", "domain": "tax",     "intentMode": "business_prepare", "dependsOn": ["g1"] }
+  ]
+}</pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 06: 12-State Write-Safety State Machine, CAS & Circuit Breaker + Animation 4 -->
+      <section class="section" id="sec-safety">
+        <div class="section-header">
+          <div>
+            <span class="section-tag">SECTION 06 · WRITE-SAFETY STATE MACHINE, CAS FENCING &amp; GOVERNANCE</span>
+            <h2 class="section-title">12态持久状态机、草稿哈希绑定、半开单探测熔断与根任务预算台账</h2>
+          </div>
+          <span class="tag tag-rose">互动沙盘 #4 · 金融财税级防重放与故障自愈</span>
+        </div>
+        <p class="section-desc">
+          财税 Agent 最怕两件事：<strong>① 未经会计确认就真报税/真开票；② 调税局接口网络超时（结果未知），Agent 傻傻自动重试导致重复开票或重复扣税。</strong>
+          点击下方 4 个核心安全机制演示按钮，查看 Biglink 如何在代码层彻底封死这些风险。
+        </p>
+
+        <!-- Interactive Animation 4: Safety & Governance -->
+        <div class="anim-stage">
+          <div class="anim-toolbar">
+            <div class="anim-title">
+              <span class="pulse-dot"></span>
+              <span>高危写安全与治理机制交互演示器</span>
+            </div>
+            <div class="btn-group">
+              <button class="btn active" onclick="showSafetyDemo('approval')" id="btn-safe-approval">🔒 1. 草稿 SHA-256 哈希绑定审批</button>
+              <button class="btn" onclick="showSafetyDemo('unknown')" id="btn-safe-unknown">⚠️ 2. outcome_unknown 未知结果只对账</button>
+              <button class="btn" onclick="showSafetyDemo('circuit')" id="btn-safe-circuit">⚡ 3. 半开单探测原子租约熔断器</button>
+              <button class="btn" onclick="showSafetyDemo('budget')" id="btn-safe-budget">💰 4. 根任务 Reserve→Settle 共享预算</button>
+              <button class="btn" onclick="showSafetyDemo('cas')" id="btn-safe-cas">🛡️ 5. executionVersion 防僵尸 Worker 回写</button>
+            </div>
+          </div>
+
+          <div class="anim-console" style="grid-template-columns: 1.15fr 1fr;">
+            <div>
+              <h4 id="safe-title" style="color:var(--accent-emerald);font-size:1rem;margin-bottom:8px;">🔒 机制 1：内容绑定确认（Draft Hash + Approval Token + boundTaskId）</h4>
+              <div id="safe-desc" style="font-size:0.84rem;color:#e2e8f0;line-height:1.68;">
+                <p><strong>痛点：</strong>如果用户在聊天框说“确认提交”，怎么保证他确认的是刚才那份 ¥12,300 的增值税草稿，而不是并发修改后的另一份草稿？</p>
+                <p style="margin-top:8px;"><strong>Biglink 源码级实现：</strong></p>
+                <ul style="padding-left:18px;margin-top:4px;">
+                  <li>当任务进入 <code>waiting_approval</code> 时，对草稿的关键业务字段（税种、期间、纳税人识别号、应补退税额、发票明细）做规范化 JSON 排序并计算 <code>draftHash = SHA256(canonical_draft)</code>。</li>
+                  <li>前端审批卡片在打开瞬间锁定 <code>boundTaskId</code>（<code>P-114</code>），即使会计在旁边的聊天框切换了会话，点击“确认申报”时依然精确投递给原任务。</li>
+                  <li><code>tools-service</code> 在真正发起 MCP 写调用前，二次比对 <code>approval.draftHash == current_draft.draftHash</code>，任何一字节篡改直接拒绝执行并打回重审。</li>
+                </ul>
+              </div>
+            </div>
+            <div>
+              <pre id="safe-code" style="margin:0;font-size:0.75rem;background:#02040a;">// tools-service/skill_agent.py 写前校验核心逻辑
+if step.risk_level in ("high", "write"):
+    assert task.status == "approved"
+    expected_hash = compute_canonical_draft_hash(task.draft_payload)
+    if task.approval_record.draft_hash != expected_hash:
+        raise SecurityViolationError(
+            "DRAFT_HASH_MISMATCH: 草稿内容已变更，原审批失效"
+        )
+    # 写前先登记幂等操作单 (intent_recorded)
+    ledger.record_write_intent(
+        operation_id=f"{task.id}:{step.step_index}",
+        draft_hash=expected_hash
+    )</pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 07: 24 Production Agent Mechanisms Matrix -->
+      <section class="section" id="sec-mechanisms">
+        <div class="section-header">
+          <div>
+            <span class="section-tag">SECTION 07 · 24 PRODUCTION AGENT MECHANISMS MATRIX</span>
+            <h2 class="section-title">面试加分王牌：Biglink 已落地的 24 项主流 Agent 核心工程机制</h2>
+          </div>
+          <span class="tag tag-purple">对标大厂 Agent 架构评审清单</span>
+        </div>
+        <p class="section-desc">
+          很多候选人的 Agent 项目只是一个“Prompt 调 API 的玩具 Demo”。Biglink 按照工业级 Agent 标准，在代码库中完整落地了 <strong>6 大维度、24 项核心工程机制</strong>（详见仓库 <code>docs/agent-mechanisms-20261020.md</code>），面试时随便挑出 3~4 项展开都能形成降维打击。
+        </p>
+
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🧠 1. 认知、路由与规划 (4项)</span>
+              <span class="tag tag-cyan">Cognition</span>
+            </div>
+            <ul style="padding-left:18px;font-size:0.83rem;color:var(--text-secondary);">
+              <li><strong>JEV 双轨分流</strong>：本地 <code>jev-latest</code> 毫秒级区分闲聊与业务，连接池复用 + 离线自动回退。</li>
+              <li><strong>结构化意图 + 后置纠偏</strong>：Pydantic 强校验 <code>IntentDecision</code> + <code>post_validate_intent()</code> 关键词兜底防漏判。</li>
+              <li><strong>受控动态重规划 (`/plan`)</strong>：每步根据已观测结果与 <code>graphDependencies</code> 生成后续 1~6 步 JSON 计划。</li>
+              <li><strong>参数缺失前置追问</strong>：未选企业或缺少税期时直接进入 <code>waiting_user</code>，不盲目调用下游 MCP。</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🗂️ 2. 三层上下文与记忆 (4项)</span>
+              <span class="tag tag-emerald">Memory</span>
+            </div>
+            <ul style="padding-left:18px;font-size:0.83rem;color:var(--text-secondary);">
+              <li><strong>L1 短期滑窗</strong>：保留最近 8 条完整对话（4,000 字符上限），保障多轮指代消解。</li>
+              <li><strong>L2 中期情景与台账投影</strong>：折叠旧对话实体 + 拼接最近 5 个持久任务状态摘要，0 额外 LLM 消耗。</li>
+              <li><strong>L3 长期用户偏好</strong>：90 天 TTL 持久化偏好表，支持对话自动提取与前端手动管理。</li>
+              <li><strong>记忆权限隔离烙印</strong>：显式标记 <code>context_only_not_approval</code>，防止模型把历史记忆当成本次写授权。</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🕸️ 3. 多 Agent 协同与并发 (4项)</span>
+              <span class="tag tag-amber">Multi-Agent</span>
+            </div>
+            <ul style="padding-left:18px;font-size:0.83rem;color:var(--text-secondary);">
+              <li><strong>A2A 六域专家分工</strong>：工商、税务、发票、财务、风险、登录 6 个领域独立 <code>SkillAgent</code>。</li>
+              <li><strong>DAG 拓扑依赖调度</strong>：<code>TaskGraph</code> 支持 <code>dependsOn</code> 阻塞、失败级联阻断与重试解封。</li>
+              <li><strong>子目标独立读写模式 (`P-116`)</strong>：同一 DAG 内只读查询节点与草稿准备节点各自拥有独立 <code>intent_mode</code>。</li>
+              <li><strong>2-Slot 租约与自然人串行锁</strong>：单企业最多 2 个并发业务槽位，税局自然人短信登录严格单进程串行。</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🛡️ 4. 写安全与状态机围栏 (4项)</span>
+              <span class="tag tag-rose">Write-Safety</span>
+            </div>
+            <ul style="padding-left:18px;font-size:0.83rem;color:var(--text-secondary);">
+              <li><strong>12态 CAS 持久状态机</strong>：每次状态跃迁校验 <code>status_version</code>，杜绝并发脏写。</li>
+              <li><strong>草稿 SHA-256 绑定审批</strong>：写操作必须匹配审批时的精确草稿哈希与前端 <code>boundTaskId</code>。</li>
+              <li><strong>写前意图登记与未知结果恢复</strong>：超时进入 <code>outcome_unknown</code>，只走查询对账，严禁自动重试写接口。</li>
+              <li><strong>`executionVersion` 围栏</strong>：每次派发 Worker 递增版本号，拦截超时老 Worker 的迟到回写（<code>STALE_WORKER</code>）。</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">⚡ 5. 防死循环、熔断与预算 (4项)</span>
+              <span class="tag tag-purple">Resilience</span>
+            </div>
+            <ul style="padding-left:18px;font-size:0.83rem;color:var(--text-secondary);">
+              <li><strong>规范化工具指纹去重</strong>：对 <code>tool_name + canonical_args</code> 算指纹，拦截连续重复无效调用。</li>
+              <li><strong>无进展检测 (No-Progress)</strong>：连续多步状态与观测无变化时主动中断并转人工确认。</li>
+              <li><strong>半开单探测熔断器 (`circuit.py`)</strong>：按 <code>domain:upstream</code> 统计连续故障，半开态 120s 原子租约放行单次探测。</li>
+              <li><strong>根任务共享预算台账</strong>：父子任务共享 <code>32步 / 80K Tokens / ¥1.50</code> 账本，执行前 Reserve、完成后 Settle。</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🔭 6. 可观测、治理与评测 (4项)</span>
+              <span class="tag tag-cyan">Observability</span>
+            </div>
+            <ul style="padding-left:18px;font-size:0.83rem;color:var(--text-secondary);">
+              <li><strong>全链路 Span 与递归脱敏</strong>：按 <code>requestId / spanId / parentSpanId / taskId</code> 串联，32KiB 有界脱敏快照。</li>
+              <li><strong>Pause / Hold / Resume 治理</strong>：支持用户主动暂停与预算/熔断触发的 <code>hold</code>，区分 <code>pausedBy</code> 来源。</li>
+              <li><strong>单命令时间线重放 (`run_timeline.py`)</strong>：支持 <code>--redact</code> 脱敏导出完整任务与工具轨迹 JSON。</li>
+              <li><strong>三层评测体系 (`agent_eval.py`)</strong>：L1 意图契约 + L2 真实工具闭合回放 + 故障注入与破坏性自检（<code>--self-check</code>）。</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 08: Local Fine-Tuned Gemma Model & GPU Hardware Selection -->
+      <section class="section" id="sec-gemma">
+        <div class="section-header">
+          <div>
+            <span class="section-tag">SECTION 08 · LOCAL FINE-TUNED GEMMA &amp; GPU HARDWARE SIZING</span>
+            <h2 class="section-title">本地微调模型选型（Gemma-2-9B-IT LoRA）与 GPU 算力卡选型测算</h2>
+          </div>
+          <span class="tag tag-emerald">面试必问 · 为什么选 Gemma？用什么显卡？显存怎么算？</span>
+        </div>
+        <p class="section-desc">
+          你的核心亮点之一是：<strong>“前置意图识别到闲聊/政策咨询时，走本地微调的 Gemma 模型；识别到跑具体企业业务时，走云端高推理 API 模型。”</strong>
+          面试官一定会追问：<strong>为什么基座选 Gemma？怎么微调的？生产环境用的什么显卡？单卡能扛多少并发？</strong> 下面是可直接背诵的完整工程方案。
+        </p>
+
+        <div class="grid-2" style="margin-bottom:20px;">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🧬 1. 为什么本地微调基座选 Gemma-2-9B-IT（含 Gemma-3-12B 演进）？</span>
+              <span class="tag tag-cyan">Model Selection</span>
+            </div>
+            <ul style="padding-left:18px;font-size:0.86rem;color:var(--text-secondary);line-height:1.7;">
+              <li><strong>参数量处于“单卡甜点区（Sweet Spot）”</strong>：70B 模型需要多卡张量并行（TP>=2），硬件成本高出 4 倍；而 2B/3B 小模型在解释复杂增值税/企业所得税口径时容易出现逻辑跳步。<strong>9B 参数量</strong>在 FP16/BF16 下仅占约 <strong>18GB 显存</strong>（AWQ INT4 量化后仅 <strong>6.2GB</strong>），单张 24GB/48GB 显卡即可轻松塞下并留出充裕的 KV Cache。</li>
+              <li><strong>架构优势（滑动窗口注意力 + Logit Soft-Capping）</strong>：Gemma-2 采用局部滑动窗口注意力（Sliding Window Attention）与全局注意力交替结构，配合知识蒸馏预训练，在同等 9B 量级中指令遵循度（Instruction Following）与拒答边界稳定性显著优于早期 7B 模型。</li>
+              <li><strong>垂域 LoRA 微调配方（1.8 万条高质量样本）</strong>：
+                <ul style="padding-left:16px;margin-top:4px;">
+                  <li><strong>数据集构成</strong>：10,000 条脱敏财税政策问答（小规模/一般纳税人、专票冲红、汇算清缴口径）+ 4,500 条 Biglink 工作台操作引导 + <strong>3,500 条负样本拒答训练（防越权承诺）</strong>。</li>
+                  <li><strong>关键边界训练</strong>：强制微调模型在遇到“帮我直接把税报了”但误入闲聊通道时，绝不伪造“已为您申报成功”的幻觉回复，而是引导进入受控业务工作台。</li>
+                  <li><strong>训练超参</strong>：基于 <code>LLaMA-Factory</code>，<code>LoRA rank=16, alpha=32</code>，target <code>q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj</code>，单张 48GB 卡 3.5 小时完成 3 Epochs 收敛。</li>
+                </ul>
+              </li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🧮 2. 生产级 vLLM 显存账本与并发吞吐公式（面试手算加分项）</span>
+              <span class="tag tag-amber">VRAM Math</span>
+            </div>
+            <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:8px;">
+              面试官如果问：<strong>“你们本地推理怎么部署的？显存怎么分配？”</strong> 请直接报出这套 <code>vLLM + PagedAttention</code> 显存算账公式：
+            </p>
+            <pre style="font-size:0.78rem;line-height:1.55;"># 方案一：单卡 NVIDIA L20 (48GB GDDR6) 跑 BF16 原生精度（主力生产推荐）
+1. 模型权重显存 (Gemma-2-9B BF16): 9.24B × 2 Bytes ≈ 18.5 GB
+2. JEV 意图分类器 + CUDA Context 开销: ≈ 3.2 GB
+3. 剩余可用于 vLLM PagedAttention KV Cache:
+   48 GB × 0.90 (gpu_memory_utilization) - 21.7 GB ≈ 21.5 GB
+4. 单并发请求 (2048 context tokens) KV Cache 占用 ≈ 0.34 GB
+5. 单卡最大并发流数 (Concurrent Streams): ~60 路并发流
+   • 实测首字延迟 (TTFT): 110ms ~ 165ms
+   • 持续解码吞吐 (Throughput): ~1,350 tokens/s
+
+# 方案二：单卡 RTX 4090 D / A10 (24GB) 跑 AWQ INT4 量化（高性价比备选）
+1. 模型权重显存 (Gemma-2-9B AWQ 4-bit): ≈ 6.3 GB
+2. JEV + CUDA Context 开销: ≈ 2.8 GB
+3. 剩余 KV Cache 空间 (24 GB × 0.90 - 9.1 GB): ≈ 12.5 GB
+4. 单卡稳定支持并发: 32 ~ 36 路并发流 (TTFT &lt; 150ms)</pre>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>GPU 显卡型号</th>
+                <th>显存 / 带宽</th>
+                <th>FP16/BF16 算力</th>
+                <th>部署精度方案</th>
+                <th>单卡并发能力 (vLLM)</th>
+                <th>云租赁/采购月均成本</th>
+                <th>50人公司选型结论与理由</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>NVIDIA L20 (48GB)</strong><br/><span class="tag tag-emerald">生产主力首选</span></td>
+                <td>48 GB GDDR6<br/>864 GB/s</td>
+                <td>~119 TFLOPS</td>
+                <td><code>BF16</code> 满血精度 + 同卡混部 <code>JEV</code></td>
+                <td><strong>50 ~ 64 路并发</strong><br/>TTFT ~140ms</td>
+                <td>约 ¥4,200 / 月 (云主机)<br/>或自购整机折旧 ¥2,600/月</td>
+                <td><strong>★ 最佳生产选型</strong>：48GB 大显存无需有损量化即可跑满血 9B 模型 + JEV 路由，合规数据中心标准卡，稳定性极高。</td>
+              </tr>
+              <tr>
+                <td><strong>NVIDIA RTX 4090 D (24GB)</strong><br/><span class="tag tag-cyan">高性价比推理/微调</span></td>
+                <td>24 GB GDDR6X<br/>1,008 GB/s</td>
+                <td>~146 TFLOPS</td>
+                <td><code>AWQ INT4</code> 或 <code>FP8</code></td>
+                <td><strong>32 ~ 36 路并发</strong><br/>TTFT ~115ms</td>
+                <td>约 ¥2,200 / 月</td>
+                <td><strong>★ 极高性价比</strong>：显存带宽极高，生成速度最快；24GB 需配合 AWQ INT4 量化留足 KV Cache，适合冷备节点或离线微调。</td>
+              </tr>
+              <tr>
+                <td><strong>NVIDIA A10 (24GB)</strong></td>
+                <td>24 GB GDDR6<br/>600 GB/s</td>
+                <td>~125 TFLOPS</td>
+                <td><code>AWQ INT4</code></td>
+                <td><strong>28 ~ 32 路并发</strong><br/>TTFT ~165ms</td>
+                <td>约 ¥2,800 / 月 (阿里云 G7ef)</td>
+                <td>公有云最容易租到的主流推理卡，适合云上弹性扩容。</td>
+              </tr>
+              <tr>
+                <td><strong>NVIDIA A100 / H800 (80GB)</strong><br/><span class="tag tag-rose">过度设计·不选</span></td>
+                <td>80 GB HBM2e/3</td>
+                <td>312+ TFLOPS</td>
+                <td>BF16</td>
+                <td>120+ 路并发</td>
+                <td>¥15,000 ~ ¥28,000 / 月</td>
+                <td><strong>❌ 淘汰理由</strong>：对于 9B 本地分流模型而言属于严重算力过剩，单卡租金顶得上全公司云端 API 费用，违背降本初衷。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section 09: Service Burden Analysis & Cluster Deployment Architecture -->
+      <section class="section" id="sec-cluster">
+        <div class="section-header">
+          <div>
+            <span class="section-tag">SECTION 09 · SERVICE BURDEN &amp; CLUSTER DEPLOYMENT TOPOLOGY</span>
+            <h2 class="section-title">这套技术栈会有服务负担吗？生产集群怎么部署？（用了多少节点）</h2>
+          </div>
+          <span class="tag tag-cyan">轻量高内聚 · 拒绝过度工程化</span>
+        </div>
+        <p class="section-desc">
+          面试官常问：<strong>“你们拆了 runtime、main、tools 三个服务，又有三层记忆、又有状态机和子进程 Worker，服务负担会不会很重？用了多少个集群节点？”</strong>
+          回答的核心原则是：<strong>控制面极轻（纯异步 I/O + 零 LLM 记忆压缩），算力与重 I/O 隔离，50 人公司的千万级利润产品只需要「1 个生产可用区集群（共 5 台核心实例）」即可稳稳扛住峰值！</strong>
+        </p>
+
+        <div class="grid-2" style="margin-bottom:20px;">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🪶 1. 为什么这套架构的服务负担（Overhead）极低？</span>
+              <span class="tag tag-emerald">Low Overhead</span>
+            </div>
+            <ul style="padding-left:18px;font-size:0.85rem;color:var(--text-secondary);line-height:1.68;">
+              <li><strong>三服务内部通信零序列化膨胀</strong>：<code>runtime ↔ main ↔ tools</code> 走同机/同内网 VPC 高速回环，且复用持久 <code>httpx.AsyncClient</code> 连接池（<code>P-123</code>），单次跨服务 RPC 开销仅 <strong>0.8ms ~ 1.5ms</strong>，相比大模型动辄 500ms+ 的推理耗时占比不到 <strong>0.3%</strong>。</li>
+              <li><strong>三层记忆组装是纯 CPU 确定性算法</strong>：<code>memory.py</code> 采用滑窗截断 + 正则实体提取 + SQLite/MySQL 主键查询，单次组装耗时 <strong>&lt; 3.5ms</strong>，不额外发起任何 LLM 摘要请求。</li>
+              <li><strong>异步事件循环与线程池 Offload 解耦</strong>：FastAPI 主协程只负责高并发 SSE 流转发与轻量路由；同步 DB 操作通过 <code>offload()</code> 放入受控线程池，防止慢 SQL 阻塞事件循环（<code>P-080</code>）。</li>
+              <li><strong>按需拉起业务子进程 + 2-Slot 背压限流</strong>：只有真正进入企享云 MCP 执行阶段才领取 Worker 槽位（每企业上限 2 个），天然形成<strong>上游反压（Backpressure）</strong>，绝不会因为瞬间涌入几百个查询任务而打爆内存。</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🖧 2. 生产集群拓扑（1 个核心生产集群 · 5 节点高可用架构）</span>
+              <span class="tag tag-purple">Cluster Sizing</span>
+            </div>
+            <p style="font-size:0.84rem;color:var(--text-secondary);margin-bottom:8px;">
+              切忌在面试中吹嘘“上了几百台 K8s 节点”——对于 50 人互联网公司的新产品，那叫不懂成本控制。最真实、最受架构师认可的配置是 <strong>1 个生产 VPC 集群（2 台应用节点 + 1 台 GPU 推理节点 + 1 主备 MySQL + 1 主备 Redis）</strong>：
+            </p>
+            <pre style="font-size:0.77rem;line-height:1.52;">[公网 HTTPS / WAF / CDN]
+        │
+[Nginx / ALB 负载均衡] (SSL 卸载 + SSE 长连接保活)
+   ├──► App Node 01 (8C 16GB) : runtime(:4311) + main(:4310) + tools(:4313)
+   └──► App Node 02 (8C 16GB) : runtime(:4311) + main(:4310) + tools(:4313) [HA 双活/热备]
+        │
+        ├──► GPU Node 01 (8C 32GB + 1×NVIDIA L20 48GB)
+        │      └── vLLM (Gemma-2-9B-IT-LoRA) + JEV 意图路由服务 (内网专线 &lt;1ms)
+        │
+        ├──► 数据持久层 (Managed RDS MySQL 8.0 一主一备, 4C 16GB SSD)
+        │      └── biglink_main (任务图/状态机/预算/偏好) + biglink_tools (授权/登录会话)
+        │
+        └──► 分布式缓存与租约层 (Redis 7 Sentinel 主从, 4GB)
+               └── 多实例扩展时的跨节点任务槽位租约、熔断计数与滑动配额</pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 10: 50-Person Company ~10M RMB Annual Profit Realistic Scale -->
+      <section class="section" id="sec-scale">
+        <div class="section-header">
+          <div>
+            <span class="section-tag">SECTION 10 · REALISTIC SCALE FOR A 50-PERSON COMPANY (~¥10M ANNUAL PROFIT)</span>
+            <h2 class="section-title">50人互联网公司新项目：年盈利 1,000 万级的真实业务规模与吞吐账本</h2>
+          </div>
+          <span class="tag tag-amber">商业模型严密闭合 · 绝不浮夸穿帮</span>
+        </div>
+        <p class="section-desc">
+          面试官经常通过问<strong>“你们线上多少用户？多少 QPS？怎么赚钱的？”</strong>来检验候选人是否有真实产品体感。
+          作为一家 <strong>50 人规模（约 16 研发、18 销售/渠道、10 财税交付运营、6 职能）</strong>推出的垂直 B2B 财税 Agent 新产品，<strong>千万不要报 C 端动辄几百万 DAU 的假数字</strong>——B2B 财税 SaaS 靠的是<strong>高客单价（ARPU）+ 代账机构批量管理账套</strong>来实现年净利润 1,000 万！
+        </p>
+
+        <div class="grid-4" style="margin-bottom:20px;">
+          <div class="card">
+            <div style="font-size:0.76rem;color:var(--text-secondary);">付费客户与管理企业数</div>
+            <div style="font-size:1.55rem;font-weight:700;color:var(--accent-cyan);font-family:var(--font-mono);margin:6px 0;">2,600 家</div>
+            <div style="font-size:0.78rem;color:var(--text-secondary);">
+              含 <strong>680 家代账机构</strong>（平均每家管 22 个企业账套）+ <strong>1,920 家直客中小微企业</strong>，合计绑定在管纳税主体约 <strong>16,800 户</strong>。
+            </div>
+          </div>
+
+          <div class="card">
+            <div style="font-size:0.76rem;color:var(--text-secondary);">活跃用户 (DAU / MAU) 与点击量</div>
+            <div style="font-size:1.55rem;font-weight:700;color:var(--accent-emerald);font-family:var(--font-mono);margin:6px 0;">3,800 DAU</div>
+            <div style="font-size:0.78rem;color:var(--text-secondary);">
+              MAU 约 <strong>9,600 名</strong>办税会计/财务人员；日常工作台日均点击/交互（PV/Clicks）约 <strong>21 万次/天</strong>，征期（每月1~15日）峰值 <strong>38 万次/天</strong>。
+            </div>
+          </div>
+
+          <div class="card">
+            <div style="font-size:0.76rem;color:var(--text-secondary);">日均对话与业务任务吞吐</div>
+            <div style="font-size:1.55rem;font-weight:700;color:var(--accent-amber);font-family:var(--font-mono);margin:6px 0;">4.2 万轮/天</div>
+            <div style="font-size:0.78rem;color:var(--text-secondary);">
+              日均 AI 对话 <strong>42,000 轮</strong>（其中 2.6 万轮由本地 Gemma 承接）；日均创建受控业务任务 <strong>6,400 单</strong>（征期峰值 <strong>1.5 万单/天</strong>）。
+            </div>
+          </div>
+
+          <div class="card">
+            <div style="font-size:0.76rem;color:var(--text-secondary);">系统并发吞吐 (QPS)</div>
+            <div style="font-size:1.55rem;font-weight:700;color:var(--accent-purple);font-family:var(--font-mono);margin:6px 0;">峰值 48 QPS</div>
+            <div style="font-size:0.78rem;color:var(--text-secondary);">
+              工作时段平均 <strong>4 ~ 8 req/s</strong>；每月 10~15 号上午 9:30~11:30 报税高峰期 API 峰值 <strong>35 ~ 48 req/s</strong>，并发在途 SSE 流约 <strong>85 路</strong>。
+            </div>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>财务与运营维度</th>
+                <th>具体细项构成</th>
+                <th>月度数据 (Monthly)</th>
+                <th>年度折算 (Annual)</th>
+                <th>面试解释话术（为什么新项目第一年就能盈利 1,000 万？）</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>一、主营业务收入<br/>(总营收 ~¥2,480万/年)</strong></td>
+                <td>
+                  1. <strong>SaaS 订阅年费</strong>：代账机构版 ¥19,800/年（680家），企业直客版 ¥3,980/年（1,920家）<br/>
+                  2. <strong>增值按量计费包</strong>：深度税务风险体检报告、批量发票查验与合规算税包
+                </td>
+                <td>¥206.7 万 / 月</td>
+                <td><strong>¥2,480 万 / 年</strong></td>
+                <td>B2B 财税是刚需高频场景，代账机构用 Biglink 后一名会计可多管 40% 的账套，客户续费率超 88%，现金流极好。</td>
+              </tr>
+              <tr>
+                <td><strong>二、AI 算力与基础设施成本<br/>(仅占营收 2.4%)</strong></td>
+                <td>
+                  1. <strong>本地 GPU 节点</strong>：1 台 L20 (48GB) + 1 台 4090D 冷备（扛下 62% 对话流量）<br/>
+                  2. <strong>云端大模型 API</strong>：DeepSeek-V4-Flash / GLM-5.3（仅 38% 业务流量 + 缓存命中）<br/>
+                  3. <strong>应用服务器 + RDS + 企享云 MCP 通道费</strong>
+                </td>
+                <td>
+                  • GPU 节点: ¥0.65 万<br/>
+                  • 云端 API: ¥1.85 万<br/>
+                  • 云主机/MCP: ¥2.40 万<br/>
+                  <strong>合计: ¥4.90 万 / 月</strong>
+                </td>
+                <td><strong>¥58.8 万 / 年</strong></td>
+                <td>
+                  <strong>★ 核心技术贡献</strong>：如果不做 JEV + 本地微调 Gemma 分流 + 三层确定性记忆压缩，云端 API 月账单将高达 ¥6.2 万/月；<strong>混合架构每年直接为公司省下约 ¥52 万纯利润！</strong>
+                </td>
+              </tr>
+              <tr>
+                <td><strong>三、50人团队人力与运营开支</strong></td>
+                <td>
+                  研发 16 人 + 销售/渠道 18 人（含提成）+ 财税运营客服 10 人 + 行政管理与办公场地 6 人
+                </td>
+                <td>¥116.5 万 / 月</td>
+                <td><strong>¥1,398 万 / 年</strong></td>
+                <td>50 人精悍团队，人均产值（ARR/人）约 ¥49.6 万，符合优质垂直 AI SaaS 公司的健康人效比。</td>
+              </tr>
+              <tr>
+                <td><strong>四、年度净利润 (Net Profit)</strong></td>
+                <td>总营收 (¥2,480万) - 算力基础设施 (¥58.8万) - 团队与运营总成本 (¥1,398万)</td>
+                <td><strong>¥85.3 万 / 月</strong></td>
+                <td><strong style="color:var(--accent-emerald);font-size:1.05rem;">≈ ¥1,023 万 / 年</strong><br/>(净利率 41.2%)</td>
+                <td>数据严丝合缝：既有新项目的真实克制感（几千家 B 端客户、几十 QPS），又能清晰算出 1,000 万级年净利。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section 11: Interview Q&A Cheat Sheet -->
+      <section class="section" id="sec-qa">
+        <div class="section-header">
+          <div>
+            <span class="section-tag">SECTION 11 · INTERVIEW DEEP-DIVE Q&amp;A SCRIPTS</span>
+            <h2 class="section-title">面试官 10 大高频深挖追问与满分标准回答话术（可直接背诵）</h2>
+          </div>
+          <span class="tag tag-emerald">点击问题展开/收起 · STAR 法则组织</span>
+        </div>
+
+        <div class="qa-item">
+          <button class="qa-question" onclick="toggleQa(this)">
+            <span>Q1：请用 2 分钟介绍一下你的 Biglink 项目，它的核心业务价值和技术壁垒是什么？</span>
+            <span>▼</span>
+          </button>
+          <div class="qa-answer">
+            <p><strong>【标准回答话术】：</strong></p>
+            <p>
+              “Biglink 是我们面向代账机构和中小微企业打造的一套<strong>生产级六域财税多智能体协作系统</strong>（覆盖工商、税务、发票、财务报表、风险扫描和税局登录授权）。目前线上服务约 2,600 家付费代账机构与企业，管理 1.68 万户纳税主体，日均处理 4.2 万轮对话和 6,400 单自动化办税任务。<br/>
+              这个项目在技术上解决了财税 Agent 落地的<strong>三大核心矛盾</strong>：<br/>
+              <strong>第一是成本与响应速度的矛盾</strong>：我们设计了 <code>JEV 前置意图路由 + 本地 LoRA 微调 Gemma-2-9B + 云端高推理大模型（DeepSeek-V4-Flash）</code> 的混合双轨架构。62% 的日常税法咨询、操作引导和越权拒答直接由单张 L20 显卡上的本地微调 Gemma 模型在 150ms 内消化，只有 38% 真正涉及企业办税的请求才走云端大模型做结构化拆图与规划，帮公司省下了 65% 以上的 API 成本。<br/>
+              <strong>第二是复杂跨领域协同与权限失控的矛盾</strong>：我们基于 <code>AgentScope 2.0</code> 拆分为 <code>runtime / main / tools</code> 三个零信任隔离服务，在 <code>main-service</code> 实现了 A2A 多 Agent 有向无环图（<code>TaskGraph</code>），并且为每个子目标单独绑定细粒度的 <code>intent_mode</code>（例如查发票节点锁死为只读 <code>business_query</code>，报税节点设为草稿态 <code>business_prepare</code>），配合上游依赖产物 <code>graphDependencies</code> 传递，防止子任务越权。<br/>
+              <strong>第三是高危财税写操作的幂等与防重放</strong>：我们实现了 12 态 CAS 持久状态机、草稿 SHA-256 哈希绑定审批、<code>executionVersion</code> 围栏以及 <code>outcome_unknown</code> 未知结果只对账不盲目重试机制，做到全年写操作零事故。”
+            </p>
+          </div>
+        </div>
+
+        <div class="qa-item">
+          <button class="qa-question" onclick="toggleQa(this)">
+            <span>Q2：为什么你们要把本地微调模型（Gemma-2-9B）和云端大模型混用？如果 JEV 路由判错了怎么办？</span>
+            <span>▼</span>
+          </button>
+          <div class="qa-answer">
+            <p><strong>【标准回答话术】：</strong></p>
+            <ul>
+              <li><strong>为什么混用</strong>：财税 SaaS 用户每天有大量诸如此类的提问——<em>“小规模季度免税额度多少？”、“怎么在右上角切换企业？”</em>。如果全部调用云端大模型并带上全套业务 Schema，不仅首字延迟高达 800ms+，而且每年要多烧掉五十多万 Token 费。用 1.8 万条财税垂域样本对 <code>Gemma-2-9B-IT</code> 做 LoRA 微调后，部署在单卡 L20 的 vLLM 上，这类非事务问答 TTFT 只要 140ms，边际成本趋近于 0。</li>
+              <li><strong>怎么防止 JEV 误判（双保险纠偏机制）</strong>：
+                <ol style="padding-left:18px;margin-top:4px;">
+                  <li><strong>第一重防护（启发式后置纠偏 `post_validate_intent`）</strong>：即使前置分类器或模型输出了 <code>chat</code>，只要我们的确定性规则检测器发现用户原话里包含明确的企业动作词（如“申报、开票、红冲、算税、风险扫描、查今年发票”），代码层会强制将意图修正升级为 <code>business_*</code> 并转入受控业务流。</li>
+                  <li><strong>第二重防护（微调负样本护栏）</strong>：本地 Gemma 模型在微调时注入了 3,500 条边界拒答样本，且物理进程上没有任何 MCP 工具调用权限；即便漏网的业务请求落到本地模型，它也只会回复引导卡片，绝不可能伪造“已帮您申报成功”的假结果。</li>
+                </ol>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="qa-item">
+          <button class="qa-question" onclick="toggleQa(this)">
+            <span>Q3：详细讲讲你们的“三层上下文记忆（L1/L2/L3）”是怎么实现的？为什么不用大模型去做历史摘要？</span>
+            <span>▼</span>
+          </button>
+          <div class="qa-answer">
+            <p><strong>【标准回答话术】：</strong></p>
+            <p>
+              “我们在 <code>runtime-service/memory.py</code> 里实现了三层分级上下文架构：<br/>
+              1. <strong>L1 短期工作记忆（Working Memory）</strong>：保留当前会话最近 <strong>8 条</strong>完整消息（硬上限 4,000 字符），保证会计连续追问‘那上个月呢？’时指代消解不断裂。<br/>
+              2. <strong>L2 中期情景与台账摘要（Episodic &amp; Ledger Digest）</strong>：当对话超过 8 条时，滑出窗口的旧消息通过确定性正则提取出讨论过的税期（如 <code>2026-09</code>）、税号和领域标签；同时向 <code>main-service</code> 拉取该企业最近 <strong>5 个持久业务任务的真实状态与摘要</strong>（上限 1,600 字符）。<br/>
+              3. <strong>L3 长期用户偏好（Long-Term Preferences）</strong>：存储在 <code>main-service</code> 的 SQLite/MySQL <code>user_preferences</code> 表中（上限 16 项，TTL 90 天），记录用户偏好的默认税期、常用业务域和汇报风格。<br/>
+              <strong>为什么不用 LLM 异步总结历史？</strong> 第一，财税数字差一分钱都不行，LLM 总结很容易把‘增值税草稿待确认 ¥12,400’幻觉成‘已缴款 ¥12,400’；第二，直接投影 Main 数据库里的持久任务台账本身就是 100% 准确的真值，而且耗时仅 3ms、零额外 Token 开销；第三，我们在记忆载荷里强制注入了 <code>authority='context_only_not_approval'</code>，声明记忆仅作上下文参考，绝不替代实时权限校验与用户审批。”
+            </p>
+          </div>
+        </div>
+
+        <div class="qa-item">
+          <button class="qa-question" onclick="toggleQa(this)">
+            <span>Q4：多 Agent 协同（A2A + TaskGraph）是怎么处理跨领域依赖、并发限流和死循环的？</span>
+            <span>▼</span>
+          </button>
+          <div class="qa-answer">
+            <p><strong>【标准回答话术】：</strong></p>
+            <ul>
+              <li><strong>DAG 拆解与细粒度权限（`P-116`）</strong>：当用户提出‘先查本月发票再准备增值税申报草稿’时，<code>/a2a/route</code> 将其拆解为有向无环图（<code>TaskGraph</code>）。每个子目标不仅有 <code>dependsOn</code> 依赖列表，还拥有独立的 <code>intent_mode</code>——查发票节点是 <code>business_query</code>（只读），报税节点是 <code>business_prepare</code>（草稿态）。</li>
+              <li><strong>依赖产物传递（`graphDependencies`）</strong>：当上游 Invoice Agent 执行完毕后，<code>TaskGraph</code> 自动解锁下游 Tax Agent，并将上游产出的结构化发票汇总放入 <code>graphDependencies</code> 传给 <code>/plan</code>，让下游规划器直接基于真实查询结果生成算税步骤。</li>
+              <li><strong>并发槽位与防死循环</strong>：每个企业最多允许 <strong>2 个并发业务槽位（2-Slot Lease）</strong>，防止触发税局风控；在单 Agent 内部，我们对每步调用的 <code>tool_name + canonical_args</code> 计算 SHA-256 指纹，一旦连续出现重复调用或连续无状态进展（No-Progress），立即触发中断熔断，绝不死循环空转烧 Token。</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="qa-item">
+          <button class="qa-question" onclick="toggleQa(this)">
+            <span>Q5：如果在调用企享云/税局 MCP 发起申报或开票时网络超时了，你们怎么保证不重复开票、不重复扣款？</span>
+            <span>▼</span>
+          </button>
+          <div class="qa-answer">
+            <p><strong>【标准回答话术】：</strong></p>
+            <p>
+              “这是我们在 <code>tools-service</code> 和 <code>main-service</code> 设计中花心思最多的地方，共有 <strong>四道防线</strong>：<br/>
+              1. <strong>写前意图落盘（Write-Ahead Intent Ledger）</strong>：在真正发出 HTTP 写请求之前，必须先以幂等键 <code>operation_id = task_id + step_index + draft_hash</code> 在数据库登记 <code>intent_recorded</code>。<br/>
+              2. <strong>超时锁定为 `outcome_unknown`（严禁自动重发写请求）</strong>：一旦写调用发生网络超时或 502/504，任务状态<strong>绝对不会回退到 `queued` 自动重跑写接口</strong>，而是原子跃迁到 <code>outcome_unknown</code>。<br/>
+              3. <strong>只读对账恢复（Reconciliation Only）</strong>：处于 <code>outcome_unknown</code> 的任务在恢复时，只允许调用只读的订单/申报状态查询接口核实上游到底有没有落账；查明已成功则推进为 <code>succeeded</code>，查明未执行才允许安全恢复。<br/>
+              4. <strong>`executionVersion` 版本围栏（防僵尸进程迟到回写）</strong>：每次派发子进程 Worker 时递增 <code>executionVersion</code>。如果旧 Worker 卡住超时后突然活过来尝试写回结果，<code>main-service</code> 发现它的版本号落后于当前任务版本，会直接以 <code>409 STALE_WORKER</code> 拒绝，彻底杜绝并发状态污染。”
+            </p>
+          </div>
+        </div>
+
+        <div class="qa-item">
+          <button class="qa-question" onclick="toggleQa(this)">
+            <span>Q6：你们的半开熔断器（Circuit Breaker）和根任务预算台账（Budget Ledger）具体是怎么设计的？</span>
+            <span>▼</span>
+          </button>
+          <div class="qa-answer">
+            <p><strong>【标准回答话术】：</strong></p>
+            <ul>
+              <li><strong>半开单探测原子租约熔断器（`circuit.py` / `P-081`）</strong>：按 <code>domain:upstream</code> 粒度统计故障。当上游连续 3 次超时/5xx 时熔断器打开（<code>open</code>，冷却 60 秒），期间新任务直接安全停靠为 <code>paused(hold)</code> 而不去雪崩式冲击税局。冷却期满进入 <code>half_open</code> 后，通过原子锁<strong>只放行唯一 1 个探测请求（附带 120s 探测租约）</strong>；探测成功则闭合恢复，探测失败或崩溃则在 finally 中释放租约并重新打开熔断。</li>
+              <li><strong>根任务 Reserve → Settle 共享预算台账（`WP-03`）</strong>：为了防止多 Agent DAG 拆出多个子任务后各自放大消耗，我们将所有子任务收敛到同一个 <code>rootTaskId</code> 共享预算账本（默认上限：<strong>32 步工具调用 / 80,000 Tokens / ¥1.50 成本</strong>）。每次调用模型或工具前先原子<strong>预留（Reserve）</strong>额度，调用结束后按真实消耗<strong>多退少补结算（Settle）</strong>；一旦触及水位线，任务自动转入 <code>paused(reason="budget_hold")</code> 等待人工授权扩容。</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="qa-item">
+          <button class="qa-question" onclick="toggleQa(this)">
+            <span>Q7：你们是怎么做 Agent 质量评测与上线回归的？（L1 / L2 / L3 评测体系）</span>
+            <span>▼</span>
+          </button>
+          <div class="qa-answer">
+            <p><strong>【标准回答话术】：</strong></p>
+            <p>
+              “为了避免‘改了一行 Prompt 或路由规则，线上老功能全挂’，我们构建了 <code>scripts/agent_eval.py</code> 自动化评测网关：<br/>
+              • <strong>L1 黄金意图与路由评测</strong>：覆盖 6 大业务域、闲聊拒答、跨领域复合 DAG、缺参追问等黄金样本，不仅断言主意图，还深入断言 <code>sub_goals</code> 的依赖拓扑与每个子目标的 <code>intent_mode</code>。<br/>
+              • <strong>L2 端到端契约闭合回放</strong>：在隔离沙箱数据库与受控 MCP 桩下，真实跑完从 <code>Visitor 建单 → /plan → 工具执行 → waiting_approval 草稿哈希校验 → outcome_unknown 故障注入恢复 → 预算 Hold</code> 的完整状态机闭环。<br/>
+              • <strong>破坏性自检（`--self-check` / `P-117`）</strong>：评测脚本内置了故意篡改预期输出的反向自检模式，证明评测断言绝不是恒真假测试；配合 551+ 项 Pytest 单元回归与双端 TypeScript 类型检查，每次发布前全量门禁通过才允许上线。”
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Interactive Scripts for Canvas & 4 Animations -->
+  <script>
+    // 1. Cosmic Background Canvas Animation
+    (function initCosmosCanvas() {
+      const canvas = document.getElementById('cosmos-bg');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let w = (canvas.width = window.innerWidth);
+      let h = (canvas.height = window.innerHeight);
+      const stars = Array.from({ length: 110 }, () => ({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        r: Math.random() * 1.6 + 0.4,
+        alpha: Math.random() * 0.65 + 0.2,
+        speed: Math.random() * 0.18 + 0.04
+      }));
+
+      window.addEventListener('resize', () => {
+        w = canvas.width = window.innerWidth;
+        h = canvas.height = window.innerHeight;
+      });
+
+      function draw() {
+        ctx.clearRect(0, 0, w, h);
+        for (const s of stars) {
+          s.y -= s.speed;
+          if (s.y < 0) s.y = h;
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(186, 230, 253, ${s.alpha})`;
+          ctx.fill();
+        }
+        requestAnimationFrame(draw);
+      }
+      draw();
+    })();
+
+    // 2. Animation 1: End-to-End Hybrid Routing & 3-Service Flow
+    let currentAnim1Mode = 'chat';
+    let currentAnim1Step = -1;
+
+    const anim1Scenarios = {
+      chat: {
+        title: '▶ 当前选中场景 A：日常闲聊/税法咨询（走本地 Gemma-2-9B-LoRA 快速通道）',
+        body: `用户输入：<code>"小规模纳税人季度普票免税额度现在是多少？"</code><br/>
+1. <strong>JEV 判定</strong>：<code>label="chat" (confidence=0.97)</code>，识别为纯政策咨询，不含具体企业办税写指令。<br/>
+2. <strong>短路云端 API</strong>：跳过 Main/Tools 建单与云端大模型，直接路由至内网 GPU 节点上的 <strong>Gemma-2-9B-IT-Tax-LoRA</strong>。<br/>
+3. <strong>收益</strong>：云端商业 API 消耗为 <strong>0 Token</strong>，首字响应 <strong>142ms</strong>，回答附带财税口径说明。`,
+        json: `{
+  "visitorOwner": "visitor-9f8a2c1e...",
+  "jevDecision": { "route": "chat", "latencyMs": 17.4 },
+  "selectedModel": "local/gemma-2-9b-it-tax-lora",
+  "memoryDigest": {
+    "tier1Messages": 6,
+    "tier3Preferences": ["默认期间: 2026-10"],
+    "authority": "context_only_not_approval"
+  },
+  "cloudApiCost": "¥0.0000 (100% Offloaded)"
+}`,
+        activeSteps: [0, 1, 2, 3],
+        skippedSteps: [4, 5],
+        step3Class: 'active-local',
+        step3Title: '4. 本地 Gemma-2-9B (vLLM)',
+        step3Desc: '命中本地微调模型！在单卡 L20 上以 PagedAttention 直接流式生成税法解答。'
+      },
+      single: {
+        title: '▶ 当前选中场景 B：单域业务办理（走云端 DeepSeek-V4-Flash + Tools 受控子进程）',
+        body: `用户输入：<code>"帮我查询当前绑定企业 2026-10 的增值税进销项发票汇总"</code><br/>
+1. <strong>JEV + post_validate</strong>：识别出业务动作，进入云端大模型结构化意图解析（<code>domain="invoice", intent_mode="business_query"</code>）。<br/>
+2. <strong>Main 建单</strong>：创建持久任务并分配 <code>executionVersion=1</code>，在根任务账本预留预算。<br/>
+3. <strong>Tools 执行</strong>：回调 <code>/plan</code> 生成只读工具步骤，通过 Catalog 校验后在独立子进程调用企享云发票 MCP。`,
+        json: `{
+  "intentDecision": {
+    "domain": "invoice",
+    "intentMode": "business_query",
+    "period": "2026-10"
+  },
+  "selectedModel": "cloud/deepseek-ai/DeepSeek-V4-Flash",
+  "taskState": "queued -> planning -> running -> succeeded",
+  "executionVersion": 1,
+  "workerSlot": "slot-1/2 (leased)"
+}`,
+        activeSteps: [0, 1, 2, 3, 4, 5],
+        skippedSteps: [],
+        step3Class: 'active-remote',
+        step3Title: '4. 云端 DeepSeek-V4-Flash',
+        step3Desc: '输出强类型 IntentDecision JSON，并驱动后续 /plan 工具链规划。'
+      },
+      dag: {
+        title: '▶ 当前选中场景 C：跨6域复合任务（云端 API + A2A TaskGraph + 细粒度读写围栏）',
+        body: `用户输入：<code>"先查本月发票汇总和税务风险，再根据发票数据准备增值税申报草稿"</code><br/>
+1. <strong>A2A 拆图</strong>：拆解为 3 个子目标 DAG（Node A 查发票 + Node B 扫风险并行，Node C 算税草稿依赖 Node A）。<br/>
+2. <strong>细粒度权限 (P-116)</strong>：Node A/B 锁定 <code>business_query</code>，Node C 锁定 <code>business_prepare</code>。<br/>
+3. <strong>哈希绑定停靠</strong>：Node C 生成申报草稿后计算 <code>draftHash</code>，安全停靠在 <code>waiting_approval</code> 等待会计确认。`,
+        json: `{
+  "graphId": "grp_20261026_x9",
+  "subGoals": [
+    { "domain": "invoice", "intentMode": "business_query", "status": "succeeded" },
+    { "domain": "risk",    "intentMode": "business_query", "status": "succeeded" },
+    { "domain": "tax",     "intentMode": "business_prepare", "dependsOn": ["invoice"], "status": "waiting_approval" }
+  ],
+  "draftHash": "sha256:8f31c9a0e4..."
+}`,
+        activeSteps: [0, 1, 2, 3, 4, 5],
+        skippedSteps: [],
+        step3Class: 'active-remote',
+        step3Title: '4. 云端 API (/a2a/route + /plan)',
+        step3Desc: '拆解跨6域 DAG 子图，并在下游 /plan 时自动注入上游 graphDependencies。'
+      }
+    };
+
+    function runAnim1(mode) {
+      currentAnim1Mode = mode;
+      currentAnim1Step = -1;
+      ['chat', 'single', 'dag'].forEach(m => {
+        const btn = document.getElementById('btn-anim1-' + m);
+        if (btn) btn.classList.toggle('active', m === mode);
+      });
+      const cfg = anim1Scenarios[mode];
+      document.getElementById('anim1-log-title').innerHTML = cfg.title;
+      document.getElementById('anim1-log-body').innerHTML = cfg.body;
+      document.getElementById('anim1-json').textContent = cfg.json;
+      document.getElementById('pnode-3-title').textContent = cfg.step3Title;
+      document.getElementById('pnode-3-desc').textContent = cfg.step3Desc;
+
+      for (let i = 0; i < 6; i++) {
+        const el = document.getElementById('pnode-' + i);
+        el.className = 'pipe-node';
+        if (cfg.skippedSteps.includes(i)) {
+          el.classList.add('skipped-step');
+        } else if (i === 3) {
+          el.classList.add(cfg.step3Class);
+        } else if (cfg.activeSteps.includes(i)) {
+          el.classList.add('active-step');
+        }
+      }
+    }
+
+    function stepAnim1() {
+      const cfg = anim1Scenarios[currentAnim1Mode];
+      currentAnim1Step = (currentAnim1Step + 1) % 6;
+      for (let i = 0; i < 6; i++) {
+        const el = document.getElementById('pnode-' + i);
+        el.className = 'pipe-node';
+        if (cfg.skippedSteps.includes(i)) {
+          el.classList.add('skipped-step');
+        } else if (i === currentAnim1Step) {
+          el.classList.add(i === 3 ? cfg.step3Class : 'active-step');
+        }
+      }
+    }
+
+    // 3. Animation 2: 3-Tier Context Memory Slider
+    function updateMemoryAnim(turns) {
+      const t = parseInt(turns, 10);
+      document.getElementById('mem-turn-val').textContent = t;
+      const t1Count = Math.min(t, 8);
+      const t2Folded = Math.max(0, t - 8);
+      const t1Pct = Math.round((t1Count / 8) * 100);
+      const t2Pct = Math.min(100, Math.round((t2Folded / 52) * 85) + 15);
+
+      document.getElementById('mem-t1-stat').textContent = `保留最近 ${t1Count} 条 (${t1Count * 420} chars)`;
+      document.getElementById('mem-t1-bar').style.width = `${t1Pct}%`;
+      document.getElementById('mem-t1-code').textContent =
+        `[Turn ${Math.max(1, t - t1Count + 1)}..${t}] 保留完整 User/Assistant 原文\nToken 占用恒定: ~${t1Count * 140} tokens (硬上限 4,000 chars)`;
+
+      document.getElementById('mem-t2-stat').textContent =
+        t2Folded > 0 ? `已折叠 ${t2Folded} 条旧对话 + 5 条任务里程碑` : `未触发折叠 (≤8轮) + 5 条任务里程碑`;
+      document.getElementById('mem-t2-bar').style.width = `${t2Pct}%`;
+      document.getElementById('mem-t2-code').textContent =
+        t2Folded > 0
+          ? `• 已确定性折叠历史: Turn 1..${t - 8} (${t2Folded}条)\n• 提取期间实体: 2026-09, 2026-10 | 节省 Token: ~${t2Folded * 135}\n• 台账真值: #tsk_81a(succeeded), #tsk_82b(waiting_approval)`
+          : `• 当前对话 ≤ 8 轮，无需折叠旧对话\n• 台账真值投影: 最近 5 个持久任务状态摘要 (0 LLM 调用)`;
+    }
+
+    // 4. Animation 3: Multi-Agent DAG Stage Switcher
+    const dagStages = [
+      {
+        title: '▶ 阶段 ①：云端大模型结构化拆解跨 6 域子目标并赋予细粒度权限 (P-116)',
+        body: '用户发出一句复合指令后，/a2a/route 将其拆解为 3 个子目标节点，并为查发票(Node A)、扫风险(Node B)分配只读权限 business_query，为算税草稿(Node C)分配 business_prepare。',
+        s1: '状态: queued (入度=0，等待领取槽位)\n权限: business_query (严禁写操作)',
+        s2: '状态: queued (入度=0，等待领取槽位)\n权限: business_query (严禁写操作)',
+        s3: '状态: blocked_by_dependency (依赖 Node A)\n权限: business_prepare (仅允许生成草稿)',
+        json: `{
+  "overallIntentMode": "business_prepare",
+  "subGoals": [
+    { "id": "g1", "domain": "invoice", "intentMode": "business_query", "dependsOn": [] },
+    { "id": "g2", "domain": "risk",    "intentMode": "business_query", "dependsOn": [] },
+    { "id": "g3", "domain": "tax",     "intentMode": "business_prepare", "dependsOn": ["g1"] }
+  ]
+}`
+      },
+      {
+        title: '▶ 阶段 ②：无依赖只读节点并行领取 2-Slot 租约槽位执行',
+        body: 'TaskGraph 发现 Node A 与 Node B 入度均为 0，立即在同一企业的 2 个并发 Worker 槽位中并行启动子进程调用企享云 MCP；Node C 继续保持阻塞等待。',
+        s1: '状态: running (占用 Worker Slot #1)\n动作: 调用 query_invoice_summary (2026-10)',
+        s2: '状态: running (占用 Worker Slot #2)\n动作: 调用 scan_tax_risk_indicators (2026-10)',
+        s3: '状态: blocked_by_dependency\n等待 Node A 产出结构化发票汇总数据...',
+        json: `{
+  "activeLeases": [
+    { "slot": 1, "taskId": "tsk_inv_01", "executionVersion": 1 },
+    { "slot": 2, "taskId": "tsk_rsk_02", "executionVersion": 1 }
+  ],
+  "blockedTasks": ["tsk_tax_03"]
+}`
+      },
+      {
+        title: '▶ 阶段 ③：上游完成触发依赖解封，graphDependencies 自动注入下游 /plan',
+        body: 'Node A 查出销项税额 ¥18,420、进项税额 ¥6,100 后标记 succeeded。TaskGraph 立即解锁 Node C，并将 Node A 的摘要作为 graphDependencies 传给 Runtime /plan。',
+        s1: '状态: succeeded ✅ (释放 Slot #1)\n产物: 销项 ¥18,420 / 进项 ¥6,100',
+        s2: '状态: succeeded ✅ (释放 Slot #2)\n产物: 增值税税负率 2.1% (正常)',
+        s3: '状态: planning → running (领取 Slot #1)\n已接收上游 graphDependencies 发票真值！',
+        json: `{
+  "planRequest": {
+    "taskId": "tsk_tax_03",
+    "domain": "tax",
+    "intentMode": "business_prepare",
+    "graphDependencies": [
+      { "domain": "invoice", "status": "succeeded", "summary": "销项税额18420元，进项6100元" }
+    ]
+  }
+}`
+      },
+      {
+        title: '▶ 阶段 ④：草稿 SHA-256 哈希绑定并停靠 waiting_approval（防越权闭环）',
+        body: 'Tax Agent 根据真实发票数据生成增值税申报草稿（应纳税额 ¥12,320），计算规范化 SHA-256 draftHash，状态机自动停靠在 waiting_approval，推送到前端 A2UI 确认抽屉。',
+        s1: '状态: succeeded ✅\n耗时: 1.4s',
+        s2: '状态: succeeded ✅\n耗时: 1.8s',
+        s3: '状态: waiting_approval ⏸️\ndraftHash: sha256:9c4e1b... (等待会计确认)',
+        json: `{
+  "taskId": "tsk_tax_03",
+  "status": "waiting_approval",
+  "approvalRequirement": {
+    "boundTaskId": "tsk_tax_03",
+    "draftHash": "sha256:9c4e1b72a08d...",
+    "payableVat": "12320.00"
+  }
+}`
+      }
+    ];
+
+    function setDagStage(idx) {
+      for (let i = 0; i < 4; i++) {
+        const b = document.getElementById('btn-dag-' + i);
+        if (b) b.classList.toggle('active', i === idx);
+      }
+      const st = dagStages[idx];
+      document.getElementById('dag-explain-title').textContent = st.title;
+      document.getElementById('dag-explain-body').textContent = st.body;
+      document.getElementById('dag-node-1-state').textContent = st.s1;
+      document.getElementById('dag-node-2-state').textContent = st.s2;
+      document.getElementById('dag-node-3-state').textContent = st.s3;
+      document.getElementById('dag-json').textContent = st.json;
+    }
+
+    // 5. Animation 4: Safety & Governance Switcher
+    const safetyDemos = {
+      approval: {
+        title: '🔒 机制 1：内容绑定确认（Draft Hash + Approval Token + boundTaskId）',
+        desc: `<p><strong>痛点：</strong>如果用户在聊天框说“确认提交”，怎么保证他确认的是刚才那份 ¥12,320 的增值税草稿，而不是并发修改后的另一份草稿？</p>
+        <ul style="padding-left:18px;margin-top:6px;">
+          <li>当任务进入 <code>waiting_approval</code> 时，对草稿的核心字段（税种、期间、税号、应补退税额）做规范化 JSON 排序并计算 <code>draftHash = SHA256(canonical_draft)</code>。</li>
+          <li>前端审批弹窗在打开时锁定 <code>boundTaskId</code>（<code>P-114</code>），防止切换后台会话导致错批其他任务。</li>
+          <li><code>tools-service</code> 执行写工具前强制复核 <code>approval.draftHash == current_draft.draftHash</code>，不一致立即拦截。</li>
+        </ul>`,
+        code: `// tools-service/skill_agent.py 写前校验核心逻辑
+if step.risk_level in ("high", "write"):
+    assert task.status == "approved"
+    expected_hash = compute_canonical_draft_hash(task.draft_payload)
+    if task.approval_record.draft_hash != expected_hash:
+        raise SecurityViolationError("DRAFT_HASH_MISMATCH")
+    ledger.record_write_intent(
+        operation_id=f"{task.id}:{step.step_index}",
+        draft_hash=expected_hash
+    )`
+      },
+      unknown: {
+        title: '⚠️ 机制 2：写调用结果未知（outcome_unknown）只允许查询对账恢复',
+        desc: `<p><strong>痛点：</strong>调税局申报或开票接口时遇到网络超时（ReadTimeout），此时税局可能已经落账，自动重试会导致重复开票或重复扣款！</p>
+        <ul style="padding-left:18px;margin-top:6px;">
+          <li>写调用发出前先落盘 <code>intent_recorded</code> 操作单；一旦捕获网络超时或未明 5xx，任务立即原子跃迁至 <code>outcome_unknown</code>。</li>
+          <li>处于 <code>outcome_unknown</code> 的任务禁止再次调用写工具，恢复流程只允许调用上游只读查询接口（Reconciliation）核对真实状态。</li>
+        </ul>`,
+        code: `try:
+    res = await mcp_client.call_write_tool(tool_name, args, idempotency_key=op_id)
+except (httpx.TimeoutException, UpstreamAmbiguousError) as exc:
+    # 严禁回退到 queued 自动重发写请求！
+    await main_client.transition_task(
+        task_id=task.id,
+        target_status="outcome_unknown",
+        expected_version=task.status_version,
+        reason="WRITE_OUTCOME_AMBIGUOUS_RECONCILE_ONLY"
+    )`
+      },
+      circuit: {
+        title: '⚡ 机制 3：半开单探测原子租约熔断器（Half-Open Single-Probe Lease）',
+        desc: `<p><strong>痛点：</strong>当企享云某业务域上游抖动时，如果几百个并发请求继续涌入，不仅浪费预算还会把上游彻底打挂；如果冷却期满所有请求一拥而上（惊群效应），又会瞬间再次熔断。</p>
+        <ul style="padding-left:18px;margin-top:6px;">
+          <li><code>circuit.py</code> 按 <code>domain:upstream</code> 计数，连续 3 次故障即进入 <code>open</code>，新任务直接安全置为 <code>paused(hold)</code>。</li>
+          <li>冷却期满进入 <code>half_open</code> 后，通过原子锁 + <code>120s 探测租约</code> 仅允许唯一 1 个请求穿过熔断器探测，其余请求继续等待探测结论（<code>P-081</code>）。</li>
+        </ul>`,
+        code: `# tools-service/circuit.py 半开态单探测原子领取
+def allow_request(self, key: str) -> tuple[bool, bool]:
+    with self._lock:
+        state = self._get_state(key)
+        if state.status == "half_open":
+            if state.probe_in_flight and now < state.probe_lease_until:
+                return False, False  # 已有探测在途，拒绝并发惊群
+            state.probe_in_flight = True
+            state.probe_lease_until = now + 120.0
+            return True, True        # 授予唯一探测权`
+      },
+      budget: {
+        title: '💰 机制 4：根任务共享预算台账（Reserve → Settle 预留结算模型）',
+        desc: `<p><strong>痛点：</strong>如果只在调用结束后累加 Token，并发的 3 个子 Agent 可能在检查时都觉得“还有余额”，结果跑完后总消耗严重超标。</p>
+        <ul style="padding-left:18px;margin-top:6px;">
+          <li>所有父子任务挂在同一 <code>rootTaskId</code> 账本下（上限 32 步 / 80,000 Tokens / ¥1.50）。</li>
+          <li>每次规划或工具执行前先调用 <code>reserve_budget()</code> 冻结预估额度；执行完成后调用 <code>settle_budget()</code> 按实耗多退少补；超限则安全转入 <code>paused(budget_hold)</code>。</li>
+        </ul>`,
+        code: `# main-service 根任务原子预留与实耗结算
+reservation = ledger.reserve(
+    root_task_id=task.root_task_id,
+    steps=1,
+    estimated_tokens=2400,
+    estimated_cost_usd=0.015
+)
+if not reservation.allowed:
+    task.pause(paused_by="graph", reason="budget_hold")
+# ... 执行完成后 ...
+ledger.settle(reservation.id, actual_tokens=1680, actual_cost_usd=0.009)`
+      },
+      cas: {
+        title: '🛡️ 机制 5：executionVersion 执行围栏（彻底消灭超时老 Worker 迟到回写）',
+        desc: `<p><strong>痛点：</strong>Worker #1 因网络卡顿失联，系统判定超时并重新派发了 Worker #2（或用户暂停了任务）。此时 Worker #1 突然恢复并把旧结果写回数据库，就会覆盖最新状态！</p>
+        <ul style="padding-left:18px;margin-top:6px;">
+          <li>每次派发执行时递增 <code>task.executionVersion</code>，Worker 心跳与结果回写必须携带自己领取时的 <code>executionVersion</code>。</li>
+          <li><code>main-service</code> 在入口处比对版本，一旦不匹配立即返回 <code>409 STALE_WORKER</code> 丢弃迟到写入。</li>
+        </ul>`,
+        code: `# main-service 版本围栏校验
+if payload.execution_version != current_task.execution_version:
+    raise HTTPException(
+        status_code=409,
+        detail={
+            "code": "STALE_WORKER",
+            "message": f"Expected exec_v={current_task.execution_version}, got {payload.execution_version}"
+        }
+    )`
+      }
+    };
+
+    function showSafetyDemo(key) {
+      ['approval', 'unknown', 'circuit', 'budget', 'cas'].forEach(k => {
+        const b = document.getElementById('btn-safe-' + k);
+        if (b) b.classList.toggle('active', k === key);
+      });
+      const d = safetyDemos[key];
+      document.getElementById('safe-title').innerHTML = d.title;
+      document.getElementById('safe-desc').innerHTML = d.desc;
+      document.getElementById('safe-code').textContent = d.code;
+    }
+
+    // 6. Q&A Accordion Toggle
+    function toggleQa(btn) {
+      const ans = btn.nextElementSibling;
+      const isHidden = ans.style.display === 'none';
+      ans.style.display = isHidden ? 'block' : 'none';
+    }
+
+    // Initialize default animation state
+    runAnim1('chat');
+  </script>
+</body>
+</html>

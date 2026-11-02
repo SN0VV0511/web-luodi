@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
@@ -49,15 +49,15 @@ type CameraFlight = {
   place?: PlaceId;
 };
 
-const FRAME_INTERVAL = 1000 / 30;
-const SHADOW_INTERVAL = 1000 / 10;
+const FRAME_INTERVAL = 1000 / 60;
+const SHADOW_INTERVAL = 1000 / 4;
 const MAX_RENDER_PIXELS = 2_000_000;
 const MIN_ZOOM = 0.6;
 const MAX_ZOOM = 2.8;
 const CAMERA_VIEWS: Record<CityView, { position: [number, number, number]; target: [number, number, number] }> = {
-  aerial: { position: [310, 450, 665], target: [45, 5, 120] },
-  district: { position: [190, 145, 210], target: [5, 5, -15] },
-  street: { position: [-75, 5, 80], target: [-75, 2.6, 5] },
+  aerial: { position: [152, 118, 232], target: [-8, 12, 36] },
+  district: { position: [94, 68, 152], target: [-12, 15, 45] },
+  street: { position: [-62, 5.8, 108], target: [-18, 8.2, 86] },
 };
 const defaultLabels = new Set<PlaceId>(["quant", "affine", "agents", "openclaw", "news", "guestbook"]);
 const buildingById = new Map(cityBuildings.map((place) => [place.id, place]));
@@ -117,26 +117,27 @@ export default function CityScene(props: CitySceneProps) {
     controls.cursor.set(0, 0, 0);
     controls.maxTargetRadius = 530;
 
-    const hemisphere = new THREE.HemisphereLight("#cad8ee", "#4c5549", 1.0);
-    const sun = new THREE.DirectionalLight("#ffd0a0", 2.9);
+    const hemisphere = new THREE.HemisphereLight("#d8ecff", "#5c7056", 1.25);
+    const sun = new THREE.DirectionalLight("#fff1d2", 3.25);
     sun.position.set(-300, 235, 160);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    Object.assign(sun.shadow.camera, { left: -260, right: 260, top: 240, bottom: -240, near: 20, far: 900 });
+    sun.shadow.mapSize.set(1536, 1536);
+    Object.assign(sun.shadow.camera, { left: -240, right: 240, top: 220, bottom: -220, near: 20, far: 820 });
     sun.shadow.normalBias = 0.35;
     sun.shadow.bias = -0.00008;
     sun.shadow.radius = 2;
-    const fill = new THREE.DirectionalLight("#a4c2e6", 0.28);
+    const fill = new THREE.DirectionalLight("#9cc6f0", 0.38);
     fill.position.set(160, 100, -180);
     scene.add(hemisphere, sun, fill, sun.target);
 
     const skyUniforms = {
-      zenith: { value: new THREE.Color("#6c91b4") },
-      horizon: { value: new THREE.Color("#dec3a4") },
-      ground: { value: new THREE.Color("#b1b6bb") },
-      sunColor: { value: new THREE.Color("#fff0cd") },
+      zenith: { value: new THREE.Color("#2663a6") },
+      horizon: { value: new THREE.Color("#ecd8be") },
+      ground: { value: new THREE.Color("#a8b8c4") },
+      sunColor: { value: new THREE.Color("#fff5da") },
       sunDirection: { value: new THREE.Vector3(-0.84, 0.18, -0.42).normalize() },
       night: { value: 0 },
+      uTime: { value: 0 },
     };
     const skyMaterial = new THREE.ShaderMaterial({
       uniforms: skyUniforms,
@@ -144,15 +145,44 @@ export default function CityScene(props: CitySceneProps) {
         void main() { vDirection = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
       fragmentShader: `varying vec3 vDirection;
         uniform vec3 zenith, horizon, ground, sunColor, sunDirection;
-        uniform float night;
+        uniform float night, uTime;
+        float hash2(vec2 p) {
+          return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+        }
+        float noise2(vec2 p) {
+          vec2 i = floor(p);
+          vec2 f = fract(p);
+          vec2 u = f * f * (3.0 - 2.0 * f);
+          return mix(
+            mix(hash2(i + vec2(0.0, 0.0)), hash2(i + vec2(1.0, 0.0)), u.x),
+            mix(hash2(i + vec2(0.0, 1.0)), hash2(i + vec2(1.0, 1.0)), u.x),
+            u.y
+          );
+        }
         void main() {
           vec3 direction = normalize(vDirection);
           float altitude = direction.y;
-          vec3 color = mix(ground, horizon, smoothstep(-0.13, 0.03, altitude));
-          color = mix(color, zenith, pow(smoothstep(0.02, 0.8, altitude), 0.72));
+          vec3 color = mix(ground, horizon, smoothstep(-0.12, 0.04, altitude));
+          color = mix(color, zenith, pow(smoothstep(0.02, 0.82, altitude), 0.68));
+          float horizonBand = exp(-abs(altitude - 0.018) * 16.0);
+          color += vec3(0.98, 0.72, 0.45) * horizonBand * 0.14 * (1.0 - night);
           float sunDistance = max(dot(direction, sunDirection), 0.0);
-          color += sunColor * pow(sunDistance, 24.0) * 0.08 * (1.0 - night);
-          color = mix(color, sunColor, smoothstep(0.99981, 0.99991, sunDistance) * (1.0 - night) * 0.65);
+          color += sunColor * pow(sunDistance, 20.0) * 0.12 * (1.0 - night);
+          color = mix(color, sunColor, smoothstep(0.99978, 0.99992, sunDistance) * (1.0 - night) * 0.78);
+          if (altitude > 0.03) {
+            vec2 cloudUv = direction.xz / (altitude + 0.16) * 1.45 + vec2(uTime * 0.0045, uTime * 0.002);
+            float n = noise2(cloudUv) * 0.58 + noise2(cloudUv * 2.3 + 4.1) * 0.28 + noise2(cloudUv * 4.8 - 2.7) * 0.14;
+            float cloudMask = smoothstep(0.56, 0.78, n) * smoothstep(0.03, 0.22, altitude) * (1.0 - smoothstep(0.65, 0.95, altitude));
+            vec3 cloudCol = mix(vec3(0.98, 0.96, 0.93), vec3(0.16, 0.24, 0.36), night);
+            color = mix(color, cloudCol, cloudMask * (0.46 - night * 0.28));
+          }
+          if (night > 0.01 && altitude > 0.04) {
+            vec3 starCell = floor(direction * 280.0);
+            float starHash = fract(sin(dot(starCell, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+            float twinkle = 0.7 + 0.3 * sin(uTime * 2.2 + starHash * 40.0);
+            float starMask = smoothstep(0.9962, 0.9994, starHash) * smoothstep(0.04, 0.28, altitude);
+            color += vec3(0.88, 0.94, 1.0) * starMask * 0.72 * twinkle * night;
+          }
           gl_FragColor = vec4(color, 1.0);
           #include <colorspace_fragment>
         }`,
@@ -169,7 +199,7 @@ export default function CityScene(props: CitySceneProps) {
     const pmrem = new THREE.PMREMGenerator(renderer);
     const environment = pmrem.fromScene(environmentScene, 0.035, 0.1, 100, { size: 64 });
     scene.environment = environment.texture;
-    scene.environmentIntensity = 0.3;
+    scene.environmentIntensity = 0.56;
     environmentScene.dispose();
     pmrem.dispose();
 
@@ -190,10 +220,26 @@ export default function CityScene(props: CitySceneProps) {
       return;
     }
 
-    const selectionBox = new THREE.BoxGeometry(1, 1, 1);
-    const selectionGeometry = new THREE.EdgesGeometry(selectionBox);
-    selectionBox.dispose();
-    const selectionMaterial = new THREE.LineBasicMaterial({ color: "#ffd391", transparent: true, opacity: 0.9, depthWrite: false });
+    const selectionVertices: number[] = [];
+    const pushEdge = (x1: number, y1: number, z1: number, x2: number, y2: number, z2: number) => {
+      selectionVertices.push(x1, y1, z1, x2, y2, z2);
+    };
+    // 建筑测绘级双层底座与顶冠折角选中框，取代粗糙的单体包围盒线框
+    for (const y of [-0.5, -0.46, 0.46, 0.5]) {
+      const r = y === -0.46 ? 0.54 : 0.5;
+      pushEdge(-r, y, -r, r, y, -r);
+      pushEdge(r, y, -r, r, y, r);
+      pushEdge(r, y, r, -r, y, r);
+      pushEdge(-r, y, r, -r, y, -r);
+    }
+    for (const sx of [-0.5, 0.5]) {
+      for (const sz of [-0.5, 0.5]) {
+        pushEdge(sx, -0.5, sz, sx, 0.5, sz);
+      }
+    }
+    const selectionGeometry = new THREE.BufferGeometry();
+    selectionGeometry.setAttribute("position", new THREE.Float32BufferAttribute(selectionVertices, 3));
+    const selectionMaterial = new THREE.LineBasicMaterial({ color: "#ffe0a3", transparent: true, opacity: 0.92, depthWrite: false });
     const selection = new THREE.LineSegments(selectionGeometry, selectionMaterial);
     selection.visible = false;
     scene.add(selection);
@@ -340,19 +386,19 @@ export default function CityScene(props: CitySceneProps) {
 
     function applyLighting() {
       const night = current.current.night;
-      hemisphere.color.set(night ? "#7292c4" : "#c4d9ed");
-      hemisphere.groundColor.set(night ? "#202c38" : "#718568");
-      hemisphere.intensity = night ? 0.75 : 1.3;
-      sun.color.set(night ? "#a3bce2" : "#ffd0a0");
-      sun.intensity = night ? 0.55 : 2.9;
-      fill.intensity = night ? 0.18 : 0.28;
-      renderer.toneMappingExposure = night ? 0.87 : 1;
-      scene.environmentIntensity = night ? 0.24 : 0.35;
-      fog.color.set(night ? "#14253d" : "#d3c6ae");
-      fog.density = night ? 0.0012 : 0.00058;
-      skyUniforms.zenith.value.set(night ? "#071327" : "#6c91b4");
-      skyUniforms.horizon.value.set(night ? "#253d59" : "#dec3a4");
-      skyUniforms.ground.value.set(night ? "#17283d" : "#b1b6bb");
+      hemisphere.color.set(night ? "#6889be" : "#d8ecff");
+      hemisphere.groundColor.set(night ? "#1b2838" : "#647a5e");
+      hemisphere.intensity = night ? 0.85 : 1.42;
+      sun.color.set(night ? "#9cb8e4" : "#fff1d4");
+      sun.intensity = night ? 0.68 : 3.25;
+      fill.intensity = night ? 0.24 : 0.42;
+      renderer.toneMappingExposure = night ? 0.94 : 1.06;
+      scene.environmentIntensity = night ? 0.34 : 0.62;
+      fog.color.set(night ? "#0e1d34" : "#dde6ef");
+      fog.density = night ? 0.00095 : 0.00034;
+      skyUniforms.zenith.value.set(night ? "#050f22" : "#2460a4");
+      skyUniforms.horizon.value.set(night ? "#1d3554" : "#eddac2");
+      skyUniforms.ground.value.set(night ? "#112238" : "#9fb2c0");
       skyUniforms.night.value = night ? 1 : 0;
       world.setNight(night);
       renderer.shadowMap.needsUpdate = true;
@@ -445,6 +491,7 @@ export default function CityScene(props: CitySceneProps) {
       const controlsChanged = controls.update(elapsed);
       sky.position.copy(camera.position);
       if (worldTime !== lastAnimatedTime) {
+        skyUniforms.uTime.value = worldTime;
         world.animate(worldTime, current.current.night);
         lastAnimatedTime = worldTime;
       }
@@ -634,7 +681,12 @@ export default function CityScene(props: CitySceneProps) {
       focus: (point) => {
         const target = new THREE.Vector3(THREE.MathUtils.clamp(point.x, -240, 380), point.height ?? 12, THREE.MathUtils.clamp(point.z, -225, 350));
         const offset = camera.position.clone().sub(controls.target);
-        if (point.distance) offset.set(0.6, 0.65, 1).normalize().multiplyScalar(point.distance * (width / height < 0.8 ? 1.35 : 1));
+        if (point.distance) {
+          const isStreetCloseUp = point.distance < 55;
+          offset.set(isStreetCloseUp ? 0.36 : 0.6, isStreetCloseUp ? 0.34 : 0.65, 1)
+            .normalize()
+            .multiplyScalar(point.distance * (width / height < 0.8 ? 1.35 : 1));
+        }
         flyTo(target.clone().add(offset), target);
       },
       zoom: (value) => {
@@ -753,11 +805,11 @@ export default function CityScene(props: CitySceneProps) {
     };
   }, [arrived, props.selected, status]);
 
-  const destinations: { id: PlaceId; name: string; number?: string; vacant?: boolean }[] = [
+  const destinations: { id: PlaceId; name: string; number?: string; vacant?: boolean; color?: string }[] = [
     ...cityBuildings,
-    { id: "news", name: props.locale === "zh" ? "城市日报" : "Daily news" },
-    { id: "guestbook", name: props.locale === "zh" ? "海岸信箱" : "Guestbook" },
-    { id: "about", name: "SN0VV" },
+    { id: "news", name: props.locale === "zh" ? "城市日报" : "Daily news", color: "#d49b6a" },
+    { id: "guestbook", name: props.locale === "zh" ? "海岸信箱" : "Guestbook", color: "#82b09a" },
+    { id: "about", name: "SN0VV", color: "#d6b490" },
   ];
 
   return (
@@ -773,7 +825,14 @@ export default function CityScene(props: CitySceneProps) {
                 else labelsRef.current.delete(place.id);
               }}
               className={`city-label${place.vacant ? " is-vacant" : ""}${props.selected === place.id ? " is-selected" : ""}`}
-              style={{ position: "absolute", left: 0, top: 0, opacity: 0, visibility: "hidden" }}
+              style={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                opacity: 0,
+                visibility: "hidden",
+                "--label-color": place.color ?? "#acd5ad",
+              } as CSSProperties}
               aria-label={`${props.locale === "zh" ? "探索" : "Explore"} ${place.name}`}
               aria-pressed={props.selected === place.id}
               onClick={() => props.onSelect(place.id)}
@@ -782,6 +841,7 @@ export default function CityScene(props: CitySceneProps) {
               onFocus={() => sceneRef.current?.highlight(place.id)}
               onBlur={() => sceneRef.current?.highlight(null)}
             >
+              <span className="city-label-dot" aria-hidden="true" />
               {place.number && <span className="city-label-number">{place.number}</span>}
               <span className="city-label-name">{place.name}</span>
             </button>

@@ -54,12 +54,12 @@ describe("持仓大屏快照解析", () => {
 
 describe("行情格式与配色（红涨绿跌）", () => {
   it("正收益红色、负收益绿色、持平灰色", () => {
-    expect(pnlColor(1.2)).toBe("#ff5d55");
-    expect(pnlColor(-0.9)).toBe("#2fe08d");
-    expect(pnlColor(0)).toBe("#9fbfae");
+    expect(pnlColor(1.2)).toBe("#e8605a");
+    expect(pnlColor(-0.9)).toBe("#7fae95");
+    expect(pnlColor(0)).toBe("#8a8a8a");
     // 两位小数内的抖动视为持平，避免满屏闪烁。
-    expect(pnlColor(0.001)).toBe("#9fbfae");
-    expect(pnlColor(-0.004)).toBe("#9fbfae");
+    expect(pnlColor(0.001)).toBe("#8a8a8a");
+    expect(pnlColor(-0.004)).toBe("#8a8a8a");
   });
 
   it("百分比带符号，金额带千分位", () => {

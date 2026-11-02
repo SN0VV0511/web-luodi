@@ -177,6 +177,20 @@ export function buildCityCoast(kit: CivicKit): { animate: (seconds: number) => v
   part(white, cylinder, 381, 5, 253, 2.2, 9, 2.2);
   part(coral, cylinder, 381, 9.5, 253, 2.4, 1.1, 2.4);
   part(glass, cylinder, 381, 10.3, 253, 1.8, 1, 1.8);
+  part(coral, parasol, 381, 11.35, 253, 0.9, 0.85, 0.9);
+
+  // 近海点缀白帆游艇与航道浮标，丰富海面空间层次
+  for (const [sx, sz, rot] of [[-142, 198, 0.42], [-48, 224, -0.28], [68, 212, 0.55]] as const) {
+    part(white, cylinder, sx, -0.42, sz, 1.45, 0.75, 4.8, undefined, rot);
+    part(timber, cube, sx, -0.02, sz, 2.1, 0.12, 6.2, undefined, rot);
+    part(white, cylinder, sx, 4.2, sz, 0.08, 8.2, 0.08);
+    part(white, cube, sx, 4.3, sz - 0.9, 0.1, 6.4, 2.4, undefined, rot, 0.06);
+    part(coral, cube, sx, 3.6, sz + 1.4, 0.09, 4.8, 1.6, undefined, rot, -0.05);
+  }
+  for (const [bx, bz] of [[148, 195], [326, 268]] as const) {
+    part(coral, cylinder, bx, -0.2, bz, 0.65, 0.9, 0.65);
+    part(yellow, cylinder, bx, 0.55, bz, 0.22, 0.7, 0.22);
+  }
 
   function cargoShip(length: number, width: number): THREE.Group {
     const ship = new THREE.Group();
@@ -228,9 +242,45 @@ export function buildCityCoast(kit: CivicKit): { animate: (seconds: number) => v
   moored.position.set(248, -0.65, 234);
   const offshore = cargoShip(104, 20);
   offshore.rotation.y = Math.PI / 2;
+
+  // 海面盘旋飞翔的海鸥群（InstancedMesh 展翅掠过沙滩与港口上空）
+  const gullCount = 18;
+  const gullWingGeo = geometry(new THREE.BoxGeometry(1, 1, 1));
+  const gullMat = solid("#f5f6f0", 0.6);
+  const gullWings = new THREE.InstancedMesh(gullWingGeo, gullMat, gullCount * 2);
+  gullWings.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  gullWings.frustumCulled = false;
+  group.add(gullWings);
+  const gullTransform = new THREE.Object3D();
+
   const animate = (seconds: number) => {
     moored.position.y = -0.65 + Math.sin(seconds * 0.4) * 0.04;
     offshore.position.set(THREE.MathUtils.euclideanModulo(seconds * 1.25 + 520, 1100) - 550, -0.65 + Math.sin(seconds * 0.5) * 0.07, 320);
+    for (let i = 0; i < gullCount; i++) {
+      const orbitCenterX = i < 10 ? -135 : 210;
+      const orbitCenterZ = i < 10 ? 145 : 195;
+      const radius = 24 + (i % 5) * 11;
+      const speed = 0.28 + (i % 4) * 0.06;
+      const angle = seconds * speed + i * 1.15;
+      const gx = orbitCenterX + Math.cos(angle) * radius;
+      const gz = orbitCenterZ + Math.sin(angle) * (radius * 0.68);
+      const gy = 16 + (i % 4) * 3.5 + Math.sin(seconds * 1.4 + i) * 1.6;
+      const heading = Math.atan2(-Math.sin(angle) * radius, Math.cos(angle) * radius * 0.68);
+      const flap = Math.sin(seconds * 6.8 + i * 1.7) * 0.48;
+      for (const side of [-1, 1]) {
+        const wingIdx = i * 2 + (side > 0 ? 1 : 0);
+        gullTransform.position.set(
+          gx + Math.cos(heading) * side * 0.36,
+          gy + Math.sin(flap) * 0.14,
+          gz - Math.sin(heading) * side * 0.36,
+        );
+        gullTransform.rotation.set(0, heading, side * flap);
+        gullTransform.scale.set(0.78, 0.05, 0.26);
+        gullTransform.updateMatrix();
+        gullWings.setMatrixAt(wingIdx, gullTransform.matrix);
+      }
+    }
+    gullWings.instanceMatrix.needsUpdate = true;
   };
   group.userData.cargoShipCount = 2;
   animate(0);

@@ -16,15 +16,25 @@ type Route = {
   closed: boolean;
   ground: number;
   population: number;
+  mode?: "walk" | "jog" | "bike" | "shop";
 };
 type RouteSpec = {
   points: readonly (readonly [number, number])[];
   closed?: boolean;
   ground: number;
   population: number;
+  mode?: "walk" | "jog" | "bike" | "shop";
+};
+type CrosswalkSpec = {
+  x: number;
+  z: number;
+  horizontal: boolean;
+  span: number;
+  invertPhase?: boolean;
 };
 type Resident = {
   route?: Route;
+  crosswalk?: CrosswalkSpec;
   x: number;
   z: number;
   heading: number;
@@ -33,12 +43,21 @@ type Resident = {
   offset: number;
   lane: number;
   phase: number;
-  activity: "walk" | "talk" | "sit";
+  activity: "walk" | "jog" | "bike" | "talk" | "sit" | "volleyball" | "argue" | "shop" | "crosswalk";
+  hasBag: boolean;
+  hasHat: boolean;
+  hasDog: boolean;
+  hasCart: boolean;
+  coatColor?: string;
+  pantsColor?: string;
 };
 
 /**
- * 创建确定性的步行、交谈和休憩人群；传入城市共用的资源集合，以便统一释放。
- * animate 接受城市累计秒数，相同秒数总是产生相同姿态，暂停无需单独的计时器。
+ * 创建高拟真度的小镇居民百态：
+ * - 街头追尾事故车主激烈争吵 + 交警调解 + 路人围观指点
+ * - 社区鲜活超市（FRESH MART）推3D购物车采购与挑选蔬果
+ * - 十字路口斑马线红灯驻足等待、绿灯结伴过马路（与车流信号灯严格同步）
+ * - 滨海绿道骑行、遛狗、慢跑、沙滩排球对打与露天咖啡座社交
  */
 export function buildCityLife({
   group,
@@ -51,33 +70,58 @@ export function buildCityLife({
 }): { animate: (seconds: number) => void } {
   let seed = 81927;
   const random = (): number => ((seed = Math.imul(seed, 1664525) + 1013904223 >>> 0) / 4294967296);
-  // 与公园铺装共用曲线，采样成按弧长行走的折线，环湖者不会切穿湖面。
+
   const parkRoutes: RouteSpec[] = centralParkWalks
     .filter((walk) => ["lakeside", "south", "east", "west", "north"].includes(walk.id))
     .map((walk) => {
       const curve = new THREE.CatmullRomCurve3(walk.points.map(([x, z]) => new THREE.Vector3(x, 0, z)), walk.closed);
       return {
-        points: curve.getSpacedPoints(80).map((point) => [point.x, point.z] as const),
+        points: curve.getSpacedPoints(72).map((point) => [point.x, point.z] as const),
         closed: walk.closed,
         ground: 0.39,
-        population: walk.id === "lakeside" ? 32 : 4,
+        population: walk.id === "lakeside" ? 22 : 4,
+        mode: walk.id === "lakeside" ? "jog" : "walk",
       };
     });
-  // ponytail: 城区短路线止于路口前，不引入过街寻路；扩建城区时补安全人行路段。
+
+  // 严格贴合人行道（距离道路中心线 6.6m），绝不踏入机动车沥青路面
   const streetSegments = [
-    [-157.2, -151, -157.2, -128], [-154, -107.2, -131, -107.2], [-112.2, -60, -112.2, -36],
-    [112.2, -106, 112.2, -82], [132, -17.2, 155, -17.2], [172.8, 29, 172.8, 53],
-    [-22.2, -196, -22.2, -172], [25, -152.2, 49, -152.2], [157.8, -151, 157.8, -127],
+    [-158.4, -151, -158.4, -124],
+    [-154, -108.4, -129, -108.4],
+    [-113.4, -61, -113.4, -34],
+    [-81.6, -61, -81.6, -34],
+    [81.6, -61, 81.6, -34],
+    [113.4, -106, 113.4, -79],
+    [132, -18.4, 156, -18.4],
+    [171.6, 29, 171.6, 56],
+    [-23.4, -196, -23.4, -169],
+    [25, -153.4, 52, -153.4],
+    [-81.6, 29, -81.6, 56],
+    [81.6, 29, 81.6, 56],
   ] as const;
+
   const routeSpecs: RouteSpec[] = [
     ...parkRoutes,
-    ...streetSegments.map(([x, z, endX, endZ]) => ({ points: [[x, z], [endX, endZ]] as const, population: 2, ground: 0.35 })),
-    { points: [[-108, 10.5], [-88, 10.5]], population: 4, ground: 0.35 },
-    { points: [[177.5, 10.5], [189.5, 10.5]], population: 4, ground: 0.35 },
-    { points: [[-77, 109], [-36, 109]], population: 4, ground: 0.3 },
-    { points: [[9, 109], [78, 109]], population: 4, ground: 0.3 },
-    { points: [[-180, 125], [-110, 125]], population: 6, ground: 0.25 },
+    ...streetSegments.map(([x, z, endX, endZ]) => ({
+      points: [[x, z], [endX, endZ]] as const,
+      population: 2,
+      ground: 0.35,
+      mode: "walk" as const,
+    })),
+    // 社区超市（FRESH MART）门前推购物车采购动线（西城 x=-136..-104, z=87.8 与 东城 x=104..136, z=87.8）
+    { points: [[-136, 87.6], [-104, 87.6]], population: 6, ground: 0.35, mode: "shop" },
+    { points: [[104, 87.6], [136, 87.6]], population: 4, ground: 0.35, mode: "shop" },
+    // 滨海木栈道与观海大道漫步人群
+    { points: [[-205, 108.5], [-82, 108.5]], population: 12, ground: 0.56, mode: "walk" },
+    { points: [[-68, 106.5], [-10, 106.5]], population: 10, ground: 0.32, mode: "walk" },
+    { points: [[10, 106.5], [88, 106.5]], population: 10, ground: 0.32, mode: "walk" },
+    { points: [[102, 106.5], [178, 106.5]], population: 8, ground: 0.32, mode: "jog" },
+    // 滨海专用骑行绿道（z=103.6，与机动车道 z=95 完全隔离）
+    { points: [[-192, 103.6], [172, 103.6]], population: 8, ground: 0.32, mode: "bike" },
+    // 金色沙滩漫步线
+    { points: [[-194, 125], [-106, 125]], population: 8, ground: 0.26, mode: "walk" },
   ];
+
   const routes: Route[] = routeSpecs.map((spec) => {
     const points = spec.closed ? [...spec.points, spec.points[0]] : spec.points;
     const segments: RouteSegment[] = [];
@@ -92,68 +136,297 @@ export function buildCityLife({
       segments.push({ x, z, dx: dx / length, dz: dz / length, length, end: total, heading: Math.atan2(dx, dz) });
     }
     if (!segments.length) throw new Error("行人路线必须包含两个不同的位置");
-    return { segments, length: total, closed: Boolean(spec.closed), ground: spec.ground, population: spec.population };
+    return {
+      segments,
+      length: total,
+      closed: Boolean(spec.closed),
+      ground: spec.ground,
+      population: spec.population,
+      mode: spec.mode ?? "walk",
+    };
   });
+
   const residents: Resident[] = [];
+  let dogCounter = 0;
   for (const route of routes) {
-    for (let pair = 0; pair < route.population / 2; pair++) {
-      const speed = 0.65 + random() * 0.3;
-      const offset = route.length * (pair + 0.2) / (route.population / 2);
-      for (const lane of [-0.39, 0.39]) {
-        residents.push({ route, x: route.segments[0].x, z: route.segments[0].z, heading: route.segments[0].heading, scale: 0.94 + random() * 0.13, speed, offset, lane, phase: random() * Math.PI * 2, activity: "walk" });
+    const pairs = Math.max(1, Math.floor(route.population / 2));
+    for (let pair = 0; pair < pairs; pair++) {
+      const isBike = route.mode === "bike";
+      const isShop = route.mode === "shop";
+      const isJog = route.mode === "jog" && pair % 2 === 0;
+      const baseSpeed = isBike ? 3.2 + random() * 0.9 : isJog ? 1.55 + random() * 0.4 : isShop ? 0.58 + random() * 0.18 : 0.72 + random() * 0.3;
+      const offset = route.length * (pair + 0.18) / pairs;
+      for (const lane of [-0.42, 0.42]) {
+        const canWalkDog = !isBike && !isJog && !isShop && lane > 0 && dogCounter < 8 && random() > 0.6;
+        if (canWalkDog) dogCounter++;
+        residents.push({
+          route,
+          x: route.segments[0].x,
+          z: route.segments[0].z,
+          heading: route.segments[0].heading,
+          scale: 0.94 + random() * 0.12,
+          speed: baseSpeed * (lane > 0 ? 1 : 0.94),
+          offset: offset + (lane > 0 ? 0 : 2.5),
+          lane: isBike ? lane * 1.1 : lane,
+          phase: random() * Math.PI * 2,
+          activity: isBike ? "bike" : isShop ? "shop" : isJog ? "jog" : "walk",
+          hasBag: !isJog && !isShop && random() > 0.48,
+          hasHat: random() > 0.6,
+          hasDog: canWalkDog,
+          hasCart: isShop,
+        });
       }
     }
   }
-  for (const { x: centerX, z: centerZ } of centralParkGatherings.slice(0, 2)) {
-    for (let index = 0; index < 3; index++) {
-      const angle = index * Math.PI * 2 / 3;
-      const x = centerX + Math.cos(angle) * 0.9;
-      const z = centerZ + Math.sin(angle) * 0.9;
-      residents.push({ x, z, heading: Math.atan2(centerX - x, centerZ - z), scale: 0.94 + random() * 0.1, speed: 0, offset: 0, lane: 0, phase: random() * 6, activity: "talk" });
+
+  // ==================== 场景 1：斑马线等红绿灯与过街人群 ====================
+  const crosswalks: CrosswalkSpec[] = [
+    { x: -75, z: 88.2, horizontal: true, span: 6.4, invertPhase: false },
+    { x: 75, z: 88.2, horizontal: true, span: 6.4, invertPhase: false },
+    { x: -120, z: 88.2, horizontal: true, span: 6.4, invertPhase: true },
+    { x: 120, z: 88.2, horizontal: true, span: 6.4, invertPhase: true },
+    { x: -68.2, z: 95, horizontal: false, span: 6.4, invertPhase: true },
+    { x: 68.2, z: 95, horizontal: false, span: 6.4, invertPhase: true },
+  ];
+  for (const cw of crosswalks) {
+    for (let idx = 0; idx < 4; idx++) {
+      const side = idx < 2 ? -1 : 1;
+      const laneOffset = (idx % 2 === 0 ? -0.55 : 0.55);
+      residents.push({
+        crosswalk: cw,
+        x: cw.x,
+        z: cw.z,
+        heading: cw.horizontal ? (side < 0 ? Math.PI / 2 : -Math.PI / 2) : (side < 0 ? 0 : Math.PI),
+        scale: 0.95 + random() * 0.1,
+        speed: 1.15 + (idx % 2) * 0.18,
+        offset: side,
+        lane: laneOffset,
+        phase: random() * Math.PI * 2,
+        activity: "crosswalk",
+        hasBag: idx % 2 === 0,
+        hasHat: idx === 1,
+        hasDog: false,
+        hasCart: false,
+      });
     }
   }
-  for (const { x, z, angle } of centralParkBenches.slice(0, 3)) {
-    residents.push({ x, z, heading: angle, scale: 1, speed: 0, offset: 0, lane: 0, phase: random() * 6, activity: "sit" });
+
+  // ==================== 场景 2：街头追尾撞车现场 (-75, 69) 激烈争吵车主 + 交警 + 围观群众 ====================
+  const crashSitePeople = [
+    // 追尾事故双方车主面对面挥手争执
+    { x: -70.6, z: 68.6, heading: 0.12, activity: "argue" as const, coat: "#d94838", pants: "#2b3642" },
+    { x: -70.4, z: 70.1, heading: Math.PI + 0.12, activity: "argue" as const, coat: "#e6b43c", pants: "#384048" },
+    // 事故处理交警（深蓝警服）与记录员
+    { x: -71.8, z: 69.35, heading: Math.PI / 2, activity: "talk" as const, coat: "#1e3f66", pants: "#162942" },
+    // 路边围观指点的热心市民
+    { x: -68.8, z: 67.8, heading: -1.1, activity: "argue" as const, coat: "#45826b", pants: "#494a47" },
+    { x: -68.6, z: 70.9, heading: -1.9, activity: "talk" as const, coat: "#c97a63", pants: "#324452" },
+  ];
+  for (const person of crashSitePeople) {
+    residents.push({
+      x: person.x,
+      z: person.z,
+      heading: person.heading,
+      scale: 1.02,
+      speed: 0,
+      offset: 0,
+      lane: 0,
+      phase: random() * 6,
+      activity: person.activity,
+      hasBag: false,
+      hasHat: person.coat === "#1e3f66",
+      hasDog: false,
+      hasCart: false,
+      coatColor: person.coat,
+      pantsColor: person.pants,
+    });
   }
 
-  const sphere = new THREE.SphereGeometry(1, 8, 6);
-  const cap = new THREE.SphereGeometry(1, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2);
-  const cylinder = new THREE.CylinderGeometry(0.5, 0.46, 1, 7);
+  // ==================== 场景 3：街头情侣/商贩争吵与市民辩论场景 ====================
+  const argumentPairs = [
+    // 鲜活超市门口讨价还价/争执
+    { x1: -115.8, z1: 86.2, x2: -114.6, z2: 86.2 },
+    // 东城写字楼广场激烈讨论
+    { x1: 91.4, z1: 78.5, x2: 92.6, z2: 78.5 },
+    // 滨海步道争执
+    { x1: -34.6, z1: 106.8, x2: -33.4, z2: 106.8 },
+  ];
+  for (const pair of argumentPairs) {
+    residents.push(
+      {
+        x: pair.x1, z: pair.z1, heading: Math.PI / 2, scale: 1.0, speed: 0, offset: 0, lane: 0,
+        phase: random() * 6, activity: "argue", hasBag: true, hasHat: false, hasDog: false, hasCart: false,
+      },
+      {
+        x: pair.x2, z: pair.z2, heading: -Math.PI / 2, scale: 0.98, speed: 0, offset: 0, lane: 0,
+        phase: random() * 6 + 1.5, activity: "argue", hasBag: false, hasHat: true, hasDog: false, hasCart: false,
+      },
+    );
+  }
+
+  // 公园、写字楼广场与街角交谈人群
+  const socialSpots = [
+    ...centralParkGatherings,
+    { x: -45, z: 78 },
+    { x: 45, z: 78 },
+    { x: -95, z: 110.5 },
+    { x: 95, z: 110.5 },
+  ];
+  for (const { x: centerX, z: centerZ } of socialSpots) {
+    for (let index = 0; index < 3; index++) {
+      const angle = index * Math.PI * 2 / 3 + 0.25;
+      const x = centerX + Math.cos(angle) * 0.95;
+      const z = centerZ + Math.sin(angle) * 0.95;
+      residents.push({
+        x,
+        z,
+        heading: Math.atan2(centerX - x, centerZ - z),
+        scale: 0.94 + random() * 0.11,
+        speed: 0,
+        offset: 0,
+        lane: 0,
+        phase: random() * 6,
+        activity: "talk",
+        hasBag: index === 0,
+        hasHat: index === 2,
+        hasDog: false,
+        hasCart: false,
+      });
+    }
+  }
+
+  // 沙滩排球场对打人群 (-172, 119)
+  const volleyPlayers = [
+    { x: -175.5, z: 116.2, heading: 0.15 },
+    { x: -168.5, z: 116.4, heading: -0.15 },
+    { x: -175.2, z: 121.8, heading: Math.PI - 0.15 },
+    { x: -168.8, z: 121.6, heading: Math.PI + 0.15 },
+  ];
+  for (const player of volleyPlayers) {
+    residents.push({
+      x: player.x,
+      z: player.z,
+      heading: player.heading,
+      scale: 0.98 + random() * 0.08,
+      speed: 1.2,
+      offset: 0,
+      lane: 0,
+      phase: random() * Math.PI * 2,
+      activity: "volleyball",
+      hasBag: false,
+      hasHat: true,
+      hasDog: false,
+      hasCart: false,
+    });
+  }
+
+  // 公园长椅与海滨长椅休憩人群
+  const benchSeats = [
+    ...centralParkBenches,
+    { x: -161, z: 108, angle: 0 },
+    { x: -89, z: 108, angle: 0 },
+    { x: 31, z: 108, angle: 0 },
+    { x: 103, z: 108, angle: 0 },
+  ];
+  for (const { x, z, angle } of benchSeats) {
+    residents.push({
+      x,
+      z,
+      heading: angle,
+      scale: 0.98,
+      speed: 0,
+      offset: 0,
+      lane: 0,
+      phase: random() * 6,
+      activity: "sit",
+      hasBag: false,
+      hasHat: random() > 0.5,
+      hasDog: false,
+      hasCart: false,
+    });
+  }
+
+  const sphere = new THREE.SphereGeometry(1, 10, 8);
+  const cap = new THREE.SphereGeometry(1, 10, 5, 0, Math.PI * 2, 0, Math.PI * 0.55);
+  const cylinder = new THREE.CylinderGeometry(0.5, 0.44, 1, 9);
   const cube = new THREE.BoxGeometry(1, 1, 1);
-  for (const geometry of [sphere, cap, cylinder, cube]) geometries.add(geometry);
-  const batch = (name: string, geometry: THREE.BufferGeometry, count: number, color: string): THREE.InstancedMesh => {
-    const material = new THREE.MeshStandardMaterial({ color, roughness: 0.95 });
+  const wheelGeo = new THREE.TorusGeometry(0.32, 0.045, 6, 16);
+  for (const geometry of [sphere, cap, cylinder, cube, wheelGeo]) geometries.add(geometry);
+
+  const batch = (name: string, geometry: THREE.BufferGeometry, count: number, color: string, roughness = 0.85, metalness = 0.05): THREE.InstancedMesh => {
+    const material = new THREE.MeshStandardMaterial({ color, roughness, metalness });
     materials.add(material);
-    const mesh = new THREE.InstancedMesh(geometry, material, count);
+    const mesh = new THREE.InstancedMesh(geometry, material, Math.max(1, count));
     mesh.name = name;
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    // 人群只有五个绘制批次；路线会移动，不能沿用首帧的静态实例包围球。
     mesh.frustumCulled = false;
     group.add(mesh);
     return mesh;
   };
+
   const count = residents.length;
-  const skin = batch("Residents · heads and hands", sphere, count * 3, "#ffffff");
-  const clothes = batch("Residents · coats and sleeves", cylinder, count * 5, "#ffffff");
-  const trousers = batch("Residents · articulated legs", cube, count * 4, "#ffffff");
-  const shoes = batch("Residents · shoes", cube, count * 2, "#303638");
-  const hair = batch("Residents · hair", cap, count, "#ffffff");
-  const meshes = [skin, clothes, trousers, shoes, hair];
+  const bikeCount = residents.filter((r) => r.activity === "bike").length;
+  const dogCount = residents.filter((r) => r.hasDog).length;
+  const cartCount = residents.filter((r) => r.hasCart).length;
+
+  const skin = batch("Residents · heads and hands", sphere, count * 3, "#ffffff", 0.78);
+  const clothes = batch("Residents · coats and sleeves", cylinder, count * 5, "#ffffff", 0.82);
+  const trousers = batch("Residents · articulated legs", cube, count * 4, "#ffffff", 0.86);
+  const shoes = batch("Residents · shoes", cube, count * 2, "#272d30", 0.72);
+  const hair = batch("Residents · hair and hats", cap, count, "#ffffff", 0.88);
+  const bags = batch("Residents · bags and packs", cube, count, "#ffffff", 0.76);
+  const bikeFrames = batch("Residents · bicycles", cube, Math.max(1, bikeCount * 2), "#ffffff", 0.35, 0.55);
+  const bikeWheels = batch("Residents · bike wheels", wheelGeo, Math.max(1, bikeCount * 2), "#242a2e", 0.6, 0.25);
+  const dogs = batch("Residents · pet dogs", cube, Math.max(1, dogCount * 6), "#ffffff", 0.85);
+  const shoppingCarts = batch("Residents · shopping carts", cube, Math.max(1, cartCount * 3), "#d4dce2", 0.3, 0.68);
+  const cartGoods = batch("Residents · cart groceries", cube, Math.max(1, cartCount * 2), "#ffffff", 0.65);
+  const volleyBallMesh = batch("Beach · volleyball", sphere, 1, "#f7e39c", 0.5);
+
+  const meshes = [skin, clothes, trousers, shoes, hair, bags, bikeFrames, bikeWheels, dogs, shoppingCarts, cartGoods, volleyBallMesh];
   const color = new THREE.Color();
-  const coats = ["#c46d4b", "#d3ac5b", "#6084a1", "#e0d6be", "#cf9891", "#527b70", "#647783", "#9986a8"];
-  const skins = ["#d8a57f", "#bd8b68", "#edc8a4", "#91644e"];
-  const pants = ["#394957", "#53524c", "#34545d", "#84765e"];
-  const hairs = ["#3c342e", "#6c4d39", "#bab5a4", "#34393b"];
-  residents.forEach((_, index) => {
+  const coats = [
+    "#d45d42", "#e2ad47", "#3f749c", "#f0ece1", "#d9847c",
+    "#3d7d6c", "#496174", "#8a709e", "#2d4356", "#e67e51",
+    "#689975", "#f3c969",
+  ];
+  const skins = ["#e2b18c", "#c6926e", "#f2cfb0", "#9c6d54"];
+  const pants = ["#2b3b4b", "#494a47", "#2c4c56", "#8c7d65", "#d8d2c5", "#364552"];
+  const hairs = ["#2c2520", "#61422e", "#c9b592", "#1f2426", "#8c4a32", "#e8dfc8"];
+  const bagColors = ["#7c5338", "#2f3942", "#9e6b43", "#4c6459", "#b89f7d"];
+  const bikeColors = ["#e0533c", "#3b82a6", "#e5b842", "#479c78", "#d8dde0"];
+  const dogColors = ["#c89662", "#f0e6d2", "#5c4636", "#a87246"];
+  const groceryColors = ["#e8523f", "#f0be3c", "#52a858", "#4888c8"];
+
+  let bikeIdx = 0;
+  let dogIdx = 0;
+  let cartIdx = 0;
+  residents.forEach((res, index) => {
     color.set(skins[Math.floor(random() * skins.length)]);
     for (let part = 0; part < 3; part++) skin.setColorAt(index * 3 + part, color);
-    color.set(coats[Math.floor(random() * coats.length)]);
+    color.set(res.coatColor ?? coats[Math.floor(random() * coats.length)]);
     for (let part = 0; part < 5; part++) clothes.setColorAt(index * 5 + part, color);
-    color.set(pants[Math.floor(random() * pants.length)]);
+    color.set(res.pantsColor ?? pants[Math.floor(random() * pants.length)]);
     for (let part = 0; part < 4; part++) trousers.setColorAt(index * 4 + part, color);
     hair.setColorAt(index, color.set(hairs[Math.floor(random() * hairs.length)]));
+    bags.setColorAt(index, color.set(bagColors[Math.floor(random() * bagColors.length)]));
+    if (res.activity === "bike") {
+      color.set(bikeColors[bikeIdx % bikeColors.length]);
+      bikeFrames.setColorAt(bikeIdx * 2, color);
+      bikeFrames.setColorAt(bikeIdx * 2 + 1, color);
+      bikeIdx++;
+    }
+    if (res.hasDog) {
+      color.set(dogColors[dogIdx % dogColors.length]);
+      for (let d = 0; d < 6; d++) dogs.setColorAt(dogIdx * 6 + d, color);
+      dogIdx++;
+    }
+    if (res.hasCart) {
+      cartGoods.setColorAt(cartIdx * 2, color.set(groceryColors[cartIdx % groceryColors.length]));
+      cartGoods.setColorAt(cartIdx * 2 + 1, color.set(groceryColors[(cartIdx + 1) % groceryColors.length]));
+      cartIdx++;
+    }
   });
 
   const transform = new THREE.Object3D();
@@ -165,31 +438,103 @@ export function buildCityLife({
   let cosine = 1;
   let sine = 0;
   let scale = 1;
-  function place(mesh: THREE.InstancedMesh, index: number, x: number, y: number, z: number, width: number, height: number, depth: number, pitch = 0): void {
-    transform.position.set(originX + (cosine * x + sine * z) * scale, originY + y * scale, originZ + (-sine * x + cosine * z) * scale);
-    transform.rotation.set(pitch, heading, 0);
+
+  function place(
+    mesh: THREE.InstancedMesh,
+    index: number,
+    x: number,
+    y: number,
+    z: number,
+    width: number,
+    height: number,
+    depth: number,
+    pitch = 0,
+    yawOffset = 0,
+  ): void {
+    transform.position.set(
+      originX + (cosine * x + sine * z) * scale,
+      originY + y * scale,
+      originZ + (-sine * x + cosine * z) * scale,
+    );
+    transform.rotation.set(pitch, heading + yawOffset, 0);
     transform.scale.set(width * scale, height * scale, depth * scale);
     transform.updateMatrix();
     mesh.setMatrixAt(index, transform.matrix);
   }
-  function limb(mesh: THREE.InstancedMesh, index: number, x: number, y: number, z: number, length: number, thickness: number, angle: number): void {
+
+  function limb(
+    mesh: THREE.InstancedMesh,
+    index: number,
+    x: number,
+    y: number,
+    z: number,
+    length: number,
+    thickness: number,
+    angle: number,
+  ): void {
     place(mesh, index, x, y - Math.cos(angle) * length / 2, z - Math.sin(angle) * length / 2, thickness, length, thickness, angle);
   }
 
   function animate(seconds: number): void {
+    let activeBikeIndex = 0;
+    let activeDogIndex = 0;
+    let activeCartIndex = 0;
+
     residents.forEach((resident, index) => {
-      const walking = resident.activity === "walk";
+      let walking = resident.activity === "walk" || resident.activity === "shop";
+      const jogging = resident.activity === "jog";
+      const biking = resident.activity === "bike";
       const seated = resident.activity === "sit";
-      const phase = seconds * resident.speed * 5.5 + resident.phase;
-      const stride = walking ? Math.sin(phase) * 0.43 : 0;
+      const volley = resident.activity === "volleyball";
+      const arguing = resident.activity === "argue";
+      const shopping = resident.activity === "shop";
+
       const route = resident.route;
       originX = resident.x;
       originZ = resident.z;
       heading = resident.heading;
-      originY = seated ? 0 : route?.ground ?? 0.32;
+      originY = seated ? 0 : volley ? 0.26 : route?.ground ?? 0.35;
       scale = resident.scale;
-      if (route) {
-        const travel = THREE.MathUtils.euclideanModulo(seconds * resident.speed + resident.offset, route.length * (route.closed ? 1 : 2));
+
+      // 斑马线红灯驻足等待、绿灯结伴通行状态机
+      if (resident.activity === "crosswalk" && resident.crosswalk) {
+        const cw = resident.crosswalk;
+        const cycle = THREE.MathUtils.euclideanModulo(seconds + (cw.invertPhase ? 10 : 0), 20);
+        const greenLight = cycle >= 10;
+        const startSide = resident.offset < 0 ? -1 : 1;
+        if (!greenLight) {
+          // 红灯阶段：站在斑马线两端路缘石上等待，左右张望车流
+          walking = false;
+          const waitDist = cw.span + 0.65;
+          if (cw.horizontal) {
+            originX = cw.x + startSide * waitDist;
+            originZ = cw.z + resident.lane;
+            heading = startSide < 0 ? Math.PI / 2 : -Math.PI / 2;
+          } else {
+            originX = cw.x + resident.lane;
+            originZ = cw.z + startSide * waitDist;
+            heading = startSide < 0 ? 0 : Math.PI;
+          }
+        } else {
+          // 绿灯阶段：沿斑马线匀速穿过马路抵达对面人行道
+          const crossProgress = Math.min(1, (cycle - 10) / 7.5);
+          walking = crossProgress < 1;
+          const posAlong = THREE.MathUtils.lerp(startSide * (cw.span + 0.5), -startSide * (cw.span + 0.5), crossProgress);
+          if (cw.horizontal) {
+            originX = cw.x + posAlong;
+            originZ = cw.z + resident.lane;
+            heading = startSide < 0 ? Math.PI / 2 : -Math.PI / 2;
+          } else {
+            originX = cw.x + resident.lane;
+            originZ = cw.z + posAlong;
+            heading = startSide < 0 ? 0 : Math.PI;
+          }
+        }
+      } else if (route) {
+        const travel = THREE.MathUtils.euclideanModulo(
+          seconds * resident.speed + resident.offset,
+          route.length * (route.closed ? 1 : 2),
+        );
         const returning = !route.closed && travel > route.length;
         const distance = returning ? route.length * 2 - travel : travel;
         const segment = route.segments.find((part) => distance <= part.end) ?? route.segments[route.segments.length - 1];
@@ -197,18 +542,92 @@ export function buildCityLife({
         originX = segment.x + segment.dx * along + segment.dz * resident.lane;
         originZ = segment.z + segment.dz * along - segment.dx * resident.lane;
         heading = segment.heading + (returning ? Math.PI : 0);
+      } else if (arguing) {
+        // 争吵时激动地前后逼近与退步
+        const lunge = Math.sin(seconds * 3.8 + resident.phase) * 0.14;
+        originX += Math.sin(heading) * lunge;
+        originZ += Math.cos(heading) * lunge;
       }
+
+      const moving = walking || jogging || biking;
+      const cadence = biking ? 3.8 : jogging ? 7.2 : 5.4;
+      const phase = seconds * Math.max(0.8, resident.speed) * cadence + resident.phase;
+      const stride = biking
+        ? Math.sin(phase) * 0.52
+        : jogging
+          ? Math.sin(phase) * 0.68
+          : walking
+            ? Math.sin(phase) * 0.45
+            : arguing
+              ? Math.sin(seconds * 4.5 + resident.phase) * 0.18
+              : volley
+                ? Math.sin(seconds * 3.6 + resident.phase) * 0.25
+                : 0;
+
       cosine = Math.cos(heading);
       sine = Math.sin(heading);
-      const bob = walking ? Math.abs(Math.cos(phase)) * 0.026 : 0;
-      const hipShift = seated ? -0.05 : bob;
-      place(clothes, index * 5, 0, 1.26 + hipShift, 0, 0.56, 0.65, 0.36);
-      place(skin, index * 3, 0, 1.8 + hipShift, 0, 0.17, 0.22, 0.175);
-      place(hair, index, 0, 1.85 + hipShift, 0, 0.18, 0.18, 0.184);
+
+      const jump = volley
+        ? Math.max(0, Math.sin(seconds * 3.2 + resident.phase)) * 0.38
+        : arguing
+          ? Math.abs(Math.sin(seconds * 5.2 + resident.phase)) * 0.04
+          : 0;
+      const bob = jogging
+        ? Math.abs(Math.cos(phase)) * 0.065
+        : walking
+          ? Math.abs(Math.cos(phase)) * 0.028
+          : jump;
+      const hipShift = seated ? -0.05 : biking ? 0.12 : bob;
+      const torsoPitch = biking
+        ? 0.26
+        : jogging
+          ? 0.14
+          : arguing
+            ? 0.16 + Math.sin(seconds * 4.2 + resident.phase) * 0.12
+            : 0;
+      const headYaw = arguing
+        ? Math.sin(seconds * 6.5 + resident.phase) * 0.36
+        : resident.activity === "crosswalk" && !walking
+          ? Math.sin(seconds * 1.8 + resident.phase) * 0.45
+          : resident.activity === "talk"
+            ? Math.sin(seconds * 1.5 + resident.phase) * 0.28
+            : moving
+              ? Math.sin(seconds * 0.9 + resident.phase) * 0.08
+              : 0;
+
+      place(clothes, index * 5, 0, 1.26 + hipShift, 0, 0.56, 0.65, 0.36, torsoPitch);
+      place(skin, index * 3, 0, 1.81 + hipShift, biking ? -0.08 : 0, 0.175, 0.22, 0.18, 0, headYaw);
+      place(
+        hair,
+        index,
+        0,
+        1.86 + hipShift,
+        biking ? -0.08 : 0,
+        resident.hasHat ? 0.24 : 0.185,
+        resident.hasHat ? 0.15 : 0.18,
+        resident.hasHat ? 0.25 : 0.19,
+        0,
+        headYaw,
+      );
+
+      if (resident.hasBag && !seated) {
+        place(bags, index, 0, 1.28 + hipShift, 0.24, 0.34, 0.42, 0.18, torsoPitch);
+      } else {
+        place(bags, index, 0, -10, 0, 0.001, 0.001, 0.001);
+      }
+
       for (let side = 0; side < 2; side++) {
         const sign = side === 0 ? -1 : 1;
-        const legAngle = seated ? -Math.PI / 2 : sign * stride;
-        const kneeAngle = seated ? 0 : legAngle + Math.max(0, Math.sin(phase) * sign) * 0.58;
+        const legAngle = seated
+          ? -Math.PI / 2
+          : biking
+            ? -0.45 + sign * stride * 0.65
+            : sign * stride;
+        const kneeAngle = seated
+          ? 0
+          : biking
+            ? legAngle + 0.72 + Math.cos(phase) * sign * 0.32
+            : legAngle + Math.max(0, Math.sin(phase) * sign) * (jogging ? 0.85 : 0.58);
         const hipY = 0.94 + hipShift;
         const kneeY = hipY - Math.cos(legAngle) * 0.41;
         const kneeZ = -Math.sin(legAngle) * 0.41;
@@ -218,18 +637,101 @@ export function buildCityLife({
         limb(trousers, index * 4 + side * 2, sign * 0.135, hipY, 0, 0.41, 0.16, legAngle);
         limb(trousers, index * 4 + side * 2 + 1, sign * 0.135, kneeY, kneeZ, lowerLegLength, 0.135, kneeAngle);
         place(shoes, index * 2 + side, sign * 0.135, ankleY - 0.055, ankleZ + 0.045, 0.18, 0.11, 0.29);
+
         const talking = resident.activity === "talk" && side === 1;
-        const armAngle = seated ? -0.45 : talking ? -0.42 + Math.sin(seconds * 1.2 + resident.phase) * 0.14 : -sign * stride * 0.72;
-        const forearmAngle = seated ? -0.15 : talking ? armAngle - 0.9 : armAngle - 0.18;
+        const armAngle = seated
+          ? -0.45
+          : shopping
+            ? -0.78
+            : arguing
+              ? -1.05 + Math.sin(seconds * 7.4 + resident.phase + side * 2.1) * 0.65
+              : biking
+                ? -0.68
+                : volley
+                  ? -1.85 - Math.sin(seconds * 3.2 + resident.phase) * 0.55
+                  : talking
+                    ? -0.45 + Math.sin(seconds * 1.6 + resident.phase) * 0.22
+                    : jogging
+                      ? -0.35 - sign * stride * 0.85
+                      : -sign * stride * 0.72;
+        const forearmAngle = seated
+          ? -0.15
+          : shopping
+            ? -0.62
+            : arguing
+              ? armAngle - 0.55 + Math.cos(seconds * 8.2 + side) * 0.35
+              : biking
+                ? -0.52
+                : volley
+                  ? armAngle - 0.25
+                  : talking
+                    ? armAngle - 0.92
+                    : jogging
+                      ? armAngle - 0.85
+                      : armAngle - 0.2;
         const elbowY = 1.53 + hipShift - Math.cos(armAngle) * 0.31;
         const elbowZ = -Math.sin(armAngle) * 0.31;
         limb(clothes, index * 5 + 1 + side * 2, sign * 0.32, 1.53 + hipShift, 0, 0.31, 0.18, armAngle);
         limb(clothes, index * 5 + 2 + side * 2, sign * 0.32, elbowY, elbowZ, 0.3, 0.15, forearmAngle);
-        place(skin, index * 3 + 1 + side, sign * 0.32, elbowY - Math.cos(forearmAngle) * 0.31, elbowZ - Math.sin(forearmAngle) * 0.31, 0.072, 0.09, 0.072);
+        place(
+          skin,
+          index * 3 + 1 + side,
+          sign * 0.32,
+          elbowY - Math.cos(forearmAngle) * 0.31,
+          elbowZ - Math.sin(forearmAngle) * 0.31,
+          0.074,
+          0.092,
+          0.074,
+        );
+      }
+
+      if (biking) {
+        place(bikeFrames, activeBikeIndex * 2, 0, 0.62, -0.05, 0.08, 0.42, 1.15, 0.12);
+        place(bikeFrames, activeBikeIndex * 2 + 1, 0, 1.04, -0.46, 0.58, 0.07, 0.08);
+        place(bikeWheels, activeBikeIndex * 2, 0, 0.36, -0.58, 1, 1, 1, 0, Math.PI / 2);
+        place(bikeWheels, activeBikeIndex * 2 + 1, 0, 0.36, 0.54, 1, 1, 1, 0, Math.PI / 2);
+        activeBikeIndex++;
+      }
+
+      if (resident.hasDog) {
+        const dogPhase = seconds * 8.5 + resident.phase;
+        const dogBob = Math.abs(Math.sin(dogPhase)) * 0.025;
+        const dx = 0.58;
+        const dz = -0.35;
+        place(dogs, activeDogIndex * 6, dx, 0.34 + dogBob, dz, 0.24, 0.22, 0.52);
+        place(dogs, activeDogIndex * 6 + 1, dx, 0.48 + dogBob, dz - 0.26, 0.2, 0.2, 0.24);
+        place(dogs, activeDogIndex * 6 + 2, dx, 0.45 + dogBob, dz + 0.28, 0.06, 0.18, 0.06, -0.5 + Math.sin(dogPhase * 1.5) * 0.3);
+        place(dogs, activeDogIndex * 6 + 3, dx - 0.08, 0.16, dz - 0.16, 0.06, 0.24, 0.06, Math.sin(dogPhase) * 0.45);
+        place(dogs, activeDogIndex * 6 + 4, dx + 0.08, 0.16, dz - 0.16, 0.06, 0.24, 0.06, -Math.sin(dogPhase) * 0.45);
+        place(dogs, activeDogIndex * 6 + 5, dx, 0.16, dz + 0.18, 0.18, 0.24, 0.07, -Math.sin(dogPhase) * 0.45);
+        activeDogIndex++;
+      }
+
+      if (resident.hasCart) {
+        // 3D超市手推车（金属网篮、底架、推把）与车内满载的生鲜商品盒
+        place(shoppingCarts, activeCartIndex * 3, 0, 0.64, -0.78, 0.52, 0.42, 0.68);
+        place(shoppingCarts, activeCartIndex * 3 + 1, 0, 0.24, -0.78, 0.48, 0.08, 0.66);
+        place(shoppingCarts, activeCartIndex * 3 + 2, 0, 0.92, -0.42, 0.54, 0.06, 0.08);
+        place(cartGoods, activeCartIndex * 2, -0.1, 0.72, -0.82, 0.22, 0.26, 0.24);
+        place(cartGoods, activeCartIndex * 2 + 1, 0.11, 0.7, -0.72, 0.2, 0.22, 0.22);
+        activeCartIndex++;
       }
     });
+
+    // 沙滩排球场高空抛物线往返排球 (-172, y, 119)
+    const ballT = (Math.sin(seconds * 2.4) + 1) * 0.5;
+    const ballX = -172 + Math.sin(seconds * 1.2) * 2.8;
+    const ballZ = 116.3 + ballT * 5.4;
+    const ballY = 1.6 + Math.sin(ballT * Math.PI) * 3.1;
+    transform.position.set(ballX, ballY, ballZ);
+    transform.rotation.set(seconds * 2, seconds * 1.5, 0);
+    transform.scale.set(0.24, 0.24, 0.24);
+    transform.updateMatrix();
+    volleyBallMesh.setMatrixAt(0, transform.matrix);
+
     for (const mesh of meshes) mesh.instanceMatrix.needsUpdate = true;
   }
+
   group.userData.pedestrianCount = count;
   group.userData.pedestrianRouteCount = routes.length;
   animate(0);

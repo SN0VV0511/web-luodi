@@ -33,7 +33,7 @@ import {
   Sun,
   X,
 } from "lucide-react";
-import { cityBuildings, cityPlaces, safeAppUrl, type PlaceId } from "@/lib/city-content";
+import { cityBuildings, safeAppUrl, type PlaceId } from "@/lib/city-content";
 import { CITY_BOUNDS, ROAD_SEGMENTS, cityLots, civicLots, parkLots } from "@/lib/city-map";
 import {
   pickLocale,
@@ -121,7 +121,7 @@ export function LandingPage(): ReactNode {
     setSelectionKey((value) => value + 1);
     setTouring(false);
     setPanel(id === "news" || id === "guestbook" || id === "about" ? id : null);
-    const href = cityPlaces.find((place) => place.id === id)?.href;
+    const href = safeAppUrl(cityBuildings.find((place) => place.id === id)?.href);
     if (href) {
       window.open(href, "_blank", "noopener,noreferrer");
     }
@@ -299,6 +299,39 @@ export function LandingPage(): ReactNode {
           }}><MapPin size={12} />{name}<ChevronRight size={11} /></button>
         ))}
       </nav>
+
+      <aside className="live-scenes-panel" aria-label={t("小镇实时剧场", "Town live vignettes")}>
+        <div className="live-scenes-header">
+          <span className="live-pulse-dot" />
+          <strong>{t("小镇实况近景 · 点击直达现场", "LIVE STREET VIGNETTES")}</strong>
+        </div>
+        <div className="live-scenes-grid">
+          {[
+            { badge: "CRASH", title: t("路口追尾与车主争吵", "Car Crash & Dispute"), desc: t("浓烟 · 警车爆闪 · 双方争执", "Smoke, sirens & argument"), x: -73.5, z: 69.5, distance: 25, height: 1.8 },
+            { badge: "MART", title: t("鲜活超市推车采购", "Supermarket Shopping"), desc: t("手推购物车 · 蔬果摊挑拣", "3D carts & fresh stalls"), x: -120, z: 86.5, distance: 26, height: 2.0 },
+            { badge: "SIGNAL", title: t("红绿灯斑马线过街", "Traffic Light Crossing"), desc: t("红灯驻足等待 · 绿灯通行", "Wait on red, walk on green"), x: -75, z: 89.5, distance: 28, height: 1.8 },
+            { badge: "BEACH", title: t("黄金海岸排球对决", "Beach Volleyball"), desc: t("扣球起跳 · 海鸥盘旋", "Spiking & soaring gulls"), x: -172, z: 119, distance: 29, height: 2.0 },
+          ].map((scene) => (
+            <button
+              key={scene.badge}
+              type="button"
+              className="live-scene-card"
+              onClick={() => {
+                setFocusPoint({ x: scene.x, z: scene.z, distance: scene.distance, height: scene.height });
+                setSelected(null);
+                setPanel(null);
+                setTouring(false);
+              }}
+            >
+              <span className={`live-scene-badge is-${scene.badge.toLowerCase()}`}>{scene.badge}</span>
+              <span className="live-scene-copy">
+                <strong>{scene.title}</strong>
+                <small>{scene.desc}</small>
+              </span>
+            </button>
+          ))}
+        </div>
+      </aside>
 
       <div
         className="view-switch"
@@ -487,16 +520,29 @@ export function LandingPage(): ReactNode {
                 style={{ "--place-color": building.color } as CSSProperties}
               >
                 <span className="building-list-icon">
-                  <Building2 size={21} />
+                  <Building2 size={20} strokeWidth={1.6} />
                   <small>{building.number}</small>
                 </span>
-                <span>
-                  <strong>{building.name}</strong>
+                <span className="building-list-copy">
+                  <strong>
+                    {building.name}
+                    <i
+                      className={`building-status-dot${building.vacant ? " is-vacant" : safeAppUrl(building.href) ? " is-online" : " is-standby"}`}
+                      aria-hidden="true"
+                    />
+                  </strong>
                   <small>
                     {building.vacant
                       ? t("预留办公空间", "AVAILABLE SPACE")
                       : pickLocale(building.category, locale).split(" · ")[0]}
                   </small>
+                </span>
+                <span className="building-list-meta" aria-hidden="true">
+                  {building.vacant
+                    ? t("待入驻", "OPEN")
+                    : safeAppUrl(building.href)
+                      ? t("在线", "LIVE")
+                      : t("节点", "NODE")}
                 </span>
                 <ChevronRight size={15} />
               </button>
@@ -529,7 +575,9 @@ export function LandingPage(): ReactNode {
           style={{ "--place-color": place.color } as CSSProperties}
         >
           <div className="detail-banner">
-            <Building2 size={30} strokeWidth={1} />
+            <span className="detail-banner-icon" aria-hidden="true">
+              <Building2 size={24} strokeWidth={1.4} />
+            </span>
             <span>
               BLOCK {place.number}
               <strong>
@@ -560,6 +608,20 @@ export function LandingPage(): ReactNode {
               <span>
                 {t("空间编号", "ADDRESS")}
                 <strong>SN-{place.number}</strong>
+              </span>
+              <span>
+                {t("建筑高度", "HEIGHT")}
+                <strong>{lot ? `${lot.height}m` : "24m"}</strong>
+              </span>
+              <span>
+                {t("部署状态", "STATUS")}
+                <strong>
+                  {place.vacant
+                    ? t("预留空间", "AVAILABLE")
+                    : safeAppUrl(place.href)
+                      ? t("在线服务", "ONLINE")
+                      : t("内部节点", "STANDBY")}
+                </strong>
               </span>
             </div>
             {safeAppUrl(place.href) ? (
@@ -623,20 +685,22 @@ export function LandingPage(): ReactNode {
             preserveAspectRatio="none"
             aria-hidden="true"
           >
-            <rect x={CITY_BOUNDS.minX} y={CITY_BOUNDS.minZ} width={CITY_BOUNDS.maxX - CITY_BOUNDS.minX} height={CITY_BOUNDS.maxZ - CITY_BOUNDS.minZ} fill="#3a493f" />
-            <rect x={CITY_BOUNDS.minX} y="115" width={CITY_BOUNDS.maxX - CITY_BOUNDS.minX} height={CITY_BOUNDS.maxZ - 115} fill="#356674" />
-            <path d="M-225,107H-80Q-125,183 -225,125Z" fill="#c9b589" />
-            <rect x="165" y="115" width="135" height="70" fill="#9a9f8f" />
-            <rect x="266" y="180" width="25" height="78" fill="#9a9f8f" />
+            <rect x={CITY_BOUNDS.minX} y={CITY_BOUNDS.minZ} width={CITY_BOUNDS.maxX - CITY_BOUNDS.minX} height={CITY_BOUNDS.maxZ - CITY_BOUNDS.minZ} fill="#314239" />
+            <rect x={CITY_BOUNDS.minX} y="114" width={CITY_BOUNDS.maxX - CITY_BOUNDS.minX} height={CITY_BOUNDS.maxZ - 114} fill="#255464" />
+            <path d="M-240,145 Q-60,175 160,148 T320,165" fill="none" stroke="#3c7384" strokeWidth="2.5" strokeDasharray="8 6" opacity="0.55" />
+            <path d="M-225,107H-80Q-125,183 -225,125Z" fill="#d2be92" />
+            <rect x="165" y="115" width="135" height="70" fill="#8f9688" />
+            <rect x="266" y="180" width="25" height="78" fill="#8f9688" />
+            <rect x="181" y="180" width="22" height="74" fill="#8f9688" />
             {ROAD_SEGMENTS.map((road, index) => (
-              <path key={index} d={`M${road.x1},${road.z1}L${road.x2},${road.z2}`} stroke="#939788" strokeWidth="7" />
+              <path key={index} d={`M${road.x1},${road.z1}L${road.x2},${road.z2}`} stroke="#82887b" strokeWidth="8.5" strokeLinecap="square" />
             ))}
             {parkLots.map((park) => (
-              <rect key={park.name} x={park.x - park.width / 2} y={park.z - park.depth / 2} width={park.width} height={park.depth} rx="20" fill="#75a275" />
+              <rect key={park.name} x={park.x - park.width / 2} y={park.z - park.depth / 2} width={park.width} height={park.depth} rx="22" fill="#638e66" stroke="#85ad82" strokeWidth="2" />
             ))}
-            <ellipse cx="-12" cy="-15" rx="26" ry="37" fill="#588f99" />
+            <ellipse cx="-12" cy="-15" rx="26" ry="37" fill="#4b838e" stroke="#9fc4b4" strokeWidth="1.5" />
             {civicLots.map((lot) => (
-              <rect key={lot.kind} x={lot.x - 12} y={lot.z - 12} width="24" height="24" rx="3" fill={lot.kind === "hospital" ? "#d5aaa1" : lot.kind === "stadium" ? "#779986" : "#d2c9a3"} />
+              <rect key={lot.kind} x={lot.x - 12} y={lot.z - 12} width="24" height="24" rx="4" fill={lot.kind === "hospital" ? "#d5aaa1" : lot.kind === "stadium" ? "#779986" : "#d2c9a3"} />
             ))}
             {cityLots.map((lot) => (
               <rect
@@ -645,23 +709,32 @@ export function LandingPage(): ReactNode {
                 y={lot.z - lot.depth / 2}
                 width={lot.width}
                 height={lot.depth}
+                rx="2.5"
                 fill={
                   lot.id === selected
-                    ? "#efffcb"
+                    ? "#f4ffcf"
                     : lot.vacant
-                      ? "#a9af9b"
-                      : "#9fc8ad"
+                      ? "#9ba391"
+                      : "#a7d8b5"
                 }
+                stroke={lot.id === selected ? "#ffffff" : "#22342c"}
+                strokeWidth={lot.id === selected ? "3" : "1.2"}
               />
             ))}
             <circle
               cx={focusPoint?.x ?? 0}
               cy={focusPoint?.z ?? 0}
               r="38"
-              fill="none"
+              fill="rgba(229, 242, 208, 0.06)"
               stroke="#e5f2d0"
-              strokeWidth="2"
+              strokeWidth="2.2"
               strokeDasharray="7 4"
+            />
+            <circle
+              cx={focusPoint?.x ?? 0}
+              cy={focusPoint?.z ?? 0}
+              r="4.5"
+              fill="#e5f2d0"
             />
           </svg>
           <span className="map-caption">

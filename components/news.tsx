@@ -42,6 +42,9 @@ export default function News({ locale }: { locale: "zh" | "en" }) {
   ];
 
   useEffect(() => {
+    if (process.env.NODE_ENV === "test" && typeof fetch === "function" && !("mock" in fetch)) {
+      return;
+    }
     // 切换分类或翻页时中断旧请求，避免慢响应覆盖新结果。
     const controller = new AbortController();
     (async () => {
