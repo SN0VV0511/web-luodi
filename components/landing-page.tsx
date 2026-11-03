@@ -86,7 +86,7 @@ export function LandingPage(): ReactNode {
     (building) =>
       (filter === "all" ||
         (filter === "vacant" ? building.vacant : !building.vacant)) &&
-      `${building.name} ${pickLocale(building.category, locale)} ${building.number}`
+      `${building.name} ${pickLocale(building.category, locale)} ${building.number} ${building.floors?.map((floor) => `${pickLocale(floor.title, locale)} ${pickLocale(floor.category, locale)}`).join(" ") ?? ""}`
         .toLowerCase()
         .includes(query.trim().toLowerCase()),
   );
@@ -121,7 +121,8 @@ export function LandingPage(): ReactNode {
     setSelectionKey((value) => value + 1);
     setTouring(false);
     setPanel(id === "news" || id === "guestbook" || id === "about" ? id : null);
-    const href = safeAppUrl(cityBuildings.find((place) => place.id === id)?.href);
+    const target = cityBuildings.find((place) => place.id === id);
+    const href = target?.floors?.length ? undefined : safeAppUrl(target?.href);
     if (href) {
       window.open(href, "_blank", "noopener,noreferrer");
     }
@@ -527,7 +528,7 @@ export function LandingPage(): ReactNode {
                   <strong>
                     {building.name}
                     <i
-                      className={`building-status-dot${building.vacant ? " is-vacant" : safeAppUrl(building.href) ? " is-online" : " is-standby"}`}
+                      className={`building-status-dot${building.vacant ? " is-vacant" : safeAppUrl(building.href) || building.floors?.length ? " is-online" : " is-standby"}`}
                       aria-hidden="true"
                     />
                   </strong>
@@ -540,9 +541,11 @@ export function LandingPage(): ReactNode {
                 <span className="building-list-meta" aria-hidden="true">
                   {building.vacant
                     ? t("待入驻", "OPEN")
-                    : safeAppUrl(building.href)
-                      ? t("在线", "LIVE")
-                      : t("节点", "NODE")}
+                    : building.floors?.length
+                      ? t(`${building.floors.length}层`, `${building.floors.length}F`)
+                      : safeAppUrl(building.href)
+                        ? t("在线", "LIVE")
+                        : t("节点", "NODE")}
                 </span>
                 <ChevronRight size={15} />
               </button>
@@ -618,13 +621,48 @@ export function LandingPage(): ReactNode {
                 <strong>
                   {place.vacant
                     ? t("预留空间", "AVAILABLE")
-                    : safeAppUrl(place.href)
-                      ? t("在线服务", "ONLINE")
-                      : t("内部节点", "STANDBY")}
+                    : place.floors?.length
+                      ? t(`共 ${place.floors.length} 层开放`, `${place.floors.length} FLOORS`)
+                      : safeAppUrl(place.href)
+                        ? t("在线服务", "ONLINE")
+                        : t("内部节点", "STANDBY")}
                 </strong>
               </span>
             </div>
-            {safeAppUrl(place.href) ? (
+            {place.floors && place.floors.length > 0 ? (
+              <div
+                className="building-floors"
+                role="region"
+                aria-label={t("楼层导览", "Floor directory")}
+              >
+                <div className="building-floors-header">
+                  <span>FLOOR DIRECTORY</span>
+                  <strong>{t("选择楼层进入", "SELECT A FLOOR")}</strong>
+                </div>
+                <div className="building-floors-list">
+                  {place.floors.map((item) => {
+                    const floorUrl = safeAppUrl(item.href);
+                    return (
+                      <a
+                        key={item.floor}
+                        className="building-floor-card"
+                        href={floorUrl ?? "#"}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <span className="building-floor-badge">{item.floor}</span>
+                        <span className="building-floor-copy">
+                          <small>{pickLocale(item.category, locale)}</small>
+                          <strong>{pickLocale(item.title, locale)}</strong>
+                          <span>{pickLocale(item.description, locale)}</span>
+                        </span>
+                        <ArrowUpRight size={15} aria-hidden="true" />
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : safeAppUrl(place.href) ? (
               <a
                 className="button primary"
                 href={safeAppUrl(place.href)}

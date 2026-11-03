@@ -9,6 +9,13 @@ export type PlaceId =
   | "guestbook"
   | "about"
   | `slot-${number}`;
+export type BuildingFloor = Readonly<{
+  floor: string;
+  title: LocalizedText;
+  category: LocalizedText;
+  description: LocalizedText;
+  href: string;
+}>;
 export type CityPlace = Readonly<{
   id: PlaceId;
   number: string;
@@ -18,6 +25,7 @@ export type CityPlace = Readonly<{
   color: string;
   href?: string;
   sourceHref?: string;
+  floors?: readonly BuildingFloor[];
   vacant?: boolean;
 }>;
 
@@ -119,30 +127,50 @@ export const officeTenants: Partial<
     href: "https://sn0vv.top/wxqr/",
   },
   "slot-8": {
-    name: "Biglink 财税智能体",
+    name: "技术手稿馆",
     category: {
-      zh: "架构手册 · MULTI-AGENT DOCS",
-      en: "MULTI-AGENT DOCS",
+      zh: "多楼层展馆 · HTML ARCHIVE TOWER",
+      en: "HTML ARCHIVE TOWER",
     },
     description: {
-      zh: "基于本地微调 Gemma 与云端大模型混合路由的六域财税多智能体平台架构与面试全景手册。",
-      en: "Architecture design and full-stack handbook for the Biglink six-domain FinTax multi-agent platform.",
+      zh: "按楼层收录工程架构全景手稿与微调实验记录的展馆大楼，选择对应楼层即可进入查阅。",
+      en: "A multi-floor archive tower housing interactive architecture handbooks and fine-tuning labs. Select a floor to enter.",
     },
     color: "#6b92b5",
-    href: "/biglink/index.html",
-  },
-  "slot-9": {
-    name: "LoRA 微调记录",
-    category: {
-      zh: "微调实验 · LORA CLASSROOM",
-      en: "LORA CLASSROOM",
-    },
-    description: {
-      zh: "Gemma QLoRA 微调记录与交互式拆解课堂：涵盖中文术语、公式推导、逐段代码与实验复盘。",
-      en: "Interactive LoRA & QLoRA fine-tuning notes with formula breakdowns, code walkthroughs, and experiments.",
-    },
-    color: "#5f9ea0",
-    href: "/lora/index.html",
+    floors: [
+      {
+        floor: "1F",
+        title: {
+          zh: "Biglink 财税多智能体系统",
+          en: "Biglink FinTax Multi-Agent",
+        },
+        category: {
+          zh: "项目简介 · 架构与面试全景手册",
+          en: "PROJECT INTRO · ARCHITECTURE HANDBOOK",
+        },
+        description: {
+          zh: "基于本地微调 Gemma 与云端大模型混合路由的六域财税多智能体平台。",
+          en: "Six-domain FinTax multi-agent platform with hybrid local Gemma and cloud LLM routing.",
+        },
+        href: "/biglink/index.html",
+      },
+      {
+        floor: "2F",
+        title: {
+          zh: "LoRA 微调记录课堂",
+          en: "LoRA Fine-Tuning Classroom",
+        },
+        category: {
+          zh: "微调记录 · 公式拆解与逐段代码",
+          en: "FINE-TUNING LOG · MATH & CODE",
+        },
+        description: {
+          zh: "Gemma QLoRA 微调实验复盘、中文术语点读、低秩矩阵推导与逐段代码实现。",
+          en: "Interactive Gemma QLoRA fine-tuning log with term explanations, matrix math, and code walkthroughs.",
+        },
+        href: "/lora/index.html",
+      },
+    ],
   },
 };
 

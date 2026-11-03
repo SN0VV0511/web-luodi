@@ -23,7 +23,7 @@ npm run dev
 所有建筑元数据位于 `lib/city-content.ts`，楼牌、目录、搜索、详情、链接使用同一份数据：
 
 - `cityPlaces`：量化事务所、AFFiNE、Agent Base、OpenClaw。
-- `officeTenants`：LunaTV、LunaTV 源浏览器、微信推送、Biglink 财税智能体、LoRA 微调记录已入驻 `slot-5` 到 `slot-9`；其余 3 栋预留办公楼编号 `slot-10` 到 `slot-12`。
+- `officeTenants`：LunaTV、LunaTV 源浏览器、微信推送、技术手稿馆（多楼层 HTML：1F Biglink 财税智能体、2F LoRA 微调记录）已入驻 `slot-5` 到 `slot-8`；其余 4 栋预留办公楼编号 `slot-9` 到 `slot-12`。
 
 新增部署时，在 `officeTenants` 增加一项即可；无需编辑 Three.js 场景。例如：
 

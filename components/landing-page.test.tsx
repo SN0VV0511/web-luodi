@@ -69,16 +69,33 @@ describe("城市主页", () => {
     fireEvent.click(directory.getByRole("button", { name: /^预留空间/ }));
     expect(directory.getByRole("status")).toHaveTextContent("没有找到这栋楼");
     fireEvent.click(directory.getByRole("button", { name: "清除搜索" }));
-    expect(directory.getAllByRole("button", { name: /^探索 / })).toHaveLength(3);
+    expect(directory.getAllByRole("button", { name: /^探索 / })).toHaveLength(4);
     expect(directory.getByRole("button", { name: "探索 Office 12" })).toBeInTheDocument();
     expect(directory.queryByRole("button", { name: "探索 AFFiNE" })).not.toBeInTheDocument();
 
     fireEvent.click(directory.getByRole("button", { name: /^已入驻/ }));
-    expect(directory.getAllByRole("button", { name: /^探索 / })).toHaveLength(9);
+    expect(directory.getAllByRole("button", { name: /^探索 / })).toHaveLength(8);
     fireEvent.change(search, { target: { value: "03" } });
     expect(directory.getByRole("button", { name: "探索 Agent Base" })).toBeInTheDocument();
     fireEvent.click(directory.getByRole("button", { name: "关闭应用目录" }));
     expect(screen.queryByRole("complementary", { name: "应用目录" })).not.toBeInTheDocument();
+  });
+
+  it("多楼层大楼点开后展示楼层导览列表，按层直达不同 HTML", () => {
+    render(<LandingPage />);
+    const directory = openDirectory();
+    fireEvent.click(directory.getByRole("button", { name: "探索 技术手稿馆" }));
+    const detail = screen.getByRole("complementary", { name: "建筑详情" });
+    expect(within(detail).getByRole("heading", { name: "技术手稿馆" })).toBeInTheDocument();
+    const floors = within(detail).getByRole("region", { name: "楼层导览" });
+    const links = within(floors).getAllByRole("link");
+    expect(links).toHaveLength(2);
+    expect(links[0]).toHaveAttribute("href", "/biglink/index.html");
+    expect(links[0]).toHaveTextContent("1F");
+    expect(links[0]).toHaveTextContent("Biglink 财税多智能体系统");
+    expect(links[1]).toHaveAttribute("href", "/lora/index.html");
+    expect(links[1]).toHaveTextContent("2F");
+    expect(links[1]).toHaveTextContent("LoRA 微调记录课堂");
   });
 
   it("三维建筑与目录共用聚焦详情，空办公室没有伪造应用入口", () => {

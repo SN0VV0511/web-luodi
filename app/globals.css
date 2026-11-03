@@ -1002,10 +1002,12 @@ svg {
   position: absolute;
   top: 162px;
   right: 28px;
-  width: 326px;
+  width: 344px;
+  max-height: calc(100dvh - 196px);
   z-index: 7;
   animation: panel-in 0.22s ease;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 .place-detail:focus {
   outline: none;
@@ -1158,6 +1160,110 @@ svg {
 .detail-body > .button {
   width: 100%;
   justify-content: space-between;
+}
+.building-floors {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.building-floors-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+.building-floors-header span {
+  font: 7px var(--mono);
+  letter-spacing: 1.4px;
+  color: #8fa586;
+}
+.building-floors-header strong {
+  font-size: 9.5px;
+  font-weight: 500;
+  color: #c8dac0;
+  letter-spacing: 0.4px;
+}
+.building-floors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.building-floor-card {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 12px;
+  border-radius: 6px;
+  background: linear-gradient(145deg, #0d1f1b8c, #0a181599);
+  border: 1px solid #c9dbb926;
+  text-decoration: none;
+  color: #eef5e6;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+}
+.building-floor-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--place-color, #95c2a8) 62%, #d4e7c4);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--place-color, #6b92b5) 22%, #132821),
+    #0f211c
+  );
+  box-shadow: 0 8px 20px #06110e55;
+}
+.building-floor-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  font: 600 11px var(--mono);
+  letter-spacing: 0.6px;
+  color: #f3f8ec;
+  background: color-mix(in srgb, var(--place-color, #6b92b5) 32%, #152922);
+  border: 1px solid color-mix(in srgb, var(--place-color, #6b92b5) 55%, #ffffff26);
+  box-shadow: inset 0 1px 0 #ffffff24;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+.building-floor-card:hover .building-floor-badge {
+  color: #13251b;
+  background: linear-gradient(180deg, #d8ebd0, #b8d3a4);
+  border-color: #e4f3dc;
+}
+.building-floor-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.building-floor-copy small {
+  font: 6.5px var(--mono);
+  letter-spacing: 0.9px;
+  color: #9bb495;
+}
+.building-floor-copy strong {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f0f6eb;
+  line-height: 1.35;
+}
+.building-floor-copy span {
+  font-size: 9.5px;
+  line-height: 1.55;
+  color: #b2c2a9;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.building-floor-card > svg {
+  color: #9ab392;
+  flex-shrink: 0;
+  transition: transform 0.16s ease, color 0.16s ease;
+}
+.building-floor-card:hover > svg {
+  color: #e2f0d8;
+  transform: translate(1px, -1px);
 }
 .connection-note {
   color: #bac8ae;

@@ -31,7 +31,7 @@ describe("城市部署配置", () => {
     }
   });
 
-  it("未配置时不冒充环境地址，官方部署入口回退且保留三间空办公室", async () => {
+  it("未配置时不冒充环境地址，官方部署入口回退且保留四间空办公室", async () => {
     for (const key of [
       "QUANT",
       "AFFINE",
@@ -53,7 +53,7 @@ describe("城市部署配置", () => {
       "https://sn0vv.top/affine/",
     );
     expect(communityLinks).toEqual({ news: undefined, guestbook: undefined });
-    expect(cityBuildings.filter((place) => place.vacant)).toHaveLength(3);
+    expect(cityBuildings.filter((place) => place.vacant)).toHaveLength(4);
     expect(new Set(cityBuildings.map((place) => place.id)).size).toBe(
       cityBuildings.length,
     );
@@ -73,15 +73,19 @@ describe("城市部署配置", () => {
       name: "微信推送",
       href: "https://sn0vv.top/wxqr/",
     });
-    expect(cityBuildings.find((place) => place.id === "slot-8")).toMatchObject({
-      name: "Biglink 财税智能体",
-      href: "/biglink/index.html",
+    const archiveBuilding = cityBuildings.find((place) => place.id === "slot-8");
+    expect(archiveBuilding).toMatchObject({
+      name: "技术手稿馆",
       vacant: false,
     });
-    expect(cityBuildings.find((place) => place.id === "slot-9")).toMatchObject({
-      name: "LoRA 微调记录",
+    expect(archiveBuilding?.floors).toHaveLength(2);
+    expect(archiveBuilding?.floors?.[0]).toMatchObject({
+      floor: "1F",
+      href: "/biglink/index.html",
+    });
+    expect(archiveBuilding?.floors?.[1]).toMatchObject({
+      floor: "2F",
       href: "/lora/index.html",
-      vacant: false,
     });
   });
 
