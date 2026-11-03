@@ -81,7 +81,7 @@ describe("城市主页", () => {
     expect(screen.queryByRole("complementary", { name: "应用目录" })).not.toBeInTheDocument();
   });
 
-  it("多楼层大楼点开后展示楼层导览列表，按层直达不同 HTML", () => {
+  it("多楼层大楼点开后展示楼层导览、电梯搜索与上下滑动 HTML 展厅", () => {
     render(<LandingPage />);
     const directory = openDirectory();
     fireEvent.click(directory.getByRole("button", { name: "探索 技术手稿馆" }));
@@ -90,12 +90,20 @@ describe("城市主页", () => {
     const floors = within(detail).getByRole("region", { name: "楼层导览" });
     const links = within(floors).getAllByRole("link");
     expect(links).toHaveLength(2);
-    expect(links[0]).toHaveAttribute("href", "/biglink/index.html");
-    expect(links[0]).toHaveTextContent("1F");
-    expect(links[0]).toHaveTextContent("Biglink 财税多智能体系统");
-    expect(links[1]).toHaveAttribute("href", "/lora/index.html");
-    expect(links[1]).toHaveTextContent("2F");
-    expect(links[1]).toHaveTextContent("LoRA 微调记录课堂");
+    // 建筑立面从顶层(2F)向下排列到底层(1F)
+    expect(links[0]).toHaveAttribute("href", "/lora/index.html");
+    expect(links[0]).toHaveTextContent("2F");
+    expect(links[0]).toHaveTextContent("LoRA 微调记录课堂");
+    expect(links[1]).toHaveAttribute("href", "/biglink/index.html");
+    expect(links[1]).toHaveTextContent("1F");
+    expect(links[1]).toHaveTextContent("Biglink 财税多智能体系统");
+
+    // 电梯搜索直达对应楼层 HTML
+    const elevatorInput = within(detail).getByRole("textbox", { name: "电梯搜索直达" });
+    fireEvent.change(elevatorInput, { target: { value: "LoRA" } });
+    fireEvent.click(within(detail).getByRole("button", { name: "电梯直达" }));
+    expect(within(detail).getByRole("status")).toHaveTextContent("⚡ 电梯已直达 2F · LoRA 微调记录课堂");
+    expect(sceneProps.mock.lastCall?.[0]).toMatchObject({ selected: "slot-8", activeFloorIndex: 1 });
   });
 
   it("三维建筑与目录共用聚焦详情，空办公室没有伪造应用入口", () => {

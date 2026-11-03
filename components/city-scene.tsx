@@ -26,6 +26,8 @@ type CitySceneProps = {
   labelsVisible?: boolean;
   touring?: boolean;
   focusPoint?: { x: number; z: number; distance?: number; height?: number };
+  activeFloorIndex?: number;
+  onFlightChange?: (flying: boolean) => void;
   onReady?: () => void;
   information?: ReactNode;
 };
@@ -38,6 +40,7 @@ type SceneHandle = {
   highlight: (id: PlaceId | null) => void;
   view: (view: CityView) => void;
   focus: (point: { x: number; z: number; distance?: number; height?: number }) => void;
+  syncFloor: () => void;
 };
 type CameraFlight = {
   from: THREE.Vector3;
@@ -244,6 +247,23 @@ export default function CityScene(props: CitySceneProps) {
     selection.visible = false;
     scene.add(selection);
 
+    // 多楼层建筑专属的3D外挂观光电梯井道、升降轿厢与当前楼层环光带
+    const elevatorGroup = new THREE.Group();
+    elevatorGroup.visible = false;
+    const shaftGeometry = new THREE.BoxGeometry(2.1, 1, 1.4);
+    const shaftMaterial = new THREE.MeshBasicMaterial({ color: "#1d3542", transparent: true, opacity: 0.72 });
+    const elevatorShaftMesh = new THREE.Mesh(shaftGeometry, shaftMaterial);
+    const floorBandGeometry = new THREE.BoxGeometry(1, 5.2, 1);
+    const floorBandMaterial = new THREE.MeshBasicMaterial({ color: "#8ce8c8", transparent: true, opacity: 0.24, depthWrite: false });
+    const floorBandMesh = new THREE.Mesh(floorBandGeometry, floorBandMaterial);
+    const cabGeometry = new THREE.BoxGeometry(2.6, 3.8, 1.9);
+    const cabMaterial = new THREE.MeshBasicMaterial({ color: "#ffdf8e" });
+    const elevatorCabMesh = new THREE.Mesh(cabGeometry, cabMaterial);
+    elevatorGroup.add(elevatorShaftMesh, floorBandMesh, elevatorCabMesh);
+    scene.add(elevatorGroup);
+    let currentElevatorY = 7;
+    let targetElevatorY = 7;
+
     // 左牌(billboardSign)动态轮播: 品牌帧/数据帧10秒切换, 数据60秒拉取。
     const assetBoard = createAssetBoard();
     world.billboardSign.material = new THREE.MeshBasicMaterial({ map: assetBoard.texture, toneMapped: false });
@@ -299,6 +319,7 @@ export default function CityScene(props: CitySceneProps) {
 
     function flyTo(position: THREE.Vector3, target: THREE.Vector3, immediate = false, place?: PlaceId) {
       setArrived(null);
+      const isMultiFloor = Boolean(place && buildingById.get(place)?.floors?.length);
       // 清除上次手势的阻尼余量，飞行不会继续沿旧拖拽方向漂移。
       controls.autoRotate = false;
       controls.enableDamping = false;
@@ -312,8 +333,12 @@ export default function CityScene(props: CitySceneProps) {
         controls.target.copy(target);
         controls.update();
         setArrived(place ?? null);
+        current.current.onFlightChange?.(false);
       } else {
-        flight = { from: camera.position.clone(), to: position, targetFrom: controls.target.clone(), targetTo: target, started: performance.now(), duration: place ? 2200 : 1300, place };
+        const duration = isMultiFloor ? 1250 : place ? 2200 : 1300;
+        flight = { from: camera.position.clone(), to: position, targetFrom: controls.target.clone(), targetTo: target, started: performance.now(), duration, place };
+        if (isMultiFloor) current.current.onFlightChange?.(true);
+        else current.current.onFlightChange?.(false);
         // 飞行途中暂时放宽dolly范围，避免新视角的距离上限截断动画。
         controls.minDistance = 1;
         controls.maxDistance = 1800;
@@ -342,6 +367,27 @@ export default function CityScene(props: CitySceneProps) {
         const buildingHeight = lot?.height ?? Math.max(10, anchor.y - 3);
         selection.scale.set((lot?.width ?? 20) + 1.2, buildingHeight + 1, (lot?.depth ?? 20) + 1.2);
         selection.position.set(anchor.x, buildingHeight / 2 + 0.4, anchor.z);
+      }
+      const selectedId = current.current.selected;
+      const selectedBuilding = selectedId ? buildingById.get(selectedId) : undefined;
+      const selectedLot = selectedId ? lotById.get(selectedId) : undefined;
+      const selectedAnchor = selectedId ? world.anchors.get(selectedId) : undefined;
+      if (selectedBuilding?.floors?.length && selectedLot && selectedAnchor) {
+        const totalFloors = Math.max(1, selectedBuilding.floors.length);
+        const floorIndex = THREE.MathUtils.clamp(current.current.activeFloorIndex ?? 0, 0, totalFloors - 1);
+        const usableHeight = Math.max(12, selectedLot.height - 6);
+        const step = totalFloors > 1 ? usableHeight / totalFloors : usableHeight * 0.5;
+        targetElevatorY = 4.5 + floorIndex * step + step * 0.35;
+        if (!elevatorGroup.visible) currentElevatorY = targetElevatorY;
+        elevatorGroup.visible = true;
+        elevatorGroup.position.set(selectedAnchor.x, 0, selectedAnchor.z);
+        elevatorShaftMesh.scale.set(1, selectedLot.height - 1.5, 1);
+        elevatorShaftMesh.position.set(0, (selectedLot.height - 1.5) / 2 + 0.5, (selectedLot.depth ?? 14) / 2 + 0.75);
+        floorBandMesh.scale.set((selectedLot.width ?? 14) + 1.6, 1, (selectedLot.depth ?? 14) + 1.6);
+        floorBandMesh.position.set(0, currentElevatorY, 0);
+        elevatorCabMesh.position.set(0, currentElevatorY, (selectedLot.depth ?? 14) / 2 + 1.1);
+      } else {
+        elevatorGroup.visible = false;
       }
       for (const [placeId, element] of labelsRef.current) {
         element.classList.toggle("is-selected", placeId === current.current.selected);
@@ -374,6 +420,16 @@ export default function CityScene(props: CitySceneProps) {
         return;
       }
       const roof = lot?.height ?? Math.max(14, anchor.y);
+      const building = buildingById.get(id);
+      if (building?.floors?.length) {
+        // 多楼层展馆大楼特写：拉近镜头至立面正前方，使三维电梯轿厢与楼层清晰可见
+        const target = new THREE.Vector3(anchor.x + (width / height >= 0.8 ? 10 : 0), roof * 0.48, anchor.z);
+        const closeDir = new THREE.Vector3(-0.46, 0.32, 0.83).normalize();
+        const distance = width / height < 0.8 ? 68 : 48;
+        const position = closeDir.multiplyScalar(distance).add(target);
+        flyTo(position, target, false, id);
+        return;
+      }
       const target = new THREE.Vector3(anchor.x, roof * 0.5, anchor.z);
       const distance = Math.max(100, roof * 2.4);
       direction.copy(camera.position).sub(controls.target).normalize();
@@ -486,7 +542,15 @@ export default function CityScene(props: CitySceneProps) {
           flight = null;
           labelsDirty = true;
           setDistanceLimits();
+          current.current.onFlightChange?.(false);
         }
+      }
+      let elevatorAnimating = false;
+      if (elevatorGroup.visible && Math.abs(currentElevatorY - targetElevatorY) > 0.04) {
+        currentElevatorY = THREE.MathUtils.lerp(currentElevatorY, targetElevatorY, Math.min(1, (elapsed || 0.016) * 8.5));
+        floorBandMesh.position.y = currentElevatorY;
+        elevatorCabMesh.position.y = currentElevatorY;
+        elevatorAnimating = true;
       }
       const controlsChanged = controls.update(elapsed);
       sky.position.copy(camera.position);
@@ -508,7 +572,7 @@ export default function CityScene(props: CitySceneProps) {
         setStatus("ready");
         current.current.onReady?.();
       }
-      if (moving || controlsChanged || flight) schedule();
+      if (moving || controlsChanged || flight || elevatorAnimating) schedule();
     }
 
     function resize() {
@@ -615,6 +679,7 @@ export default function CityScene(props: CitySceneProps) {
         referenceDistance = camera.position.distanceTo(controls.target);
         setDistanceLimits();
         reportZoom(1);
+        current.current.onFlightChange?.(false);
       }
       schedule();
     }
@@ -705,6 +770,9 @@ export default function CityScene(props: CitySceneProps) {
         hovered = id;
         updateHighlight();
       },
+      syncFloor: () => {
+        updateHighlight();
+      },
     };
     // 行情大屏每分钟拉取一次同源静态快照；失败保留上一幅画面，连续失败才提示维护。
     const boardAbort = new AbortController();
@@ -768,6 +836,12 @@ export default function CityScene(props: CitySceneProps) {
       world.dispose();
       selectionGeometry.dispose();
       selectionMaterial.dispose();
+      shaftGeometry.dispose();
+      shaftMaterial.dispose();
+      floorBandGeometry.dispose();
+      floorBandMaterial.dispose();
+      cabGeometry.dispose();
+      cabMaterial.dispose();
       skyGeometry.dispose();
       skyMaterial.dispose();
       environment.dispose();
@@ -779,6 +853,7 @@ export default function CityScene(props: CitySceneProps) {
   }, []);
 
   useEffect(() => { sceneRef.current?.update(); }, [props.night, props.paused, props.labelsVisible, props.touring, props.locale]);
+  useEffect(() => { sceneRef.current?.syncFloor(); }, [props.activeFloorIndex]);
   // 动态场景首次就绪后再执行选择，避免载入期间的点击被初始视角覆盖。
   useEffect(() => { if (status === "ready") sceneRef.current?.select(props.selected); }, [props.selected, props.selectionKey, status]);
   useEffect(() => { sceneRef.current?.reset(); }, [props.resetKey]);
