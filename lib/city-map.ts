@@ -40,7 +40,7 @@ const buildingSites = [
   { x: -187.5, z: -92.5, height: 18, style: "stone" },
   { x: -97.5, z: -137.5, height: 22, style: "glass" },
   { x: -187.5, z: -2.5, height: 16, style: "terrace" },
-  { x: 187.5, z: -47.5, height: 30, style: "glass" },
+  { x: 187.5, z: -47.5, width: 22, depth: 20, height: 32, style: "glass" },
   { x: 97.5, z: 42.5, height: 24, style: "stone" },
   { x: -7.5, z: -182.5, height: 26, style: "brick" },
   { x: 82.5, z: -182.5, height: 34, style: "glass" },

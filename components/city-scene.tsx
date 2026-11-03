@@ -7,6 +7,7 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { cityBuildings, type PlaceId } from "@/lib/city-content";
 import { cityLots } from "@/lib/city-map";
 import { buildCityWorld } from "@/lib/city-world";
+import { buildArchiveTower3D } from "@/lib/archive-tower-3d";
 import { parseSnapshot } from "@/lib/quant-board";
 import { createAssetBoard, parseAssetSnapshot } from "@/lib/asset-board";
 import type { Locale } from "@/lib/site-content";
@@ -27,6 +28,7 @@ type CitySceneProps = {
   touring?: boolean;
   focusPoint?: { x: number; z: number; distance?: number; height?: number };
   activeFloorIndex?: number;
+  onFloorSelect?: (floorIndex: number) => void;
   onFlightChange?: (flying: boolean) => void;
   onReady?: () => void;
   information?: ReactNode;
@@ -247,22 +249,14 @@ export default function CityScene(props: CitySceneProps) {
     selection.visible = false;
     scene.add(selection);
 
-    // 多楼层建筑专属的3D外挂观光电梯井道、升降轿厢与当前楼层环光带
-    const elevatorGroup = new THREE.Group();
-    elevatorGroup.visible = false;
-    const shaftGeometry = new THREE.BoxGeometry(2.1, 1, 1.4);
-    const shaftMaterial = new THREE.MeshBasicMaterial({ color: "#1d3542", transparent: true, opacity: 0.72 });
-    const elevatorShaftMesh = new THREE.Mesh(shaftGeometry, shaftMaterial);
-    const floorBandGeometry = new THREE.BoxGeometry(1, 5.2, 1);
-    const floorBandMaterial = new THREE.MeshBasicMaterial({ color: "#8ce8c8", transparent: true, opacity: 0.24, depthWrite: false });
-    const floorBandMesh = new THREE.Mesh(floorBandGeometry, floorBandMaterial);
-    const cabGeometry = new THREE.BoxGeometry(2.6, 3.8, 1.9);
-    const cabMaterial = new THREE.MeshBasicMaterial({ color: "#ffdf8e" });
-    const elevatorCabMesh = new THREE.Mesh(cabGeometry, cabMaterial);
-    elevatorGroup.add(elevatorShaftMesh, floorBandMesh, elevatorCabMesh);
-    scene.add(elevatorGroup);
-    let currentElevatorY = 7;
-    let targetElevatorY = 7;
+    // 08号楼 · 技术手稿馆 专属可交互 3D 剖面展厅、升降楼层舱与双开门观光电梯模型
+    const slot8Lot = lotById.get("slot-8");
+    const archiveTower = slot8Lot ? buildArchiveTower3D(slot8Lot) : null;
+    if (archiveTower) {
+      scene.add(archiveTower.group);
+      world.pickables.push(...archiveTower.pickables);
+    }
+    let lastWheelSwitch = 0;
 
     // 左牌(billboardSign)动态轮播: 品牌帧/数据帧10秒切换, 数据60秒拉取。
     const assetBoard = createAssetBoard();
@@ -368,27 +362,6 @@ export default function CityScene(props: CitySceneProps) {
         selection.scale.set((lot?.width ?? 20) + 1.2, buildingHeight + 1, (lot?.depth ?? 20) + 1.2);
         selection.position.set(anchor.x, buildingHeight / 2 + 0.4, anchor.z);
       }
-      const selectedId = current.current.selected;
-      const selectedBuilding = selectedId ? buildingById.get(selectedId) : undefined;
-      const selectedLot = selectedId ? lotById.get(selectedId) : undefined;
-      const selectedAnchor = selectedId ? world.anchors.get(selectedId) : undefined;
-      if (selectedBuilding?.floors?.length && selectedLot && selectedAnchor) {
-        const totalFloors = Math.max(1, selectedBuilding.floors.length);
-        const floorIndex = THREE.MathUtils.clamp(current.current.activeFloorIndex ?? 0, 0, totalFloors - 1);
-        const usableHeight = Math.max(12, selectedLot.height - 6);
-        const step = totalFloors > 1 ? usableHeight / totalFloors : usableHeight * 0.5;
-        targetElevatorY = 4.5 + floorIndex * step + step * 0.35;
-        if (!elevatorGroup.visible) currentElevatorY = targetElevatorY;
-        elevatorGroup.visible = true;
-        elevatorGroup.position.set(selectedAnchor.x, 0, selectedAnchor.z);
-        elevatorShaftMesh.scale.set(1, selectedLot.height - 1.5, 1);
-        elevatorShaftMesh.position.set(0, (selectedLot.height - 1.5) / 2 + 0.5, (selectedLot.depth ?? 14) / 2 + 0.75);
-        floorBandMesh.scale.set((selectedLot.width ?? 14) + 1.6, 1, (selectedLot.depth ?? 14) + 1.6);
-        floorBandMesh.position.set(0, currentElevatorY, 0);
-        elevatorCabMesh.position.set(0, currentElevatorY, (selectedLot.depth ?? 14) / 2 + 1.1);
-      } else {
-        elevatorGroup.visible = false;
-      }
       for (const [placeId, element] of labelsRef.current) {
         element.classList.toggle("is-selected", placeId === current.current.selected);
         element.classList.toggle("is-hovered", placeId === hovered);
@@ -422,10 +395,12 @@ export default function CityScene(props: CitySceneProps) {
       const roof = lot?.height ?? Math.max(14, anchor.y);
       const building = buildingById.get(id);
       if (building?.floors?.length) {
-        // 多楼层展馆大楼特写：拉近镜头至立面正前方，使三维电梯轿厢与楼层清晰可见
-        const target = new THREE.Vector3(anchor.x + (width / height >= 0.8 ? 10 : 0), roof * 0.48, anchor.z);
-        const closeDir = new THREE.Vector3(-0.46, 0.32, 0.83).normalize();
-        const distance = width / height < 0.8 ? 68 : 48;
+        // 多楼层 3D 展馆特写：拉近镜头直面 3D 建筑剖面、室内场景与外挂观光电梯，右侧留出 3D 全息投影区
+        const floorIdx = THREE.MathUtils.clamp(current.current.activeFloorIndex ?? 0, 0, building.floors.length - 1);
+        const targetY = floorIdx === 1 ? 18.2 : 9.4;
+        const target = new THREE.Vector3(anchor.x + (width / height >= 0.8 ? 9.5 : 0), targetY, anchor.z + 2.5);
+        const closeDir = new THREE.Vector3(-0.24, 0.16, 0.95).normalize();
+        const distance = width / height < 0.8 ? 58 : 39;
         const position = closeDir.multiplyScalar(distance).add(target);
         flyTo(position, target, false, id);
         return;
@@ -515,6 +490,20 @@ export default function CityScene(props: CitySceneProps) {
         information.dataset.inFrame = String(inFrame);
         information.inert = !inFrame || information.dataset.visible !== "true";
       }
+      if (archiveTower && current.current.selected === "slot-8" && container) {
+        const { elevatorWorld, floorStageWorld } = archiveTower.getSpatialAnchors(current.current.activeFloorIndex ?? 0);
+        projected.copy(elevatorWorld).project(camera);
+        const elevX = THREE.MathUtils.clamp((projected.x * 0.5 + 0.5) * width, 160, Math.max(220, width * 0.42));
+        const elevY = THREE.MathUtils.clamp((-projected.y * 0.5 + 0.5) * height, 150, Math.max(200, height - 180));
+        container.style.setProperty("--elevator-x", `${Math.round(elevX)}px`);
+        container.style.setProperty("--elevator-y", `${Math.round(elevY)}px`);
+
+        projected.copy(floorStageWorld).project(camera);
+        const stageX = THREE.MathUtils.clamp((projected.x * 0.5 + 0.5) * width, Math.min(width * 0.48, 480), Math.max(520, width - 320));
+        const stageY = THREE.MathUtils.clamp((-projected.y * 0.5 + 0.5) * height, 140, Math.max(180, height - 160));
+        container.style.setProperty("--floor-stage-x", `${Math.round(stageX)}px`);
+        container.style.setProperty("--floor-stage-y", `${Math.round(stageY)}px`);
+      }
       labelsDirty = false;
     }
 
@@ -546,11 +535,21 @@ export default function CityScene(props: CitySceneProps) {
         }
       }
       let elevatorAnimating = false;
-      if (elevatorGroup.visible && Math.abs(currentElevatorY - targetElevatorY) > 0.04) {
-        currentElevatorY = THREE.MathUtils.lerp(currentElevatorY, targetElevatorY, Math.min(1, (elapsed || 0.016) * 8.5));
-        floorBandMesh.position.y = currentElevatorY;
-        elevatorCabMesh.position.y = currentElevatorY;
-        elevatorAnimating = true;
+      if (archiveTower) {
+        const isSlot8Selected = current.current.selected === "slot-8";
+        const activeIdx = current.current.activeFloorIndex ?? 0;
+        elevatorAnimating = archiveTower.animate(elapsed || 0.016, worldTime, isSlot8Selected, activeIdx);
+        if (isSlot8Selected && !flight) {
+          const desiredTargetY = activeIdx === 1 ? 18.2 : 9.4;
+          const dy = desiredTargetY - controls.target.y;
+          if (Math.abs(dy) > 0.04) {
+            const stepY = dy * Math.min(1, (elapsed || 0.016) * 6.5);
+            controls.target.y += stepY;
+            camera.position.y += stepY * 0.85;
+            elevatorAnimating = true;
+            labelsDirty = true;
+          }
+        }
       }
       const controlsChanged = controls.update(elapsed);
       sky.position.copy(camera.position);
@@ -560,7 +559,7 @@ export default function CityScene(props: CitySceneProps) {
         lastAnimatedTime = worldTime;
       }
       scene.updateMatrixWorld();
-      if (labelsDirty || controlsChanged || flight || now - lastOcclusionCheck >= 1000) projectLabels(now);
+      if (labelsDirty || controlsChanged || flight || elevatorAnimating || now - lastOcclusionCheck >= 1000) projectLabels(now);
       // 阴影保留动态，每秒更新十次；相机移动不改变世界中的光照投影。
       if (!hasRendered || moving && now - lastShadowFrame >= SHADOW_INTERVAL) {
         renderer.shadowMap.needsUpdate = true;
@@ -593,7 +592,7 @@ export default function CityScene(props: CitySceneProps) {
       schedule();
     }
 
-    function hit(clientX: number, clientY: number): PlaceId | null {
+    function hitDetail(clientX: number, clientY: number): { id: PlaceId | null; floorIndex?: number } {
       const bounds = renderer.domElement.getBoundingClientRect();
       pointer.set(((clientX - bounds.left) / bounds.width) * 2 - 1, (-(clientY - bounds.top) / bounds.height) * 2 + 1);
       raycaster.setFromCamera(pointer, camera);
@@ -601,11 +600,16 @@ export default function CityScene(props: CitySceneProps) {
         const id: PlaceId | undefined = intersection.instanceId === undefined
           ? intersection.object.userData.place
           : intersection.object.userData.places?.[intersection.instanceId];
-        if (id) return id;
+        const floorIndex: number | undefined = intersection.object.userData.floorIndex;
+        if (id) return { id, floorIndex };
         // 只有第一个实体可点击，避免穿透未配置建筑点中后方的办公楼。
-        return null;
+        return { id: null };
       }
-      return null;
+      return { id: null };
+    }
+
+    function hit(clientX: number, clientY: number): PlaceId | null {
+      return hitDetail(clientX, clientY).id;
     }
 
     function hitBoard(clientX: number, clientY: number): boolean {
@@ -656,8 +660,37 @@ export default function CityScene(props: CitySceneProps) {
         window.open("/quantify/", "_blank", "noopener,noreferrer");
         return;
       }
-      const id = hit(event.clientX, event.clientY);
-      if (id) current.current.onSelect(id);
+      const { id, floorIndex } = hitDetail(event.clientX, event.clientY);
+      if (id) {
+        if (id === "slot-8" && current.current.selected === "slot-8" && floorIndex !== undefined) {
+          current.current.onFloorSelect?.(floorIndex);
+        } else {
+          current.current.onSelect(id);
+          if (id === "slot-8" && floorIndex !== undefined) {
+            current.current.onFloorSelect?.(floorIndex);
+          }
+        }
+      }
+    }
+
+    function canvasWheel(event: WheelEvent) {
+      if (current.current.selected !== "slot-8" || event.ctrlKey || event.metaKey) return;
+      // 当选中 08 号楼且鼠标位于 3D 大楼/场景区域时，滚轮直接上下滑动大楼楼层与 3D 观光电梯
+      const totalFloors = buildingById.get("slot-8")?.floors?.length ?? 2;
+      const curFloor = current.current.activeFloorIndex ?? 0;
+      if (Math.abs(event.deltaY) < 12) return;
+      const nextFloor = event.deltaY < 0
+        ? Math.min(totalFloors - 1, curFloor + 1)
+        : Math.max(0, curFloor - 1);
+      if (nextFloor !== curFloor) {
+        event.preventDefault();
+        event.stopPropagation();
+        const now = performance.now();
+        if (now - lastWheelSwitch > 380) {
+          lastWheelSwitch = now;
+          current.current.onFloorSelect?.(nextFloor);
+        }
+      }
     }
 
     function pointerCancel(event: PointerEvent) {
@@ -731,6 +764,7 @@ export default function CityScene(props: CitySceneProps) {
     renderer.domElement.addEventListener("pointerup", pointerUp);
     renderer.domElement.addEventListener("pointercancel", pointerCancel);
     renderer.domElement.addEventListener("pointerleave", pointerLeave);
+    renderer.domElement.addEventListener("wheel", canvasWheel, { passive: false });
     renderer.domElement.addEventListener("webglcontextlost", contextLost);
     document.addEventListener("visibilitychange", visibilityChange);
     reducedMotion.addEventListener("change", applyLighting);
@@ -826,6 +860,7 @@ export default function CityScene(props: CitySceneProps) {
       renderer.domElement.removeEventListener("pointerup", pointerUp);
       renderer.domElement.removeEventListener("pointercancel", pointerCancel);
       renderer.domElement.removeEventListener("pointerleave", pointerLeave);
+      renderer.domElement.removeEventListener("wheel", canvasWheel);
       renderer.domElement.removeEventListener("webglcontextlost", contextLost);
       document.removeEventListener("visibilitychange", visibilityChange);
       reducedMotion.removeEventListener("change", applyLighting);
@@ -833,15 +868,10 @@ export default function CityScene(props: CitySceneProps) {
       boardAbort.abort();
       window.clearInterval(boardTimer);
       assetBoard.dispose();
+      archiveTower?.dispose();
       world.dispose();
       selectionGeometry.dispose();
       selectionMaterial.dispose();
-      shaftGeometry.dispose();
-      shaftMaterial.dispose();
-      floorBandGeometry.dispose();
-      floorBandMaterial.dispose();
-      cabGeometry.dispose();
-      cabMaterial.dispose();
       skyGeometry.dispose();
       skyMaterial.dispose();
       environment.dispose();

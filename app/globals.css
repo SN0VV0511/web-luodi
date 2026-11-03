@@ -1249,59 +1249,191 @@ svg {
   border-color: #d4e7c466;
 }
 
-.place-detail.is-tower-view {
-  width: min(1100px, calc(100vw - 48px));
-  height: min(760px, calc(100dvh - 142px));
-  max-height: calc(100dvh - 142px);
+.is-inspecting-3d-tower :is(.city-title, .neighborhood-tour, .live-scenes-panel, .map-corner) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 260ms ease, visibility 260ms;
+}
+
+.place-detail.is-spatial-3d-rig {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 8;
+}
+.spatial-3d-layout {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.spatial-elevator-console {
+  position: absolute;
+  left: 24px;
+  top: 94px;
+  width: min(306px, calc(100vw - 36px));
+  padding: 13px 14px;
+  border-radius: 10px;
+  border-top: 2px solid var(--place-color, #6b92b5);
   display: flex;
   flex-direction: column;
-  animation: tower-detail-unfold 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+  gap: 10px;
+  pointer-events: auto;
+  animation: tower-detail-unfold 0.38s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.spatial-tether-line {
+  position: absolute;
+  pointer-events: none;
+  height: 1.5px;
+  background: linear-gradient(90deg, #5ce0a0cc, #ffd17599, transparent);
+}
+.spatial-tether-line.is-left {
+  top: 46px;
+  left: 100%;
+  width: 58px;
+}
+.spatial-tether-line.is-left::after {
+  content: "";
+  position: absolute;
+  right: -3px;
+  top: -3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ffd175;
+  box-shadow: 0 0 10px #ffd175;
+}
+.spatial-tether-line.is-right {
+  top: 38%;
+  right: 100%;
+  width: 54px;
+  background: linear-gradient(270deg, #5ce0a0cc, #7ab8ffaa, transparent);
+}
+.spatial-tether-line.is-right::after {
+  content: "";
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #5ce0a0;
+  box-shadow: 0 0 10px #5ce0a0;
+}
+.spatial-console-header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.spatial-console-title {
+  flex: 1;
+  min-width: 0;
+}
+.spatial-console-title small {
+  display: block;
+  font: 6.5px var(--mono);
+  letter-spacing: 1.3px;
+  color: #93b8a6;
+  margin-bottom: 3px;
+}
+.spatial-console-title h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #f2f8ee;
+  letter-spacing: -0.3px;
+}
+.spatial-close-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  color: #b8ceba;
+  background: #ffffff10;
+  border: 1px solid #c9dbb926;
+  flex-shrink: 0;
+}
+.spatial-close-btn:hover {
+  color: #ffffff;
+  background: #ffffff22;
+}
+.spatial-floor-caller {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.spatial-caller-hint {
+  font: 7px var(--mono);
+  letter-spacing: 0.7px;
+  color: #96b8a2;
+  padding: 0 2px;
+}
+.spatial-mode-toggle {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font: 600 10px var(--body);
+  color: #dff2d8;
+  background: #142c24cc;
+  border: 1px dashed #7fc29b66;
+  text-align: center;
+  transition: background 0.16s ease, border-color 0.16s ease;
+}
+.spatial-mode-toggle:hover {
+  background: #1c3d32;
+  border-color: #a8e4be;
+}
+
+.spatial-hologram-stage {
+  position: absolute;
+  right: 26px;
+  top: 94px;
+  bottom: 108px;
+  width: min(560px, calc(100vw - 680px));
+  min-width: 400px;
+  border-radius: 11px;
+  border: 1px solid #86e6b855;
+  border-top: 2px solid #86e6b8;
+  box-shadow:
+    0 24px 64px #030a08aa,
+    0 0 28px #5ce0a024,
+    inset 0 1px 0 #ffffff28;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  pointer-events: auto;
+  transform: perspective(1400px) rotateY(-6deg);
+  transform-origin: right center;
+  transition:
+    transform 0.38s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.3s ease,
+    visibility 0.3s;
+}
+.spatial-hologram-stage.is-collapsed {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: perspective(1400px) rotateY(-14deg) translateX(48px) scale(0.95);
 }
 @keyframes tower-detail-unfold {
   from {
     opacity: 0;
-    transform: translateY(16px) scale(0.97);
+    transform: translateY(14px) scale(0.97);
   }
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
-}
-.tower-explorer {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: 370px minmax(0, 1fr);
-}
-.tower-control-column {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  border-right: 1px solid #c9dbb926;
-  background: linear-gradient(180deg, #0d1d1acc, #091412e6);
-}
-.tower-control-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  padding: 16px 18px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 13px;
-}
-.tower-title-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-.tower-title-row h2 {
-  font-size: 22px;
-  font-weight: 500;
-  margin: 0;
-  letter-spacing: -0.4px;
-  color: #f2f7ed;
 }
 .elevator-led-screen {
   flex-shrink: 0;
@@ -2686,23 +2818,33 @@ svg {
     max-height: calc(100dvh - 226px);
     overflow-y: auto;
   }
-  .place-detail.is-tower-view {
-    top: 76px;
-    bottom: 86px;
-    left: 10px;
-    right: 10px;
-    width: auto;
-    height: auto;
+  .place-detail.is-spatial-3d-rig {
+    inset: 0;
+    width: 100%;
+    height: 100%;
     max-height: none;
-    overflow: hidden;
+    overflow: visible;
   }
-  .tower-explorer {
-    grid-template-columns: 1fr;
-    grid-template-rows: minmax(250px, 46%) minmax(220px, 54%);
+  .spatial-elevator-console {
+    left: 12px;
+    right: 12px;
+    top: 72px;
+    width: auto;
+    padding: 10px 12px;
+    gap: 8px;
   }
-  .tower-control-column {
-    border-right: 0;
-    border-bottom: 1px solid #c9dbb926;
+  .spatial-tether-line {
+    display: none;
+  }
+  .spatial-hologram-stage {
+    left: 12px;
+    right: 12px;
+    top: auto;
+    bottom: 84px;
+    height: 44dvh;
+    width: auto;
+    min-width: 0;
+    transform: none;
   }
   .elevator-search-input input {
     font-size: 16px;

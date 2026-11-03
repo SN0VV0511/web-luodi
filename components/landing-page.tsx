@@ -85,6 +85,7 @@ export function LandingPage(): ReactNode {
   const [elevatorQuery, setElevatorQuery] = useState("");
   const [elevatorNotice, setElevatorNotice] = useState<string | null>(null);
   const [flightApproaching, setFlightApproaching] = useState(false);
+  const [hologramCollapsed, setHologramCollapsed] = useState(false);
   const elevatorTimersRef = useRef<number[]>([]);
   const wheelCooldownRef = useRef(0);
   const detailRef = useRef<HTMLElement>(null);
@@ -234,8 +235,9 @@ export function LandingPage(): ReactNode {
   }
 
   const informationPlace = panel && panel !== "directory" ? panel : null;
+  const isInspecting3DTower = Boolean(place?.floors?.length && panel === null);
   return (
-    <main className={`metropolis${night ? " is-night" : ""}${informationPlace ? " has-city-information" : ""}`}>
+    <main className={`metropolis${night ? " is-night" : ""}${informationPlace ? " has-city-information" : ""}${isInspecting3DTower ? " is-inspecting-3d-tower" : ""}`}>
       <button
         className="skip-link"
         type="button"
@@ -262,6 +264,7 @@ export function LandingPage(): ReactNode {
           touring={touring}
           focusPoint={focusPoint}
           activeFloorIndex={activeFloorIndex}
+          onFloorSelect={(floorIdx) => dispatchElevator(floorIdx, place?.floors?.length ?? 2)}
           onFlightChange={setFlightApproaching}
           information={informationPlace ? (
             <CityInformation
@@ -666,7 +669,7 @@ export function LandingPage(): ReactNode {
 
       {place && panel === null && (!place.floors?.length || !flightApproaching) && (
         <aside
-          className={`place-detail glass-panel${place.floors?.length ? " is-tower-view" : ""}`}
+          className={`place-detail${place.floors?.length ? " is-spatial-3d-rig" : " glass-panel"}`}
           ref={detailRef}
           tabIndex={-1}
           aria-label={t("建筑详情", "Building details")}
@@ -677,7 +680,7 @@ export function LandingPage(): ReactNode {
             const totalFloors = floors.length;
             const safeIndex = Math.max(0, Math.min(totalFloors - 1, activeFloorIndex));
             const currentFloor = floors[safeIndex] ?? floors[0]!;
-            // 建筑立面从顶层(最高层)向下排列到底层(1F)，符合真实大楼与电梯井物理直觉
+            // 建筑立面从顶层(最高层)向下排列到底层(1F)，与 3D 场景中的实体楼层上下关系一致
             const topDownIndex = totalFloors - 1 - safeIndex;
             const trimmedElevatorQuery = elevatorQuery.trim().toLowerCase();
             const matchedFloors = trimmedElevatorQuery
@@ -710,6 +713,7 @@ export function LandingPage(): ReactNode {
                 );
                 return;
               }
+              setHologramCollapsed(false);
               dispatchElevator(
                 targetMatch.idx,
                 totalFloors,
@@ -733,229 +737,188 @@ export function LandingPage(): ReactNode {
             };
 
             return (
-              <div className="tower-explorer">
-                <div className="tower-control-column">
-                  <div className="detail-banner">
-                    <span className="detail-banner-icon" aria-hidden="true">
-                      <Layers size={22} strokeWidth={1.5} />
-                    </span>
-                    <span>
-                      BLOCK {place.number} · {districtName}
-                      <strong>MULTI-FLOOR HTML ARCHIVE TOWER</strong>
-                    </span>
+              <div className="spatial-3d-layout">
+                <div className="spatial-elevator-console glass-panel" onWheel={handleTowerWheel}>
+                  <span className="spatial-tether-line is-left" aria-hidden="true" />
+                  <div className="spatial-console-header">
+                    <div className="spatial-console-title">
+                      <small>3D CUTAWAY · BLOCK {place.number}</small>
+                      <h2>{place.name}</h2>
+                    </div>
+                    <div className={`elevator-led-screen is-${elevatorPhase}`}>
+                      <span className="led-label">3D LIFT</span>
+                      <div className="led-digits">
+                        <span className={`led-arrow is-${elevatorDirection}`} aria-hidden="true">
+                          {elevatorDirection === "up" ? "▲" : elevatorDirection === "down" ? "▼" : "●"}
+                        </span>
+                        <strong>{currentFloor.floor.padStart(3, "0")}</strong>
+                      </div>
+                      <small>
+                        {elevatorPhase === "closing"
+                          ? t("3D门合拢…", "CLOSING…")
+                          : elevatorPhase === "moving"
+                            ? t(
+                                elevatorDirection === "up" ? "3D轿厢上行…" : "3D轿厢下行…",
+                                elevatorDirection === "up" ? "GOING UP…" : "GOING DOWN…",
+                              )
+                            : t("3D轿厢已开", "DOORS OPEN")}
+                      </small>
+                    </div>
                     <button
                       type="button"
+                      className="spatial-close-btn"
                       aria-label={t("关闭建筑详情", "Close building details")}
                       onClick={() => {
                         setSelected(null);
                         setFlightApproaching(false);
                       }}
                     >
-                      <X size={18} />
+                      <X size={16} />
                     </button>
                   </div>
 
-                  <div className="tower-control-body">
-                    <div className="tower-title-row">
-                      <div>
-                        <p className="place-category">{pickLocale(place.category, locale)}</p>
-                        <h2>{place.name}</h2>
-                      </div>
-                      <div className={`elevator-led-screen is-${elevatorPhase}`}>
-                        <span className="led-label">ELEVATOR</span>
-                        <div className="led-digits">
-                          <span className={`led-arrow is-${elevatorDirection}`} aria-hidden="true">
-                            {elevatorDirection === "up" ? "▲" : elevatorDirection === "down" ? "▼" : "●"}
-                          </span>
-                          <strong>{currentFloor.floor.padStart(3, "0")}</strong>
-                        </div>
-                        <small>
-                          {elevatorPhase === "closing"
-                            ? t("正在关门…", "CLOSING…")
-                            : elevatorPhase === "moving"
-                              ? t(
-                                  elevatorDirection === "up" ? "电梯上行中…" : "电梯下行中…",
-                                  elevatorDirection === "up" ? "GOING UP…" : "GOING DOWN…",
-                                )
-                              : t("轿厢门已开", "DOORS OPEN")}
-                        </small>
-                      </div>
+                  <form
+                    className="elevator-search-box"
+                    role="search"
+                    onSubmit={handleElevatorSubmit}
+                  >
+                    <div className="elevator-search-header">
+                      <Sparkles size={12} aria-hidden="true" />
+                      <span>{t("3D 观光电梯搜索 · 直达目标 HTML 楼层", "3D ELEVATOR SEARCH · RIDE TO FLOOR")}</span>
                     </div>
-
-                    <form
-                      className="elevator-search-box"
-                      role="search"
-                      onSubmit={handleElevatorSubmit}
-                    >
-                      <div className="elevator-search-header">
-                        <Sparkles size={12} aria-hidden="true" />
-                        <span>{t("观光电梯搜索 · 输入关键词或楼层直达对应 HTML", "ELEVATOR SEARCH · JUMP TO FLOOR HTML")}</span>
-                      </div>
-                      <div className="elevator-search-row">
-                        <label className="elevator-search-input">
-                          <Search size={14} aria-hidden="true" />
-                          <input
-                            value={elevatorQuery}
-                            onChange={(event) => {
-                              setElevatorQuery(event.target.value);
+                    <div className="elevator-search-row">
+                      <label className="elevator-search-input">
+                        <Search size={13} aria-hidden="true" />
+                        <input
+                          value={elevatorQuery}
+                          onChange={(event) => {
+                            setElevatorQuery(event.target.value);
+                            setElevatorNotice(null);
+                          }}
+                          aria-label={t("电梯搜索直达", "Elevator floor search")}
+                          placeholder={t(
+                            "搜 1F / 2F / LoRA / Biglink…",
+                            "1F, 2F, LoRA, Biglink…",
+                          )}
+                        />
+                        {elevatorQuery && (
+                          <button
+                            type="button"
+                            aria-label={t("清除电梯搜索", "Clear elevator search")}
+                            onClick={() => {
+                              setElevatorQuery("");
                               setElevatorNotice(null);
                             }}
-                            aria-label={t("电梯搜索直达", "Elevator floor search")}
-                            placeholder={t(
-                              "输入 1F / 2F / LoRA / 微调 / Biglink 直达…",
-                              "Search 1F, 2F, LoRA, Biglink…",
-                            )}
-                          />
-                          {elevatorQuery && (
-                            <button
-                              type="button"
-                              aria-label={t("清除电梯搜索", "Clear elevator search")}
-                              onClick={() => {
-                                setElevatorQuery("");
-                                setElevatorNotice(null);
-                              }}
-                            >
-                              <X size={12} />
-                            </button>
-                          )}
-                        </label>
-                        <button type="submit" className="elevator-dispatch-btn">
-                          {t("电梯直达", "Dispatch")}
-                        </button>
-                      </div>
-                      {trimmedElevatorQuery && matchedFloors.length > 0 && (
-                        <div className="elevator-search-matches">
-                          {matchedFloors.map(({ item, idx }) => (
-                            <button
-                              key={item.floor}
-                              type="button"
-                              className="elevator-match-chip"
-                              onClick={() =>
-                                dispatchElevator(
-                                  idx,
-                                  totalFloors,
-                                  t(
-                                    `⚡ 电梯已直达 ${item.floor} · ${pickLocale(item.title, locale)}`,
-                                    `⚡ Elevator dispatched to ${item.floor} · ${pickLocale(item.title, locale)}`,
-                                  ),
-                                )
-                              }
-                            >
-                              <strong>{item.floor}</strong>
-                              <span>{pickLocale(item.title, locale)}</span>
-                              <small>{t("点击乘梯", "Ride")}</small>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {elevatorNotice && (
-                        <p className="elevator-notice" role="status" aria-live="polite">
-                          {elevatorNotice}
-                        </p>
-                      )}
-                    </form>
-
-                    <div
-                      className="building-cutaway"
-                      role="region"
-                      aria-label={t("楼层导览", "Floor directory")}
-                      onWheel={handleTowerWheel}
-                    >
-                      <div className="building-roof-cap" aria-hidden="true">
-                        <span className={`roof-pulley is-${elevatorPhase}`} />
-                        <span>ROOF · {lot ? `${lot.height}M` : "30M"} SKY DECK &amp; HOIST</span>
-                        <small>{t("滚轮或点击楼层上下滑动大楼", "SCROLL OR CLICK TO RIDE")}</small>
-                      </div>
-
-                      <div className="building-shaft-body">
-                        <div
-                          className={`elevator-shaft-track is-${elevatorPhase}`}
-                          aria-hidden="true"
-                          style={
-                            {
-                              "--elevator-slot": topDownIndex,
-                              "--total-slots": totalFloors,
-                            } as CSSProperties
-                          }
-                        >
-                          <div className="shaft-guide-rails" />
-                          <div className={`shaft-hoist-cables is-${elevatorPhase}`} />
-                          {floors
-                            .slice()
-                            .reverse()
-                            .map((item) => (
-                              <span key={item.floor} className="shaft-floor-stop">
-                                {item.floor}
-                              </span>
-                            ))}
-                          <div className={`elevator-car is-${elevatorPhase}`}>
-                            <div className="elevator-car-roof" />
-                            <div className="elevator-car-interior">
-                              <span>{currentFloor.floor}</span>
-                            </div>
-                            <div className="elevator-doors">
-                              <span className="elevator-door is-left" />
-                              <span className="elevator-door is-right" />
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="building-floors-list">
-                          {floors
-                            .map((item, idx) => ({ item, idx }))
-                            .reverse()
-                            .map(({ item, idx }) => {
-                              const isActive = idx === safeIndex;
-                              const floorUrl = safeAppUrl(item.href);
-                              return (
-                                <div
-                                  key={item.floor}
-                                  className={`building-story-row${isActive ? " is-active" : ""}${isActive && elevatorPhase === "open" ? " is-arrived" : ""}`}
-                                >
-                                  <button
-                                    type="button"
-                                    className="building-story-select"
-                                    aria-pressed={isActive}
-                                    onClick={() => dispatchElevator(idx, totalFloors)}
-                                  >
-                                    <span className="building-floor-badge">
-                                      {item.floor}
-                                      <small>{isActive ? "●" : "↕"}</small>
-                                    </span>
-                                    <span className="building-floor-copy">
-                                      <small>{pickLocale(item.category, locale)}</small>
-                                      <strong>{pickLocale(item.title, locale)}</strong>
-                                      <span>{pickLocale(item.description, locale)}</span>
-                                    </span>
-                                  </button>
-                                  <a
-                                    className="building-floor-card"
-                                    href={floorUrl ?? "#"}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    aria-label={`${item.floor} ${pickLocale(item.title, locale)}`}
-                                    onClick={() => dispatchElevator(idx, totalFloors)}
-                                  >
-                                    <span className="sr-only">
-                                      {item.floor} {pickLocale(item.title, locale)}
-                                    </span>
-                                    <ArrowUpRight size={14} aria-hidden="true" />
-                                  </a>
-                                </div>
-                              );
-                            })}
-                        </div>
-                      </div>
-
-                      <div className="building-lobby-base" aria-hidden="true">
-                        <span>GROUND LOBBY · SN-{place.number}</span>
-                        <span>{t(`共 ${totalFloors} 层 HTML 展厅`, `${totalFloors} HTML FLOORS`)}</span>
-                      </div>
+                          >
+                            <X size={12} />
+                          </button>
+                        )}
+                      </label>
+                      <button type="submit" className="elevator-dispatch-btn">
+                        {t("电梯直达", "Dispatch")}
+                      </button>
                     </div>
+                    {trimmedElevatorQuery && matchedFloors.length > 0 && (
+                      <div className="elevator-search-matches">
+                        {matchedFloors.map(({ item, idx }) => (
+                          <button
+                            key={item.floor}
+                            type="button"
+                            className="elevator-match-chip"
+                            onClick={() => {
+                              setHologramCollapsed(false);
+                              dispatchElevator(
+                                idx,
+                                totalFloors,
+                                t(
+                                  `⚡ 电梯已直达 ${item.floor} · ${pickLocale(item.title, locale)}`,
+                                  `⚡ Elevator dispatched to ${item.floor} · ${pickLocale(item.title, locale)}`,
+                                ),
+                              );
+                            }}
+                          >
+                            <strong>{item.floor}</strong>
+                            <span>{pickLocale(item.title, locale)}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {elevatorNotice && (
+                      <p className="elevator-notice" role="status" aria-live="polite">
+                        {elevatorNotice}
+                      </p>
+                    )}
+                  </form>
+
+                  <div
+                    className="spatial-floor-caller"
+                    role="region"
+                    aria-label={t("楼层导览", "Floor directory")}
+                  >
+                    <div className="spatial-caller-hint">
+                      <span>{t("点击中央 3D 楼层模型、滚轮或按呼梯键升降", "CLICK 3D FLOOR, SCROLL OR PRESS BUTTON")}</span>
+                    </div>
+                    <div className="building-floors-list">
+                      {floors
+                        .map((item, idx) => ({ item, idx }))
+                        .reverse()
+                        .map(({ item, idx }) => {
+                          const isActive = idx === safeIndex;
+                          const floorUrl = safeAppUrl(item.href);
+                          return (
+                            <div
+                              key={item.floor}
+                              className={`building-story-row${isActive ? " is-active" : ""}${isActive && elevatorPhase === "open" ? " is-arrived" : ""}`}
+                            >
+                              <button
+                                type="button"
+                                className="building-story-select"
+                                aria-pressed={isActive}
+                                onClick={() => {
+                                  setHologramCollapsed(false);
+                                  dispatchElevator(idx, totalFloors);
+                                }}
+                              >
+                                <span className="building-floor-badge">
+                                  {item.floor}
+                                  <small>{isActive ? "3D●" : "↕"}</small>
+                                </span>
+                                <span className="building-floor-copy">
+                                  <small>{pickLocale(item.category, locale)}</small>
+                                  <strong>{pickLocale(item.title, locale)}</strong>
+                                </span>
+                              </button>
+                              <a
+                                className="building-floor-card"
+                                href={floorUrl ?? "#"}
+                                target="_blank"
+                                rel="noreferrer"
+                                aria-label={`${item.floor} ${pickLocale(item.title, locale)}`}
+                                onClick={() => dispatchElevator(idx, totalFloors)}
+                              >
+                                <span className="sr-only">
+                                  {item.floor} {pickLocale(item.title, locale)}
+                                </span>
+                                <ArrowUpRight size={14} aria-hidden="true" />
+                              </a>
+                            </div>
+                          );
+                        })}
+                    </div>
+                    <button
+                      type="button"
+                      className="spatial-mode-toggle"
+                      onClick={() => setHologramCollapsed((v) => !v)}
+                    >
+                      {hologramCollapsed
+                        ? t("展开右侧 3D 楼层全息 HTML 屏", "Show 3D Floor HTML Hologram")
+                        : t("收起全息屏 · 纯享全屏 3D 建筑建模", "Hide Hologram · Full 3D Model View")}
+                    </button>
                   </div>
                 </div>
 
-                <div className="tower-html-stage">
+                <div className={`spatial-hologram-stage glass-panel${hologramCollapsed ? " is-collapsed" : ""}`}>
+                  <span className="spatial-tether-line is-right" aria-hidden="true" />
                   <header className="tower-stage-toolbar">
                     <div className="tower-stage-active-info">
                       <span className="stage-floor-pill">{currentFloor.floor}</span>
@@ -973,7 +936,7 @@ export function LandingPage(): ReactNode {
                           aria-label={t("上一层", "Upper floor")}
                         >
                           <ArrowUp size={14} />
-                          <span>{t("上滑一层", "Up 1F")}</span>
+                          <span>{t("上滑 2F", "Up 2F")}</span>
                         </button>
                         <button
                           type="button"
@@ -982,7 +945,7 @@ export function LandingPage(): ReactNode {
                           aria-label={t("下一层", "Lower floor")}
                         >
                           <ArrowDown size={14} />
-                          <span>{t("下滑一层", "Down 1F")}</span>
+                          <span>{t("下滑 1F", "Down 1F")}</span>
                         </button>
                       </div>
                       <a
