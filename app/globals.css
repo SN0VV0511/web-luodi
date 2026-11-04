@@ -1396,11 +1396,11 @@ svg {
 
 .spatial-hologram-stage {
   position: absolute;
-  right: 26px;
+  right: 22px;
   top: 94px;
   bottom: 108px;
-  width: min(560px, calc(100vw - 680px));
-  min-width: 400px;
+  width: min(460px, calc(100vw - 740px));
+  min-width: 350px;
   border-radius: 11px;
   border: 1px solid #86e6b855;
   border-top: 2px solid #86e6b8;

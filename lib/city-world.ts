@@ -568,19 +568,9 @@ export function buildCityWorld(): CityWorld {
       box(lamp, x - 0.6, h + 5.9, z - 0.6, 0.34, 0.34, 0.34, id);
       roofHeight = h + 6.3;
     } else if (id === "slot-8") {
-      // 08 技术手稿馆：外露钢构巨型框架 + 后置核心筒，前部悬挑留给可交互3D升降楼层舱与观光电梯
-      body(x, z - d * 0.33, w * 0.94, d * 0.28, h);
-      for (const sx of [-1, 1]) {
-        for (const sz of [-1, 1]) {
-          box(metal, x + sx * (w * 0.46), h * 0.52, z + sz * (d * 0.43), 0.95, h + 1.2, 0.95, id);
-          box(lamp, x + sx * (w * 0.46), h * 0.52, z + sz * (d * 0.43) + 0.5, 0.2, h * 0.9, 0.12, id);
-        }
-        box(railMetal, x + sx * (w * 0.46), h + 1.1, z, 0.75, 0.65, d * 0.9, id);
-      }
-      box(darkRoof, x, h + 1.35, z, w + 0.8, 0.75, d * 0.92, id);
-      box(lightStone, x, h + 1.85, z, w + 1.1, 0.24, d * 0.95, id);
-      box(lamp, x, h + 1.62, z + d * 0.46, w * 0.88, 0.2, 0.22, id);
-      roofHeight = h + 4.5;
+      // 08 技术手稿馆：底层基座纳入城市静态拾取，整栋高精 3D 钢构展馆、室内微缩模型与观光电梯由 buildArchiveTower3D 独立精细建模
+      box(concrete, x, 0.52, z, w + 2.4, 0.36, d + 2.4, id);
+      roofHeight = h + 5.5;
     } else if ((variant % 11 === 0 || variant % 13 === 0) && h > 25) {
       body(x, z, w, d, 4.2);
       part(facades.glass[variant % 3], roundTowerGeometry, x, 4.2 + (h - 4.2) / 2, z, w * 0.97, h - 4.2, d * 0.97, id);

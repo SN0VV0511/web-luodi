@@ -395,12 +395,12 @@ export default function CityScene(props: CitySceneProps) {
       const roof = lot?.height ?? Math.max(14, anchor.y);
       const building = buildingById.get(id);
       if (building?.floors?.length) {
-        // 多楼层 3D 展馆特写：拉近镜头直面 3D 建筑剖面、室内场景与外挂观光电梯，右侧留出 3D 全息投影区
+        // 多楼层 3D 展馆特写：拉近镜头直面 3D 建筑剖面、室内高精建模场景与外挂观光电梯，右侧留出 3D 全息投影区
         const floorIdx = THREE.MathUtils.clamp(current.current.activeFloorIndex ?? 0, 0, building.floors.length - 1);
-        const targetY = floorIdx === 1 ? 18.2 : 9.4;
-        const target = new THREE.Vector3(anchor.x + (width / height >= 0.8 ? 9.5 : 0), targetY, anchor.z + 2.5);
-        const closeDir = new THREE.Vector3(-0.24, 0.16, 0.95).normalize();
-        const distance = width / height < 0.8 ? 58 : 39;
+        const targetY = floorIdx === 1 ? 18.0 : 9.2;
+        const target = new THREE.Vector3(anchor.x + (width / height >= 0.8 ? 4.8 : 0), targetY, anchor.z + 2.2);
+        const closeDir = new THREE.Vector3(-0.2, 0.14, 0.96).normalize();
+        const distance = width / height < 0.8 ? 50 : 31;
         const position = closeDir.multiplyScalar(distance).add(target);
         flyTo(position, target, false, id);
         return;
