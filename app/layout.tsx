@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 import "./globals.css";
+import "./landmarks.css";
 
 export const metadata: Metadata = {
   title: "SN0VV CITY — 把想法，建成一座城",

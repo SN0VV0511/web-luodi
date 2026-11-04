@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { cityLots, ROAD_SEGMENTS, cityBlocks, districts, civicLots, type CityLot } from "./city-map";
 import type { PlaceId } from "./city-content";
+import { getBuildingExperience } from "./building-experience";
 import { buildCivicDistrict } from "./city-civic";
 import { buildCityLife } from "./city-life";
 import { buildCityCoast } from "./city-coast";
@@ -449,6 +450,11 @@ export function buildCityWorld(): CityWorld {
   const building = (lot: Building, variant: number) => {
     buildingCount++;
     const { x, z, width: w, depth: d, height: h, id, style } = lot;
+    // 应用地标由独立机构模型接管；住宅及公共建筑继续使用城市静态批次。
+    if (id && getBuildingExperience(id)) {
+      anchors.set(id, new THREE.Vector3(x, h + 8, z));
+      return;
+    }
     const type = style === "glass" ? "glass" : style === "brick" ? "brick" : "stone";
     const face = facades[type][variant % facades[type].length];
     box(pavement, x, 0.38, z, w + 1.2, 0.25, d + 1.2, id);
@@ -458,47 +464,8 @@ export function buildCityWorld(): CityWorld {
       rooftop(bx, bz, bw, bd, base + bh, id);
     };
     let roofHeight = h + 0.55;
-    if (id === "agents") {
-      // 03 Agent Base：智能体总部地标摩天楼，三段退台 + 竖向发光翼肋 + 玻璃观景冠 + 信号尖塔
-      body(x, z, w, d, h * 0.6);
-      body(x, z - 1, w * 0.8, d * 0.82, h * 0.29, h * 0.6);
-      body(x, z - 1.5, w * 0.58, d * 0.64, h * 0.11, h * 0.89);
-      box(lightStone, x, h + 3.8, z - 1.5, w * 0.59, 7, d * 0.65, id);
-      box(glass, x, h + 4.2, z - 1.5, w * 0.61, 3.8, d * 0.67, id);
-      box(lamp, x, h + 6.6, z - 1.5, w * 0.56, 0.28, d * 0.62, id);
-      part(railMetal, coneGeometry, x, h + 10.5, z - 1.5, 3.1, 13, 3.1, id);
-      part(lightStone, cylinderGeometry, x, h + 8.4, z - 1.5, 2.3, 0.45, 2.3, id);
-      part(lightStone, cylinderGeometry, x, h + 12.2, z - 1.5, 1.35, 0.35, 1.35, id);
-      box(lamp, x, h + 17.2, z - 1.5, 0.42, 0.85, 0.42, id);
-      for (const dx of [-w / 2, w / 2]) {
-        box(lightStone, x + dx, h * 0.3, z + d / 2, 0.85, h * 0.6, 0.95, id);
-        box(lamp, x + dx * 0.92, h * 0.44, z + d / 2 + 0.12, 0.18, h * 0.82, 0.18, id);
-      }
-      for (const dx of [-w * 0.38, w * 0.38]) {
-        box(railMetal, x + dx, h * 0.74, z - 1 + d * 0.41, 0.45, h * 0.28, 0.55, id);
-      }
-      roofHeight = h + 18;
-    } else if (id === "quant") {
-      // 01 慢慢事务所：量化交易金融双子塔，裙房柱廊 + 铜金竖向遮阳翼 + 空中行情连廊 + 屋顶停机坪
-      body(x, z, w, d, 10);
-      box(lightStone, x, 10.7, z, w + 0.8, 0.55, d + 0.8, id);
-      body(x - 3.8, z - 1.2, w * 0.55, d * 0.8, h - 10, 10);
-      body(x + w * 0.28, z + d * 0.12, w * 0.34, d * 0.67, h * 0.71, 10);
-      // 空中玻璃交易连廊与暖金行情灯带
-      box(glass, x + 1.2, h * 0.52, z + 0.8, w * 0.42, 3.6, d * 0.48, id);
-      box(lamp, x - 3.8, h * 0.52, z - 1.2, w * 0.57, 0.28, d * 0.82, id);
-      box(railMetal, x - 3.8, h + 1.1, z - 1.2, w * 0.56, 1.9, d * 0.81, id);
-      box(glass, x - 3.8, h + 1.1, z - 1.2, w * 0.58, 1.1, d * 0.83, id);
-      for (let i = 0; i < 6; i++) {
-        const fx = x - w * 0.42 + i * w * 0.11;
-        box(i % 2 === 0 ? orange : railMetal, fx, h / 2, z + d * 0.36, 0.28, h - 2, 0.52, id);
-      }
-      // 主塔顶信标双桅杆
-      box(metal, x - 5.2, h + 4.8, z - 2.4, 0.18, 6.2, 0.18, id);
-      box(lamp, x - 5.2, h + 8.0, z - 2.4, 0.34, 0.42, 0.34, id);
-      roofHeight = h + 8.5;
-    } else if (id === "affine" || style === "terrace" && variant % 2 === 0) {
-      // 02 AFFiNE：知识工作室，三层退台空中花园 + 廊架 + 采光天窗
+    if (style === "terrace" && variant % 2 === 0) {
+      // 非应用楼的三层退台住宅保留屋顶花园。
       for (let tier = 0; tier < 3; tier++) {
         const tw = w * (1 - tier * 0.2);
         const td = d * (1 - tier * 0.18);
@@ -510,63 +477,6 @@ export function buildCityWorld(): CityWorld {
         box(railMetal, x - tier * w * 0.035, baseH + th + 1.05, z + td * 0.48, tw * 0.82, 0.12, 0.12, id);
         for (let i = 0; i < 3; i++) tree(x + (i - 1) * tw * 0.3, z + td * 0.38, 0.48, i, 1 + (tier + 1) * th);
       }
-      if (id === "affine") {
-        box(glass, x - w * 0.07, h + 1.4, z - d * 0.07, w * 0.34, 1.5, d * 0.32, id);
-        box(lamp, x - w * 0.07, h + 0.85, z - d * 0.07, w * 0.32, 0.18, d * 0.3, id);
-        roofHeight = h + 2.6;
-      }
-    } else if (id === "openclaw") {
-      // 04 OpenClaw：实验工坊，红砖锯齿天窗厂房 + 外露钢构桁架 + 机械臂橙色龙门架
-      body(x - 2, z, w * 0.78, d, h);
-      body(x + w * 0.35, z - d * 0.2, w * 0.28, d * 0.58, h * 1.42);
-      for (let i = 0; i < 5; i++) {
-        box(lightStone, x - w * 0.39 + i * w * 0.18, h / 2, z + d / 2, 0.68, h, 0.75, id);
-      }
-      for (let bay = -1; bay <= 1; bay++) {
-        box(darkRoof, x - 2 + bay * 4.8, h + 1.25, z - 1, 3.8, 1.5, d * 0.52, id);
-        box(glass, x - 2 + bay * 4.8, h + 1.25, z + d * 0.27 - 1, 3.6, 1.3, 0.22, id);
-      }
-      // 屋顶机械工坊橙色龙门横梁与信标
-      box(orange, x + w * 0.35, h * 1.42 + 1.8, z - d * 0.2, w * 0.24, 0.38, d * 0.46, id);
-      for (const dz of [-d * 0.2, d * 0.2]) {
-        box(metal, x + w * 0.35, h * 1.42 + 1.1, z - d * 0.2 + dz, 0.28, 1.5, 0.28, id);
-      }
-      box(lamp, x + w * 0.35, h * 1.42 + 2.2, z - d * 0.2, 0.35, 0.35, 0.35, id);
-      roofHeight = h * 1.42 + 2.6;
-    } else if (id === "slot-5") {
-      // 05 LunaTV：影视剧场中心，阶梯放映厅 + 暖光剧院门头灯箱 + 屋顶卫星接收天线阵
-      body(x, z, w, d, h * 0.68);
-      body(x, z - 0.8, w * 0.82, d * 0.8, h * 0.32, h * 0.68);
-      box(orange, x, 4.9, z + d / 2 + 0.85, w * 0.76, 0.85, 1.8, id);
-      box(lamp, x, 4.88, z + d / 2 + 1.72, w * 0.7, 0.36, 0.14, id);
-      for (let i = -2; i <= 2; i++) {
-        box(lightStone, x + i * (w * 0.19), h * 0.35, z + d / 2 + 0.08, 0.35, h * 0.62, 0.35, id);
-      }
-      part(railMetal, coneGeometry, x + 2.2, h + 2.1, z - 1.5, 1.45, 0.9, 1.45, id);
-      box(metal, x - 2.2, h + 3.1, z - 1.5, 0.16, 4.8, 0.16, id);
-      box(lamp, x - 2.2, h + 5.6, z - 1.5, 0.3, 0.3, 0.3, id);
-      roofHeight = h + 6;
-    } else if (id === "slot-6") {
-      // 06 LunaTV 源浏览器：媒体检索数据塔，水平遮阳百叶 + 悬挑玻璃数据魔方
-      body(x, z, w, d, h);
-      for (let floor = 4.5; floor < h - 1; floor += 3.4) {
-        box(railMetal, x, floor, z, w + 0.55, 0.18, d + 0.55, id);
-      }
-      box(glass, x + 1.2, h * 0.72, z + 1.2, w * 0.62, 4.2, d * 0.62, id);
-      box(lamp, x + 1.2, h * 0.72, z + 1.2 + d * 0.32, w * 0.54, 0.24, 0.16, id);
-      box(metal, x, h + 2.8, z, 0.16, 4.2, 0.16, id);
-      box(lamp, x, h + 5.0, z, 0.28, 0.28, 0.28, id);
-      roofHeight = h + 5.4;
-    } else if (id === "slot-7") {
-      // 07 微信推送：消息驿站，双层空中绿植露台 + 信号中继信标塔
-      body(x, z, w, d, h * 0.62);
-      body(x - 0.6, z - 0.6, w * 0.76, d * 0.76, h * 0.38, h * 0.62);
-      box(turf, x, h * 0.62 + 0.65, z + d * 0.32, w * 0.84, 0.24, 2.2, id);
-      box(leaves[1], x, h * 0.62 + 0.95, z + d * 0.36, w * 0.76, 0.45, 0.65, id);
-      box(metal, x - 0.6, h + 3.2, z - 0.6, 0.18, 5.2, 0.18, id);
-      part(railMetal, cylinderGeometry, x - 0.6, h + 3.8, z - 0.6, 0.9, 0.14, 0.9, id);
-      box(lamp, x - 0.6, h + 5.9, z - 0.6, 0.34, 0.34, 0.34, id);
-      roofHeight = h + 6.3;
     } else if (id === "slot-8") {
       // 08 技术手稿馆：底层基座纳入城市静态拾取，整栋高精 3D 钢构展馆、室内微缩模型与观光电梯由 buildArchiveTower3D 独立精细建模
       box(concrete, x, 0.52, z, w + 2.4, 0.36, d + 2.4, id);

@@ -104,25 +104,25 @@ with sync_playwright() as playwright:
         directory.get_by_role('button', name='探索 慢慢事务所', exact=True).click()
         expect(page.get_by_role('complementary', name='建筑详情')).to_be_focused()
         label_selector = '.city-label[aria-label="探索 慢慢事务所"]'
-        wait_for_camera(page, label_selector)
-        page.get_by_role('button', name='关闭建筑详情').click()
-        wait_for_camera(page, label_selector)
+        wait_for_camera(page, label_selector, visible=False)
         label = page.locator(label_selector)
         canvas = page.locator('.city-canvas').bounding_box()
         assert canvas is not None
-        # 飞行焦点位于楼体中心；高楼屋顶标签可能已超出屏幕，不能用标签偏移定位。
-        x, y = canvas['x'] + canvas['width'] / 2, canvas['y'] + canvas['height'] / 2
-        # 首先证明坐标真正命中量化楼；后续拖回原点不会出现空通过。
+        # 近景为右侧导览留白；点中右塔实体会重播机构，不能只证明 HTML 目录可用。
+        x, y = canvas['x'] + (canvas['width'] - 396) / 2 + 65, canvas['y'] + canvas['height'] / 2
         page.mouse.click(x, y)
-        expect(page.locator('.place-detail')).to_be_visible()
+        expect(page.locator('.landmark-playback .is-approaching')).to_have_count(1)
         expect(page.locator('.place-detail h2')).to_have_text('慢慢事务所')
-        page.get_by_role('button', name='关闭建筑详情').click()
-        wait_for_camera(page, label_selector)
+        wait_for_camera(page, label_selector, visible=False)
         page.mouse.move(x, y)
         page.mouse.down()
         page.mouse.move(x + 35, y + 20, steps=6)
         page.mouse.move(x, y, steps=6)
         page.mouse.up()
+        expect(page.locator('.landmark-playback .is-approaching')).to_have_count(0)
+        expect(page.locator('.place-detail h2')).to_have_text('慢慢事务所')
+        page.get_by_role('button', name='关闭建筑详情').click()
+        wait_for_camera(page, label_selector, visible=False)
         expect(page.locator('.place-detail')).to_have_count(0)
 
         print('PASS: 12 楼目录、量化楼真实点选、拖回原点未误选。', flush=True)
@@ -191,6 +191,9 @@ with sync_playwright() as playwright:
                 directory.get_by_role('button', name='探索 慢慢事务所', exact=True).click()
                 expect(page.get_by_role('complementary', name='建筑详情')).to_be_visible()
                 wait_for_projection_change(page, from_neighborhood)
+                # 沉浸式建筑漫游收起街区入口；先按可见的返回按钮回到原视角。
+                expect(tour).not_to_be_visible()
+                page.get_by_role('button', name='返回城市', exact=True).click()
             wait_for_camera(page, label_selector, visible=False)
             before = projection_snapshot(page)
             tour.get_by_role('button', name=neighborhood, exact=True).click()

@@ -46,6 +46,8 @@ import {
   type Locale,
 } from "@/lib/site-content";
 import { CityInformation } from "@/components/city-information";
+import { BuildingExperiencePanel } from "@/components/building-experience-panel";
+import { getBuildingExperience } from "@/lib/building-experience";
 
 const CityScene = dynamic(() => import("@/components/city-scene"), {
   ssr: false,
@@ -80,6 +82,8 @@ export function LandingPage(): ReactNode {
   const [helpOpen, setHelpOpen] = useState(false);
   const [focusPoint, setFocusPoint] = useState<{ x: number; z: number; distance?: number; height?: number }>();
   const [activeFloorIndex, setActiveFloorIndex] = useState(0);
+  const [experienceChapter, setExperienceChapter] = useState(0);
+  const [experienceReplayKey, setExperienceReplayKey] = useState(0);
   const [elevatorPhase, setElevatorPhase] = useState<"open" | "closing" | "moving">("open");
   const [elevatorDirection, setElevatorDirection] = useState<"up" | "down" | "idle">("idle");
   const [elevatorQuery, setElevatorQuery] = useState("");
@@ -90,10 +94,17 @@ export function LandingPage(): ReactNode {
   const wheelCooldownRef = useRef(0);
   const detailRef = useRef<HTMLElement>(null);
   const directoryRef = useRef<HTMLInputElement>(null);
+  const directoryTriggerRef = useRef<HTMLButtonElement>(null);
   const informationTriggerRef = useRef<HTMLElement | null>(null);
+  const restoreFocus = useCallback((): void => {
+    const trigger = informationTriggerRef.current;
+    if (trigger?.isConnected && !trigger.classList.contains("city-label")) trigger.focus({ preventScroll: true });
+    else directoryTriggerRef.current?.focus({ preventScroll: true });
+  }, []);
   const zh = locale === "zh";
   const t = (cn: string, en: string): string => (zh ? cn : en);
   const place = cityBuildings.find((building) => building.id === selected);
+  const experience = place?.floors?.length ? undefined : getBuildingExperience(selected);
   const lot = cityLots.find((building) => building.id === selected);
   const districtName = lot && lot.x < -75 ? t("西岸老城", "West town") : lot && lot.z < -115 ? t("北部新城", "North quarter") : t("东湾城区", "East bay");
   const occupied = cityBuildings.filter((building) => !building.vacant).length;
@@ -111,7 +122,7 @@ export function LandingPage(): ReactNode {
   }, [zh]);
   useEffect(() => {
     if (panel === "directory") directoryRef.current?.focus();
-    else if (place && !flightApproaching) detailRef.current?.focus({ preventScroll: true });
+    else if (place && !flightApproaching && !detailRef.current?.contains(document.activeElement)) detailRef.current?.focus({ preventScroll: true });
   }, [panel, place, flightApproaching]);
   useEffect(() => {
     return () => {
@@ -125,12 +136,12 @@ export function LandingPage(): ReactNode {
         setSelected(null);
         setFlightApproaching(false);
         setHelpOpen(false);
-        informationTriggerRef.current?.focus({ preventScroll: true });
+        restoreFocus();
       }
     };
     document.addEventListener("keydown", escape);
     return () => document.removeEventListener("keydown", escape);
-  }, []);
+  }, [restoreFocus]);
 
   const clearElevatorTimers = useCallback((): void => {
     elevatorTimersRef.current.forEach((timer) => window.clearTimeout(timer));
@@ -177,6 +188,9 @@ export function LandingPage(): ReactNode {
       : document.querySelector<HTMLElement>(id === "about" ? ".builder-avatar" : `button[data-place="${id}"]`);
     clearElevatorTimers();
     setActiveFloorIndex(0);
+    setExperienceChapter(0);
+    setExperienceReplayKey(0);
+    setFlightApproaching(false);
     setElevatorPhase("open");
     setElevatorDirection("idle");
     setElevatorQuery("");
@@ -185,12 +199,14 @@ export function LandingPage(): ReactNode {
     setSelectionKey((value) => value + 1);
     setTouring(false);
     setPanel(id === "news" || id === "guestbook" || id === "about" ? id : null);
-    const target = cityBuildings.find((place) => place.id === id);
-    const href = target?.floors?.length ? undefined : safeAppUrl(target?.href);
-    if (href) {
-      window.open(href, "_blank", "noopener,noreferrer");
-    }
+    // 选楼只进入空间探索；真实应用链接由导览中的原生链接显式打开。
   }, [clearElevatorTimers]);
+  function closeBuilding(): void {
+    clearElevatorTimers();
+    setSelected(null);
+    setFlightApproaching(false);
+    restoreFocus();
+  }
   function openPanel(next: Panel): void {
     if (next && next !== "directory") {
       selectPlace(next);
@@ -237,7 +253,7 @@ export function LandingPage(): ReactNode {
   const informationPlace = panel && panel !== "directory" ? panel : null;
   const isInspecting3DTower = Boolean(place?.floors?.length && panel === null);
   return (
-    <main className={`metropolis${night ? " is-night" : ""}${informationPlace ? " has-city-information" : ""}${isInspecting3DTower ? " is-inspecting-3d-tower" : ""}`}>
+    <main className={`metropolis${night ? " is-night" : ""}${informationPlace ? " has-city-information" : ""}${isInspecting3DTower ? " is-inspecting-3d-tower" : ""}${experience && panel === null ? " is-inspecting-landmark" : ""}`}>
       <button
         className="skip-link"
         type="button"
@@ -264,6 +280,8 @@ export function LandingPage(): ReactNode {
           touring={touring}
           focusPoint={focusPoint}
           activeFloorIndex={activeFloorIndex}
+          experienceChapter={experienceChapter}
+          experienceReplayKey={experienceReplayKey}
           onFloorSelect={(floorIdx) => dispatchElevator(floorIdx, place?.floors?.length ?? 2)}
           onFlightChange={setFlightApproaching}
           information={informationPlace ? (
@@ -669,13 +687,25 @@ export function LandingPage(): ReactNode {
 
       {place && panel === null && (!place.floors?.length || !flightApproaching) && (
         <aside
-          className={`place-detail${place.floors?.length ? " is-spatial-3d-rig" : " glass-panel"}`}
+          className={`place-detail${place.floors?.length ? " is-spatial-3d-rig" : experience ? " is-landmark-rig" : " glass-panel"}`}
+          data-landmark={experience ? place.id : undefined}
           ref={detailRef}
           tabIndex={-1}
           aria-label={t("建筑详情", "Building details")}
           style={{ "--place-color": place.color } as CSSProperties}
         >
-          {place.floors && place.floors.length > 0 ? (() => {
+          {experience ? (
+            <BuildingExperiencePanel
+              place={place}
+              experience={experience}
+              locale={locale}
+              chapter={experienceChapter}
+              approaching={flightApproaching}
+              onChapterChange={setExperienceChapter}
+              onReplay={() => setExperienceReplayKey((value) => value + 1)}
+              onClose={closeBuilding}
+            />
+          ) : place.floors && place.floors.length > 0 ? (() => {
             const floors = place.floors;
             const totalFloors = floors.length;
             const safeIndex = Math.max(0, Math.min(totalFloors - 1, activeFloorIndex));
@@ -1181,6 +1211,7 @@ export function LandingPage(): ReactNode {
             <span>{t("总览", "City")}</span>
           </button>
           <button
+            ref={directoryTriggerRef}
             type="button"
             onClick={() => openPanel("directory")}
             aria-pressed={panel === "directory"}

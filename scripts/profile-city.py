@@ -42,6 +42,8 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--url', default='http://127.0.0.1:3001')
 parser.add_argument('--runs', type=int, default=3)
 parser.add_argument('--output')
+parser.add_argument('--place', help='从目录进入指定建筑，测量展开后的近景，例如 OpenClaw。')
+parser.add_argument('--chapter', type=int, choices=(0, 1, 2), default=0, help='近景机构章节，从零开始。')
 parser.add_argument('--check', action='store_true', help='校验固定场景的像素和绘制预算；耗时只报告，不使用依赖硬件的门槛。')
 args = parser.parse_args()
 if args.runs < 1:
@@ -56,10 +58,18 @@ with sync_playwright() as playwright:
             page.add_init_script(PROBE)
             page.goto(args.url, wait_until='domcontentloaded')
             page.wait_for_function('window.__cityProfile.ready > 0', timeout=60000)
+            if args.place:
+                page.locator('.header-directory').click()
+                page.locator('.directory-panel').get_by_role('button', name=f'探索 {args.place}', exact=True).click()
+                page.locator('.landmark-chapters > button').nth(args.chapter).click()
+                page.wait_for_function("!document.querySelector('.landmark-playback .is-approaching')")
+                # 排除显式飞行和机构展开阶段，只采样持续交互场景的稳定开销。
+                page.wait_for_timeout(2000)
+            sample_start = page.evaluate('performance.now()') + 300
             # 固定采样窗口是性能测量本身，不作为功能通过的等待条件。
             page.wait_for_timeout(4000)
             stats = page.evaluate('window.__cityProfile')
-            frames = [frame for frame in stats['frames'] if frame['start'] > stats['ready'] + 300]
+            frames = [frame for frame in stats['frames'] if frame['start'] > sample_start]
             if len(frames) < 2:
                 raise RuntimeError('采样窗口内没有持续渲染，无法评估城市性能')
             intervals = [b['start'] - a['start'] for a, b in zip(frames, frames[1:])]

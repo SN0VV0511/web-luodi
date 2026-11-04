@@ -252,6 +252,43 @@ describe("城市主页", () => {
     expect(sceneProps.mock.lastCall?.[0]).toMatchObject({ focusPoint: { x: -240, z: 350 } });
   });
 
+  it("选楼不自动打开新窗口，三段机构与重播传给同一场景，应用由原生链接打开", () => {
+    const open = vi.spyOn(window, "open").mockImplementation(() => null);
+    render(<LandingPage />);
+    const directory = openDirectory();
+    fireEvent.click(directory.getByRole("button", { name: "探索 AFFiNE" }));
+    const detail = screen.getByRole("complementary", { name: "建筑详情" });
+    expect(open).not.toHaveBeenCalled();
+    expect(detail).toHaveClass("is-landmark-rig");
+    expect(within(detail).getByRole("link", { name: /打开 AFFiNE/ })).toHaveAttribute("href", "https://sn0vv.top/affine/");
+    expect(within(detail).getByRole("link", { name: /打开 AFFiNE/ })).toHaveAttribute("rel", "noopener noreferrer");
+    fireEvent.click(within(detail).getByRole("button", { name: /展开白板/ }));
+    expect(sceneProps.mock.lastCall?.[0]).toMatchObject({ selected: "affine", experienceChapter: 1 });
+    expect(within(detail).getByRole("button", { name: /展开白板/ })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(within(detail).getByRole("button", { name: /灵感花园/ }));
+    fireEvent.click(within(detail).getByRole("button", { name: "重新演示建筑机构" }));
+    expect(sceneProps.mock.lastCall?.[0]).toMatchObject({ experienceChapter: 2, experienceReplayKey: 1 });
+    fireEvent.click(within(detail).getByRole("button", { name: "返回城市" }));
+    expect(screen.getByRole("button", { name: "应用" })).toHaveFocus();
+    const nextDirectory = openDirectory();
+    fireEvent.click(nextDirectory.getByRole("button", { name: "探索 OpenClaw" }));
+    expect(sceneProps.mock.lastCall?.[0]).toMatchObject({ selected: "openclaw", experienceChapter: 0, experienceReplayKey: 0 });
+    expect(open).not.toHaveBeenCalled();
+    open.mockRestore();
+  });
+
+  it("切换语言保留当前建筑章节，并使用相应语言的入口和说明", () => {
+    render(<LandingPage />);
+    const directory = openDirectory();
+    fireEvent.click(directory.getByRole("button", { name: "探索 LunaTV" }));
+    fireEvent.click(screen.getByRole("button", { name: /放映视角/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Switch to English" }));
+    const detail = screen.getByRole("complementary", { name: "Building details" });
+    expect(within(detail).getByRole("button", { name: /Projection room/ })).toHaveAttribute("aria-pressed", "true");
+    expect(within(detail).getByRole("link", { name: /Choose a film in LunaTV/ })).toHaveAttribute("href", "https://tv.sn0vv.top/");
+    expect(detail).toHaveTextContent("local geometry, not an external video");
+  });
+
   it("街区入口走近公园生活场景并关闭应用浮层", () => {
     render(<LandingPage />);
     openDirectory();

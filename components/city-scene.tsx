@@ -8,6 +8,8 @@ import { cityBuildings, type PlaceId } from "@/lib/city-content";
 import { cityLots } from "@/lib/city-map";
 import { buildCityWorld } from "@/lib/city-world";
 import { buildArchiveTower3D } from "@/lib/archive-tower-3d";
+import { buildCityLandmarks, landmarkCamera } from "@/lib/city-landmarks";
+import { getBuildingExperience } from "@/lib/building-experience";
 import { parseSnapshot } from "@/lib/quant-board";
 import { createAssetBoard, parseAssetSnapshot } from "@/lib/asset-board";
 import type { Locale } from "@/lib/site-content";
@@ -28,6 +30,8 @@ type CitySceneProps = {
   touring?: boolean;
   focusPoint?: { x: number; z: number; distance?: number; height?: number };
   activeFloorIndex?: number;
+  experienceChapter?: number;
+  experienceReplayKey?: number;
   onFloorSelect?: (floorIndex: number) => void;
   onFlightChange?: (flying: boolean) => void;
   onReady?: () => void;
@@ -43,6 +47,7 @@ type SceneHandle = {
   view: (view: CityView) => void;
   focus: (point: { x: number; z: number; distance?: number; height?: number }) => void;
   syncFloor: () => void;
+  inspect: (replay?: boolean) => void;
 };
 type CameraFlight = {
   from: THREE.Vector3;
@@ -67,6 +72,16 @@ const CAMERA_VIEWS: Record<CityView, { position: [number, number, number]; targe
 const defaultLabels = new Set<PlaceId>(["quant", "affine", "agents", "openclaw", "news", "guestbook"]);
 const buildingById = new Map(cityBuildings.map((place) => [place.id, place]));
 const lotById = new Map(cityLots.map((lot) => [lot.id, lot]));
+
+/** 射线不会自动忽略隐藏祖先；关闭的室内模型不能挡住真实可见的楼宇。 */
+function visibleSurface(object: THREE.Object3D): boolean {
+  let node: THREE.Object3D | null = object;
+  while (node) {
+    if (!node.visible) return false;
+    node = node.parent;
+  }
+  return true;
+}
 
 /** 连续比例的三维城市视口；应用选择与实际导航仍由页面统一处理。 */
 export default function CityScene(props: CitySceneProps) {
@@ -208,11 +223,19 @@ export default function CityScene(props: CitySceneProps) {
     environmentScene.dispose();
     pmrem.dispose();
 
-    let world: ReturnType<typeof buildCityWorld>;
+    let world!: ReturnType<typeof buildCityWorld>;
+    let landmarks!: ReturnType<typeof buildCityLandmarks>;
     try {
       world = buildCityWorld();
-      scene.add(world.group);
-    } catch {
+      landmarks = buildCityLandmarks(cityLots);
+      scene.add(world.group, landmarks.group);
+      world.pickables.push(...landmarks.pickables);
+      landmarks.anchors.forEach((anchor, id) => world.anchors.set(id, anchor));
+    } catch (error) {
+      // 模型初始化失败也释放已创建的 GPU 资源，保留目录中的可访问入口。
+      world?.dispose();
+      landmarks?.dispose();
+      renderer.domElement.dataset.error = error instanceof Error ? error.message : "城市模型初始化失败";
       environment.dispose();
       skyGeometry.dispose();
       skyMaterial.dispose();
@@ -277,6 +300,8 @@ export default function CityScene(props: CitySceneProps) {
     let hovered: PlaceId | null = null;
     let boardHovered = false;
     let flight: CameraFlight | null = null;
+    let departure: { position: THREE.Vector3; target: THREE.Vector3 } | null = null;
+    let inspectedId: PlaceId | null = null;
     let referenceDistance = 450;
     let lastReportedZoom = 1;
     let lastOcclusionCheck = -Infinity;
@@ -329,21 +354,23 @@ export default function CityScene(props: CitySceneProps) {
         setArrived(place ?? null);
         current.current.onFlightChange?.(false);
       } else {
-        const duration = isMultiFloor ? 1250 : place ? 2200 : 1300;
+        const duration = isMultiFloor ? 1250 : place && getBuildingExperience(place) ? 1450 : place ? 2200 : 950;
         flight = { from: camera.position.clone(), to: position, targetFrom: controls.target.clone(), targetTo: target, started: performance.now(), duration, place };
-        if (isMultiFloor) current.current.onFlightChange?.(true);
-        else current.current.onFlightChange?.(false);
+        current.current.onFlightChange?.(Boolean(isMultiFloor || place && getBuildingExperience(place)));
         // 飞行途中暂时放宽dolly范围，避免新视角的距离上限截断动画。
         controls.minDistance = 1;
         controls.maxDistance = 1800;
       }
       reportZoom(1);
+      renderer.shadowMap.needsUpdate = true;
       lastOcclusionCheck = -Infinity;
       schedule();
     }
 
     function cameraView(view: CityView, immediate = false) {
       activeView = view;
+      departure = null;
+      inspectedId = null;
       const preset = CAMERA_VIEWS[view];
       const target = new THREE.Vector3(...preset.target);
       const position = new THREE.Vector3(...preset.position);
@@ -353,10 +380,13 @@ export default function CityScene(props: CitySceneProps) {
     }
 
     function updateHighlight() {
+      const inspecting = Boolean(getBuildingExperience(current.current.selected));
+      controls.mouseButtons.LEFT = inspecting ? THREE.MOUSE.ROTATE : THREE.MOUSE.PAN;
+      controls.mouseButtons.RIGHT = inspecting ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE;
       const id = current.current.selected ?? hovered;
       const lot = id ? lotById.get(id) : undefined;
       const anchor = id ? world.anchors.get(id) : undefined;
-      selection.visible = Boolean(anchor && lot);
+      selection.visible = Boolean(anchor && lot && !(id && getBuildingExperience(id) && current.current.selected === id));
       if (anchor) {
         const buildingHeight = lot?.height ?? Math.max(10, anchor.y - 3);
         selection.scale.set((lot?.width ?? 20) + 1.2, buildingHeight + 1, (lot?.depth ?? 20) + 1.2);
@@ -371,13 +401,38 @@ export default function CityScene(props: CitySceneProps) {
       schedule();
     }
 
+    function inspect(replay = false) {
+      const id = current.current.selected;
+      const lot = id ? lotById.get(id) : undefined;
+      // 换楼时章节归零的 effect 可能先运行，须等 select 保存旧镜头后再定位。
+      if (!lot || !getBuildingExperience(id) || (!replay && inspectedId !== id)) return;
+      if (replay) landmarks.replay(lot.id);
+      const pose = landmarkCamera(lot, current.current.experienceChapter ?? 0, width, height);
+      flyTo(pose.position, pose.target, false, lot.id);
+      if (flight && !replay) flight.duration = 950;
+    }
+
     function select(id: PlaceId | null) {
       updateHighlight();
       if (!id) {
         if (flight?.place) controlsStart();
         setArrived(null);
+        if (departure && inspectedId) {
+          flyTo(departure.position, departure.target);
+          if (reducedMotion.matches) departure = null;
+        }
+        inspectedId = null;
+        current.current.onFlightChange?.(false);
         return;
       }
+      if (getBuildingExperience(id)) {
+        if (!departure) departure = { position: camera.position.clone(), target: controls.target.clone() };
+        inspectedId = id;
+        inspect(true);
+        return;
+      }
+      departure = null;
+      inspectedId = null;
       const anchor = world.anchors.get(id);
       if (!anchor) return;
       const lot = lotById.get(id);
@@ -432,6 +487,14 @@ export default function CityScene(props: CitySceneProps) {
       skyUniforms.ground.value.set(night ? "#112238" : "#9fb2c0");
       skyUniforms.night.value = night ? 1 : 0;
       world.setNight(night);
+      if (reducedMotion.matches && flight) {
+        camera.position.copy(flight.to);
+        controls.target.copy(flight.targetTo);
+        setArrived(flight.place ?? null);
+        flight = null;
+        setDistanceLimits();
+        current.current.onFlightChange?.(false);
+      }
       renderer.shadowMap.needsUpdate = true;
       controls.enableDamping = !reducedMotion.matches;
       updateHighlight();
@@ -452,12 +515,12 @@ export default function CityScene(props: CitySceneProps) {
         const knownTenant = Boolean(buildingById.get(id) && !buildingById.get(id)?.vacant);
         projected.copy(anchor).project(camera);
         const inFrame = Math.abs(projected.x) < 1.05 && Math.abs(projected.y) < 1.05 && projected.z > -1 && projected.z < 1;
-        let show = !current.current.information && current.current.labelsVisible !== false && inFrame && (active || defaultLabels.has(id) || knownTenant);
+        let show = !current.current.information && !getBuildingExperience(current.current.selected) && current.current.labelsVisible !== false && inFrame && (active || defaultLabels.has(id) || knownTenant);
         if (show && checkOcclusion && !active) {
           const distance = direction.copy(anchor).sub(camera.position).length();
           labelRaycaster.set(camera.position, direction.normalize());
           labelRaycaster.far = Math.max(0, distance - 5);
-          const obstruction = labelRaycaster.intersectObjects(world.pickables, false)[0];
+          const obstruction = labelRaycaster.intersectObjects(world.pickables, false).find((hit) => visibleSurface(hit.object));
           occlusion.set(id, Boolean(obstruction));
         }
         if (occlusion.get(id) && !active) show = false;
@@ -528,6 +591,7 @@ export default function CityScene(props: CitySceneProps) {
         controls.target.lerpVectors(flight.targetFrom, flight.targetTo, eased);
         if (progress === 1) {
           setArrived(flight.place ?? null);
+          if (!current.current.selected) departure = null;
           flight = null;
           labelsDirty = true;
           setDistanceLimits();
@@ -551,6 +615,7 @@ export default function CityScene(props: CitySceneProps) {
           }
         }
       }
+      const mechanismsAnimating = landmarks.animate(elapsed || .016, worldTime, current.current.selected, current.current.experienceChapter ?? 0, reducedMotion.matches || current.current.paused);
       const controlsChanged = controls.update(elapsed);
       sky.position.copy(camera.position);
       if (worldTime !== lastAnimatedTime) {
@@ -571,7 +636,7 @@ export default function CityScene(props: CitySceneProps) {
         setStatus("ready");
         current.current.onReady?.();
       }
-      if (moving || controlsChanged || flight || elevatorAnimating) schedule();
+      if (moving || controlsChanged || flight || elevatorAnimating || mechanismsAnimating) schedule();
     }
 
     function resize() {
@@ -584,6 +649,8 @@ export default function CityScene(props: CitySceneProps) {
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5, Math.sqrt(MAX_RENDER_PIXELS / (width * height))));
       renderer.setSize(width, height);
       if (!hasRendered) cameraView(activeView, true);
+      else if (getBuildingExperience(current.current.selected) && Math.abs(previousAspect - camera.aspect) > .05)
+        inspect();
       else if (current.current.selected && !lotById.has(current.current.selected) && Math.abs(previousAspect - camera.aspect) > 0.05)
         select(current.current.selected);
       else if ((previousAspect < 0.8) !== (camera.aspect < 0.8) && !current.current.selected)
@@ -597,6 +664,7 @@ export default function CityScene(props: CitySceneProps) {
       pointer.set(((clientX - bounds.left) / bounds.width) * 2 - 1, (-(clientY - bounds.top) / bounds.height) * 2 + 1);
       raycaster.setFromCamera(pointer, camera);
       for (const intersection of raycaster.intersectObjects(world.pickables, false)) {
+        if (!visibleSurface(intersection.object)) continue;
         const id: PlaceId | undefined = intersection.instanceId === undefined
           ? intersection.object.userData.place
           : intersection.object.userData.places?.[intersection.instanceId];
@@ -708,6 +776,7 @@ export default function CityScene(props: CitySceneProps) {
     function controlsStart() {
       if (flight) {
         setArrived(flight.place ?? null);
+        if (!current.current.selected && !inspectedId) departure = null;
         flight = null;
         referenceDistance = camera.position.distanceTo(controls.target);
         setDistanceLimits();
@@ -745,6 +814,7 @@ export default function CityScene(props: CitySceneProps) {
       if (frameHandle !== null) cancelAnimationFrame(frameHandle);
       frameHandle = null;
       renderer.domElement.hidden = true;
+      current.current.onFlightChange?.(false);
       setStatus("error");
     }
 
@@ -777,7 +847,10 @@ export default function CityScene(props: CitySceneProps) {
       reset: () => cameraView(current.current.view ?? "aerial"),
       view: cameraView,
       select,
+      inspect,
       focus: (point) => {
+        departure = null;
+        inspectedId = null;
         const target = new THREE.Vector3(THREE.MathUtils.clamp(point.x, -240, 380), point.height ?? 12, THREE.MathUtils.clamp(point.z, -225, 350));
         const offset = camera.position.clone().sub(controls.target);
         if (point.distance) {
@@ -793,6 +866,7 @@ export default function CityScene(props: CitySceneProps) {
         if (Math.abs(safeZoom - lastReportedZoom) < 0.015) return;
         if (flight?.place) setArrived(flight.place);
         flight = null;
+        current.current.onFlightChange?.(false);
         setDistanceLimits();
         direction.copy(camera.position).sub(controls.target).normalize();
         camera.position.copy(controls.target).addScaledVector(direction, referenceDistance / safeZoom);
@@ -869,6 +943,7 @@ export default function CityScene(props: CitySceneProps) {
       window.clearInterval(boardTimer);
       assetBoard.dispose();
       archiveTower?.dispose();
+      landmarks.dispose();
       world.dispose();
       selectionGeometry.dispose();
       selectionMaterial.dispose();
@@ -884,6 +959,8 @@ export default function CityScene(props: CitySceneProps) {
 
   useEffect(() => { sceneRef.current?.update(); }, [props.night, props.paused, props.labelsVisible, props.touring, props.locale]);
   useEffect(() => { sceneRef.current?.syncFloor(); }, [props.activeFloorIndex]);
+  useEffect(() => { sceneRef.current?.inspect(); }, [props.experienceChapter]);
+  useEffect(() => { if (props.experienceReplayKey) sceneRef.current?.inspect(true); }, [props.experienceReplayKey]);
   // 动态场景首次就绪后再执行选择，避免载入期间的点击被初始视角覆盖。
   useEffect(() => { if (status === "ready") sceneRef.current?.select(props.selected); }, [props.selected, props.selectionKey, status]);
   useEffect(() => { sceneRef.current?.reset(); }, [props.resetKey]);
