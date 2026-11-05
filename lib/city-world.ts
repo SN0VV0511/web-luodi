@@ -5,6 +5,8 @@ import { getBuildingExperience } from "./building-experience";
 import { buildCivicDistrict } from "./city-civic";
 import { buildCityLife } from "./city-life";
 import { buildCityCoast } from "./city-coast";
+import { applyCitySurface, markCitySurface, type CitySurface } from "./city-surfaces";
+import { createTreeCanopy, createTreeTrunk, createVehicleShell, createVehicleWheel, paintLeafCluster, type VehicleKind, type VehicleShell } from "./city-forms";
 
 export type CityWorld = {
   group: THREE.Group;
@@ -63,6 +65,13 @@ export function buildCityWorld(): CityWorld {
     solid("#2b5838"), solid("#3f7245"), solid("#588a4d"),
     solid("#6f9954"), solid("#d49b3d"), solid("#c96b70"),
   ];
+  markCitySurface(asphalt, "asphalt");
+  markCitySurface(pavement, "concrete");
+  markCitySurface(grass, "grass");
+  markCitySurface(turf, "grass");
+  markCitySurface(soil, "soil");
+  markCitySurface(trunk, "bark");
+  leaves.forEach((leaf) => markCitySurface(leaf, "foliage"));
   const metal = solid("#3e494d", 0.38, 0.58);
   const railMetal = solid("#b2babd", 0.3, 0.62);
   const glass = solid("#2b5872", 0.16, 0.62);
@@ -308,8 +317,33 @@ export function buildCityWorld(): CityWorld {
     const horizontal = road.z1 === road.z2;
     const length = Math.hypot(road.x2 - road.x1, road.z2 - road.z1);
     const x = (road.x1 + road.x2) / 2, z = (road.z1 + road.z2) / 2;
-    box(curb, x, 0.2, z, horizontal ? length : 15.4, 0.3, horizontal ? 15.4 : length);
+    // 路床略宽于沥青，两侧抬起人行道，路缘石比路面高出约 8 厘米。
+    box(curb, x, 0.22, z, horizontal ? length : 11.35, 0.24, horizontal ? 11.35 : length);
     box(asphalt, x, 0.38, z, horizontal ? length : 11, 0.08, horizontal ? 11 : length);
+    if (length > 18) {
+      const walkLength = Math.max(0.6, length - 16);
+      for (const side of [-1, 1]) {
+        const lateral = side * 6.7;
+        box(
+          pavement,
+          horizontal ? x : x + lateral,
+          0.42,
+          horizontal ? z + lateral : z,
+          horizontal ? walkLength : 2.15,
+          0.16,
+          horizontal ? 2.15 : walkLength,
+        );
+        box(
+          curb,
+          horizontal ? x : x + side * 5.58,
+          0.47,
+          horizontal ? z + side * 5.58 : z,
+          horizontal ? walkLength : 0.22,
+          0.12,
+          horizontal ? 0.22 : walkLength,
+        );
+      }
+    }
     // 写实双黄中心线与两侧车道白虚线
     if (length > 20) {
       box(roadYellow, x, 0.432, z, horizontal ? length - 14 : 0.16, 0.024, horizontal ? 0.16 : length - 14);
@@ -338,6 +372,13 @@ export function buildCityWorld(): CityWorld {
   for (const node of roadNodes.values()) {
     if (node.directions.length < 2) continue;
     box(asphalt, node.x, 0.4, node.z, 15.5, 0.09, 15.5);
+    part(darkRoof, cylinderGeometry, node.x + 1.35, 0.455, node.z - 0.8, 0.58, 0.025, 0.58);
+    part(metal, cylinderGeometry, node.x + 1.35, 0.47, node.z - 0.8, 0.16, 0.02, 0.16);
+    if (node.directions.length >= 3) {
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+        box(pavement, node.x + sx * 6.7, 0.43, node.z + sz * 6.7, 2.35, 0.16, 2.35);
+      }
+    }
     if (node.directions.length < 3) continue;
     signalIntersections.push({ x: node.x, z: node.z });
     for (const direction of node.directions) {
@@ -368,26 +409,93 @@ export function buildCityWorld(): CityWorld {
     box(metal, x + turn * 0.75, 7 + y, z, 1.7, 0.16, 0.2);
     box(lamp, x + turn * 1.4, 6.92 + y, z, 0.9, 0.12, 0.4);
   };
-  const tree = (x: number, z: number, size = 1, shade = 0, y = 0) => {
-    // 树根基座、主干与左右分叉枝干，告别单调圆柱+绿椭圆体
-    part(trunk, cylinderGeometry, x, y + 0.35 * size, z, 0.28 * size, 0.7 * size, 0.28 * size);
-    part(trunk, cylinderGeometry, x, y + 1.45 * size, z, 0.18 * size, 2.7 * size, 0.18 * size);
-    part(trunk, cylinderGeometry, x - 0.38 * size, y + 2.55 * size, z + 0.15 * size, 0.09 * size, 1.3 * size, 0.09 * size, undefined, 0.4, 0.48);
-    part(trunk, cylinderGeometry, x + 0.36 * size, y + 2.65 * size, z - 0.18 * size, 0.09 * size, 1.25 * size, 0.09 * size, undefined, -0.35, -0.45);
-    const leafA = leaves[shade % leaves.length];
-    const leafB = leaves[(shade + 1) % leaves.length];
-    if (shade % 3 === 0) {
-      // 针叶松柏树种：三层叠落伞状塔冠
-      part(leafA, coneGeometry, x, y + 3.1 * size, z, 1.85 * size, 2.2 * size, 1.85 * size, undefined, shade * 0.7);
-      part(leafB, coneGeometry, x, y + 4.35 * size, z, 1.42 * size, 1.95 * size, 1.42 * size, undefined, shade * 1.3);
-      part(leafA, coneGeometry, x, y + 5.45 * size, z, 0.95 * size, 1.55 * size, 0.95 * size, undefined, shade * 2.1);
-    } else {
-      // 阔叶乔木/秋色银杏/花木：多簇错落多面体树冠团块，受光棱角分明
-      part(leafA, crownGeometry, x, y + 4.15 * size, z, 1.55 * size, 1.35 * size, 1.5 * size, undefined, shade * 0.8);
-      part(leafB, crownGeometry, x - 0.85 * size, y + 3.45 * size, z + 0.38 * size, 1.15 * size, 1.02 * size, 1.12 * size, undefined, shade * 1.4);
-      part(leafB, crownGeometry, x + 0.82 * size, y + 3.6 * size, z - 0.42 * size, 1.18 * size, 1.08 * size, 1.15 * size, undefined, shade * 2.1);
-      part(leafA, crownGeometry, x + 0.18 * size, y + 3.3 * size, z + 0.78 * size, 1.05 * size, 0.92 * size, 1.05 * size, undefined, shade * 2.8);
+  const trees = (["spreading", "upright"] as const).map((form) => {
+    const stem = createTreeTrunk(form), crown = createTreeCanopy(form);
+    geometries.add(stem);
+    geometries.add(crown);
+    return { stem, crown };
+  });
+  const leafMap = canvasTexture(512, 512, paintLeafCluster);
+  leafMap.wrapS = leafMap.wrapT = THREE.ClampToEdgeWrapping;
+  const canopyMaterials = ["#d0d5a8", "#a7c393", "#a0b786", "#ddc282"].map((color) => {
+    const material = new THREE.MeshStandardMaterial({
+      color, map: leafMap, vertexColors: true, roughness: 0.92, alphaTest: 0.35, side: THREE.DoubleSide,
+    });
+    materials.add(material);
+    return material;
+  });
+  // 反射环境仅供汽车使用，不改变建筑与天空；由画布生成，无外部 HDR 资源或网络请求。
+  const vehicleEnvironment = canvasTexture(512, 256, (ctx) => {
+    const sky = ctx.createLinearGradient(0, 0, 0, 256);
+    sky.addColorStop(0, "#536c85");
+    sky.addColorStop(0.43, "#b8cbd4");
+    sky.addColorStop(0.51, "#edf0e7");
+    sky.addColorStop(0.55, "#737f78");
+    sky.addColorStop(1, "#39403d");
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, 512, 256);
+    for (let index = 0; index < 18; index++) {
+      ctx.fillStyle = index % 3 ? "#697b83" : "#9caaa9";
+      const height = 12 + (index % 5) * 5;
+      ctx.fillRect(index * 31, 140 - height, 13 + (index % 3) * 4, height);
     }
+  });
+  vehicleEnvironment.mapping = THREE.EquirectangularReflectionMapping;
+  const vehicleSurfaces = new Set<THREE.MeshStandardMaterial>();
+  const carPaint = (color: THREE.ColorRepresentation): THREE.MeshPhysicalMaterial => {
+    const material = new THREE.MeshPhysicalMaterial({
+      color, roughness: 0.26, metalness: 0.32, clearcoat: 0.9, clearcoatRoughness: 0.14,
+      envMap: vehicleEnvironment, envMapIntensity: 0.85,
+    });
+    materials.add(material);
+    vehicleSurfaces.add(material);
+    return material;
+  };
+  const parkedPaints = new Map<number, THREE.MeshPhysicalMaterial>();
+  const vehicleGlass = solid("#617b87", 0.13, 0.4);
+  vehicleGlass.envMap = vehicleEnvironment;
+  vehicleGlass.envMapIntensity = 0.85;
+  vehicleSurfaces.add(vehicleGlass);
+  const vehicleTrim = solid("#23282b", 0.76, 0.06);
+  const shells = {
+    sedan: createVehicleShell("sedan"),
+    suv: createVehicleShell("suv"),
+    bus: createVehicleShell("bus"),
+    truck: createVehicleShell("truck"),
+  } satisfies Record<VehicleKind, VehicleShell>;
+  Object.values(shells).forEach((shell) => {
+    for (const geometry of [shell.body, shell.glass, shell.trim, shell.chrome]) geometries.add(geometry);
+  });
+  const { tire: tireGeometry, rim: rimGeometry } = createVehicleWheel();
+  geometries.add(tireGeometry);
+  geometries.add(rimGeometry);
+  const placeVehicle = (shell: VehicleShell, material: THREE.Material, px: number, pz: number, rot: number) => {
+    const color = material instanceof THREE.MeshStandardMaterial ? material.color.getHex() : 0xffffff;
+    let paint = parkedPaints.get(color);
+    if (!paint) { paint = carPaint(color); parkedPaints.set(color, paint); }
+    part(paint, shell.body, px, 0.42, pz, 1, 1, 1, undefined, rot);
+    part(vehicleGlass, shell.glass, px, 0.42, pz, 1, 1, 1, undefined, rot);
+    part(vehicleTrim, shell.trim, px, 0.42, pz, 1, 1, 1, undefined, rot);
+    part(railMetal, shell.chrome, px, 0.42, pz, 1, 1, 1, undefined, rot);
+    for (const wheel of shell.wheels) {
+      const wx = px + Math.sin(rot) * wheel.z + Math.cos(rot) * wheel.x;
+      const wz = pz + Math.cos(rot) * wheel.z - Math.sin(rot) * wheel.x;
+      part(vehicleTrim, tireGeometry, wx, 0.42 + shell.wheelR, wz, shell.wheelR, shell.wheelR, shell.wheelR, undefined, rot, Math.PI / 2);
+      part(railMetal, rimGeometry, wx, 0.42 + shell.wheelR, wz, shell.wheelR, shell.wheelR, shell.wheelR, undefined, rot, Math.PI / 2);
+    }
+    for (const light of shell.lamps) {
+      const lx = px + Math.sin(rot) * light.z + Math.cos(rot) * light.x;
+      const lz = pz + Math.cos(rot) * light.z - Math.sin(rot) * light.x;
+      part(light.tail ? tailRed : lamp, boxGeometry, lx, 0.42 + light.y, lz, 0.32, 0.085, 0.055, undefined, rot);
+    }
+  };
+  const tree = (x: number, z: number, size = 1, shade = 0, y = 0) => {
+    const variant = THREE.MathUtils.euclideanModulo(Math.floor(shade), 4);
+    const model = trees[variant % trees.length];
+    const yaw = shade * 0.9;
+    part(soil, cylinderGeometry, x, y + 0.03, z, 1.05 * size, 0.04, 0.95 * size);
+    part(trunk, model.stem, x, y, z, size, size, size, undefined, yaw);
+    part(canopyMaterials[variant], model.crown, x, y, z, size, size, size, undefined, yaw);
   };
   for (const [index, road] of ROAD_SEGMENTS.entries()) {
     const length = Math.hypot(road.x2 - road.x1, road.z2 - road.z1);
@@ -521,6 +629,20 @@ export function buildCityWorld(): CityWorld {
         box(lightStone, x, h + 1.4, z, w + 1.1, 1.2, d + 1.1, id);
       }
     }
+    if (!id && h > 9 && h < 20) {
+      const floors = Math.max(2, Math.round(h / 3.2));
+      for (let floor = 2; floor < floors; floor++) {
+        const fy = 0.7 + floor * 3.15;
+        if (variant % 8 !== 4) {
+          const balconyW = Math.min(w * 0.78, 8.5);
+          box(concrete, x, fy, z + d / 2 + 0.48, balconyW, 0.1, 0.95);
+          box(railMetal, x, fy + 0.48, z + d / 2 + 0.9, balconyW, 0.045, 0.045);
+          for (const side of [-1, 1]) box(railMetal, x + side * balconyW * 0.5, fy + 0.26, z + d / 2 + 0.9, 0.045, 0.48, 0.045);
+        }
+        box(metal, x + w * 0.32, fy + 0.42, z + d / 2 + 0.08, 0.62, 0.38, 0.32);
+      }
+      box(metal, x - w / 2 - 0.06, 0.55 + h * 0.42, z + d / 2 - 0.2, 0.07, h * 0.7, 0.07);
+    }
     if (id !== "slot-8") {
       // 街层精装大堂门厅：透光旋转门厅、暖色迎宾灯带、立柱雨篷与两侧迎宾绿植池
       const lobbyW = Math.min(w * 0.42, 5.4);
@@ -547,7 +669,11 @@ export function buildCityWorld(): CityWorld {
   geometries.add(pitchedRoof);
   const homeWalls = [solid("#d8d6c9"), solid("#c3cbc3"), solid("#e0d2b7"), solid("#b99782")];
   const roofTiles = [solid("#9b563f"), solid("#556369"), solid("#95604c")];
-  const housingMaterials = new Set<THREE.Material>([...homeWalls, ...roofTiles]);
+  const brickCourse = solid("#8a5340", 0.86);
+  homeWalls.forEach((wall) => markCitySurface(wall, "stucco"));
+  roofTiles.forEach((tile) => markCitySurface(tile, "roof"));
+  markCitySurface(brickCourse, "brick");
+  const housingMaterials = new Set<THREE.Material>([...homeWalls, ...roofTiles, brickCourse]);
   const homeWindow = solid("#465b60", 0.32, 0.13);
   homeWindow.emissive.set("#ffd29a");
   nightMaterials.push({ material: homeWindow, day: 0, night: 1.15 });
@@ -561,12 +687,21 @@ export function buildCityWorld(): CityWorld {
     const roof = roofTiles[variant % roofTiles.length];
     box(turf, x, 0.27, z + 2.8, gardenWidth, 0.15, 27);
     box(concrete, x, 0.48, z, width + 0.45, 0.34, depth + 0.45);
-    box(wall, x, 0.58 + height / 2, z, width, height, depth);
-    part(roof, pitchedRoof, x, height + 0.55, z, width + 0.95, 2.15 + width * 0.06, depth + 0.85);
-    box(lightStone, x, height + 0.52, z + depth / 2 + 0.15, width + 0.85, 0.24, 0.45);
-    box(lightStone, x, height + 0.52, z - depth / 2 - 0.15, width + 0.85, 0.24, 0.45);
-    box(roof, x + width * 0.24, height + 2.1, z - depth * 0.27, 0.85, 2.85, 0.88);
-    box(lightStone, x + width * 0.24, height + 3.55, z - depth * 0.27, 1.02, 0.18, 1.04);
+    box(brickCourse, x, 0.86, z, width + 0.08, 0.46, depth + 0.08);
+    box(wall, x, 0.78 + height / 2, z, width, height, depth);
+    const roofRise = 2.15 + width * 0.06;
+    part(roof, pitchedRoof, x, height + 0.7, z, width + 1.15, roofRise, depth + 1.05);
+    if (floors > 1 && variant % 3 === 1) {
+      part(roof, pitchedRoof, x, height + 0.85, z + depth * 0.08, depth * 0.62, roofRise * 0.7, width * 0.46, undefined, Math.PI / 2);
+    }
+    box(darkRoof, x - (width + 1.05) / 2, height + 0.78, z, 0.14, 0.1, depth + 1.05);
+    box(darkRoof, x + (width + 1.05) / 2, height + 0.78, z, 0.14, 0.1, depth + 1.05);
+    box(roof, x, height + 0.7 + roofRise - 0.08, z, 0.22, 0.12, depth + 0.85);
+    box(lightStone, x, height + 0.66, z + depth / 2 + 0.2, width + 0.9, 0.16, 0.28);
+    box(lightStone, x, height + 0.66, z - depth / 2 - 0.2, width + 0.9, 0.16, 0.28);
+    box(brickCourse, x + width * 0.24, height + 2.15, z - depth * 0.22, 0.72, 2.4, 0.72);
+    box(lightStone, x + width * 0.24, height + 3.4, z - depth * 0.22, 0.9, 0.14, 0.9);
+    box(metal, x - width / 2 + 0.08, height * 0.55, z + depth / 2 + 0.08, 0.06, height * 0.85, 0.06);
     const windowGlass = variant % 3 === 0 ? glass : homeWindow;
     for (let floor = 0; floor < floors; floor++) {
       const y = 2.05 + floor * 3.05;
@@ -574,10 +709,16 @@ export function buildCityWorld(): CityWorld {
         box(lightStone, x + dx, y, z + side * (depth / 2 + 0.065), 1.5, 1.65, 0.13);
         box(windowGlass, x + dx, y, z + side * (depth / 2 + 0.145), 1.17, 1.32, 0.07);
         box(lightStone, x + dx, y, z + side * (depth / 2 + 0.195), 0.07, 1.32, 0.08);
-        if (side === 1 && floor === 0) {
-          // 一层正面窗下木质花箱与绿植
-          box(trunk, x + dx, y - 0.92, z + depth / 2 + 0.24, 1.42, 0.24, 0.32);
-          box(leaves[(variant + 1) % leaves.length], x + dx, y - 0.72, z + depth / 2 + 0.24, 1.32, 0.25, 0.28);
+        if (side === 1) {
+          if (variant % 2 === 0) {
+            for (const shutter of [-1, 1]) {
+              box(trunk, x + dx + shutter * 0.86, y, z + depth / 2 + 0.2, 0.1, 1.4, 0.05);
+            }
+          }
+          if (floor === 0) {
+            box(trunk, x + dx, y - 0.92, z + depth / 2 + 0.24, 1.42, 0.24, 0.32);
+            box(leaves[(variant + 1) % leaves.length], x + dx, y - 0.72, z + depth / 2 + 0.24, 1.32, 0.25, 0.28);
+          }
         }
       }
       for (const side of [-1, 1]) {
@@ -587,6 +728,8 @@ export function buildCityWorld(): CityWorld {
     }
     box(trunk, x, 1.67, z + depth / 2 + 0.13, 1.18, 2.2, 0.19);
     box(lightStone, x, 0.47, z + depth / 2 + 0.7, 2.4, 0.32, 1.4);
+    box(concrete, x, 0.22, z + depth / 2 + 1.35, 1.7, 0.14, 0.55);
+    box(concrete, x, 0.1, z + depth / 2 + 1.85, 1.95, 0.12, 0.5);
     box(darkRoof, x, 2.94, z + depth / 2 + 0.62, 2.7, 0.18, 1.7);
     box(lamp, x, 2.78, z + depth / 2 + 0.32, 0.28, 0.14, 0.18);
     for (const side of [-1, 1]) box(trunk, x + side, 1.65, z + depth / 2 + 1.13, 0.1, 2.3, 0.1);
@@ -892,19 +1035,9 @@ export function buildCityWorld(): CityWorld {
   const crashCarRed = solid("#c83e32", 0.25, 0.45);
   const crashCarBlue = solid("#2e5d82", 0.25, 0.45);
   const policeBlue = solid("#1b3b5c", 0.28, 0.4);
-  // 前车（红色轿车，被追尾后向右前方偏斜）
-  part(crashCarRed, boxGeometry, -73.4, 0.86, 67.6, 1.85, 0.68, 4.2, undefined, 0.32);
-  part(crashCarRed, boxGeometry, -73.4, 1.34, 67.6, 1.56, 0.48, 2.2, undefined, 0.32);
-  part(glass, boxGeometry, -73.4, 1.35, 67.6, 1.6, 0.42, 2.35, undefined, 0.32);
-  // 后车（蓝色SUV，追尾撞上前车尾部，引擎盖翘起受损）
-  part(crashCarBlue, boxGeometry, -74.2, 0.92, 71.4, 1.92, 0.76, 4.5, undefined, -0.22);
-  part(crashCarBlue, boxGeometry, -74.2, 1.44, 71.2, 1.66, 0.56, 2.7, undefined, -0.22);
-  part(glass, boxGeometry, -74.2, 1.45, 71.2, 1.7, 0.48, 2.8, undefined, -0.22);
-  part(crashCarBlue, boxGeometry, -73.9, 1.42, 69.5, 1.75, 0.12, 1.35, undefined, -0.22, 0.38);
-  // 现场勘查警车（斜停在路口北侧拦住车流）
-  part(lightStone, boxGeometry, -77.4, 0.88, 64.2, 1.9, 0.7, 4.4, undefined, 0.52);
-  part(policeBlue, boxGeometry, -77.4, 1.36, 64.2, 1.6, 0.5, 2.3, undefined, 0.52);
-  part(glass, boxGeometry, -77.4, 1.37, 64.2, 1.64, 0.42, 2.4, undefined, 0.52);
+  placeVehicle(shells.sedan, crashCarRed, -73.4, 67.6, 0.32);
+  placeVehicle(shells.suv, crashCarBlue, -74.2, 71.4, -0.22);
+  placeVehicle(shells.sedan, policeBlue, -77.4, 64.2, 0.52);
   // 事故现场橙白反光雪糕筒警戒圈
   for (const [cx, cz] of [[-76.2, 66.8], [-76.0, 69.2], [-75.8, 71.8], [-74.8, 74.2], [-72.2, 73.6], [-71.8, 66.2]] as const) {
     part(orange, coneGeometry, cx, 0.68, cz, 0.28, 0.65, 0.28);
@@ -924,10 +1057,7 @@ export function buildCityWorld(): CityWorld {
     [42, 91.2, Math.PI / 2], [50, 91.2, Math.PI / 2], [132, 91.2, Math.PI / 2],
   ];
   parkedSpots.forEach(([px, pz, rot], idx) => {
-    const mat = parkedPalette[idx % parkedPalette.length];
-    part(mat, boxGeometry, px, 0.85, pz, 1.82, 0.68, 4.1, undefined, rot);
-    part(mat, boxGeometry, px, 1.32, pz, 1.54, 0.48, 2.2, undefined, rot);
-    part(glass, boxGeometry, px, 1.33, pz, 1.58, 0.42, 2.35, undefined, rot);
+    placeVehicle(idx % 5 === 0 ? shells.suv : shells.sedan, parkedPalette[idx % parkedPalette.length], px, pz, rot);
   });
   for (let x = -185; x <= 185; x += 24) {
     if (Math.abs(Math.abs(x) - 135) < 11) continue;
@@ -939,8 +1069,12 @@ export function buildCityWorld(): CityWorld {
   const firstCivicObject = group.children.length;
   const cityKit = {
     group, geometries, materials, nightMaterials, box, part, beam, tree, solid, canvasTexture,
+    vehicle: (kind: VehicleKind, material: THREE.Material, x: number, z: number) => {
+      placeVehicle(shells[kind], material, x, z, 0);
+      return shells[kind];
+    },
   };
-  const { landmarks: civicLandmarks } = buildCivicDistrict(cityKit);
+  const { landmarks: civicLandmarks, lakeMaterial } = buildCivicDistrict(cityKit);
   const civicMaterials = new Set([...materials].filter((material) => !existingMaterials.has(material)));
   group.children.slice(firstCivicObject).forEach((object) => {
     if (object instanceof THREE.Mesh) pickables.push(object);
@@ -970,7 +1104,7 @@ export function buildCityWorld(): CityWorld {
       && material.customProgramCacheKey === THREE.Material.prototype.customProgramCacheKey) {
       // 保留全部表面参数，仅将基础颜色交给实例属性；夜景、纹理与自定义 shader 独立绘制。
       const surface = Object.fromEntries(Object.entries(material.toJSON()).filter(([key]) => !["uuid", "metadata", "color"].includes(key)));
-      surfaceKey = JSON.stringify([surface, material.defines]);
+      surfaceKey = JSON.stringify([surface, material.defines, material.userData.citySurface ?? ""]);
     }
     // 拾取边界属于分组条件，树木等背景构件不能因合批进入点击或标签遮挡集合。
     const key = `${batch.geometry.uuid}:${pickable}:${surfaceKey}`;
@@ -986,6 +1120,8 @@ export function buildCityWorld(): CityWorld {
       material.color.set(0xffffff);
       materials.add(material);
     }
+    const surfaceKind = first.material.userData.citySurface as CitySurface | undefined;
+    if (surfaceKind && material instanceof THREE.MeshStandardMaterial) applyCitySurface(material, surfaceKind);
     const count = sources.reduce((total, source) => total + source.parts.length, 0);
     const mesh = new THREE.InstancedMesh(first.geometry, material, count);
     const places: (PlaceId | undefined)[] = [];
@@ -1007,16 +1143,32 @@ export function buildCityWorld(): CityWorld {
   }
 
   const carCount = 60;
-  const bodyMaterial = solid("#ffffff", 0.24, 0.42);
-  const cars = new THREE.InstancedMesh(boxGeometry, bodyMaterial, carCount);
-  const cabins = new THREE.InstancedMesh(boxGeometry, bodyMaterial, carCount);
-  const windshields = new THREE.InstancedMesh(boxGeometry, glass, carCount);
+  const bodyMaterial = carPaint("#ffffff");
+  const classify = (index: number) => {
+    const kind = index % 15 === 0 ? "bus" : index % 11 === 0 ? "truck" : index % 6 === 0 ? "taxi" : index % 3 === 0 ? "suv" : "sedan";
+    const shell: VehicleKind = kind === "bus" || kind === "truck" || kind === "suv" ? kind : "sedan";
+    return { kind, shell } as const;
+  };
+  const shellCounts: Record<VehicleKind, number> = { sedan: 0, suv: 0, bus: 0, truck: 0 };
+  for (let index = 0; index < carCount; index++) shellCounts[classify(index).shell]++;
+  const shellBodies = {} as Record<VehicleKind, THREE.InstancedMesh>;
+  const shellGlass = {} as Record<VehicleKind, THREE.InstancedMesh>;
+  const shellTrim = {} as Record<VehicleKind, THREE.InstancedMesh>;
+  const shellChrome = {} as Record<VehicleKind, THREE.InstancedMesh>;
+  (Object.keys(shells) as VehicleKind[]).forEach((kind) => {
+    shellBodies[kind] = new THREE.InstancedMesh(shells[kind].body, bodyMaterial, Math.max(1, shellCounts[kind]));
+    shellGlass[kind] = new THREE.InstancedMesh(shells[kind].glass, vehicleGlass, Math.max(1, shellCounts[kind]));
+    shellTrim[kind] = new THREE.InstancedMesh(shells[kind].trim, vehicleTrim, Math.max(1, shellCounts[kind]));
+    shellChrome[kind] = new THREE.InstancedMesh(shells[kind].chrome, railMetal, Math.max(1, shellCounts[kind]));
+    for (const mesh of [shellBodies[kind], shellGlass[kind], shellTrim[kind], shellChrome[kind]]) mesh.name = `Traffic · ${kind}`;
+  });
   const lights = new THREE.InstancedMesh(boxGeometry, lamp, carCount * 2);
   const taillights = new THREE.InstancedMesh(boxGeometry, tailRed, carCount * 2);
   const roofUnits = new THREE.InstancedMesh(boxGeometry, lightStone, carCount);
-  const wheels = new THREE.InstancedMesh(cylinderGeometry, darkRoof, carCount * 4);
-  const rims = new THREE.InstancedMesh(cylinderGeometry, railMetal, carCount * 4);
-  const vehicleMeshes = [cars, cabins, windshields, lights, taillights, roofUnits, wheels, rims];
+  const mirrors = new THREE.InstancedMesh(boxGeometry, bodyMaterial, carCount * 2);
+  const wheels = new THREE.InstancedMesh(tireGeometry, vehicleTrim, carCount * 4);
+  const rims = new THREE.InstancedMesh(rimGeometry, railMetal, carCount * 4);
+  const vehicleMeshes = [...Object.values(shellBodies), ...Object.values(shellGlass), ...Object.values(shellTrim), ...Object.values(shellChrome), lights, taillights, roofUnits, mirrors, wheels, rims];
   vehicleMeshes.forEach((mesh) => {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -1077,17 +1229,19 @@ export function buildCityWorld(): CityWorld {
   // 过滤掉紧邻追尾事故现场 (-75, 69) 的街区支路，避免车辆穿模撞车现场
   const safeBlocks = cityBlocks.filter((b) => !(Math.abs(b.x - -97.5) < 5 && Math.abs(b.z - 42.5) < 5));
 
+  const shellCursor: Record<VehicleKind, number> = { sedan: 0, suv: 0, bus: 0, truck: 0 };
   const routes = Array.from({ length: carCount }, (_, i) => {
-    const kind: "bus" | "truck" | "taxi" | "suv" | "sedan" =
-      i % 15 === 0 ? "bus" : i % 11 === 0 ? "truck" : i % 6 === 0 ? "taxi" : i % 3 === 0 ? "suv" : "sedan";
+    const { kind, shell } = classify(i);
+    const shellSlot = shellCursor[shell]++;
     const bodyColor =
       kind === "bus" ? "#d97736" :
       kind === "taxi" ? "#f0be3c" :
       kind === "truck" ? "#dce2e6" :
       carPalette[i % carPalette.length];
     const paint = new THREE.Color(bodyColor);
-    cars.setColorAt(i, paint);
-    cabins.setColorAt(i, paint);
+    shellBodies[shell].setColorAt(shellSlot, paint);
+    mirrors.setColorAt(i * 2, paint);
+    mirrors.setColorAt(i * 2 + 1, paint);
 
     const points = i < 24
       ? arterialLoops[i % arterialLoops.length].map((p) => ({ ...p }))
@@ -1117,6 +1271,8 @@ export function buildCityWorld(): CityWorld {
       offset: random() * totalLength,
       speed: (kind === "bus" ? 6.5 : kind === "truck" ? 7.2 : 8.5 + random() * 4.2),
       kind,
+      shell,
+      shellSlot,
       phase: random() * Math.PI * 2,
     };
   });
@@ -1125,13 +1281,16 @@ export function buildCityWorld(): CityWorld {
     if (lastNight === night) return;
     lastNight = night;
     nightMaterials.forEach(({ material, day, night: value }) => { material.emissiveIntensity = night ? value : day; });
+    vehicleSurfaces.forEach((material) => { material.envMapIntensity = night ? 0.14 : 0.85; });
     waterMaterial.uniforms.uNight.value = night ? 1 : 0;
+    lakeMaterial.uniforms.uNight.value = night ? 1 : 0;
   };
   const animate = (seconds: number, night: boolean) => {
     setNight(night);
     life.animate(seconds);
     coast.animate(seconds);
     waterMaterial.uniforms.uTime.value = seconds;
+    lakeMaterial.uniforms.uTime.value = seconds;
 
     // 10秒周期交通信号灯切换：0..10s 东西向绿灯/南北向红灯；10..20s 东西向红灯/南北向绿灯
     const cycle = THREE.MathUtils.euclideanModulo(seconds, 20);
@@ -1167,13 +1326,13 @@ export function buildCityWorld(): CityWorld {
     // 事故现场警车红蓝交替爆闪顶灯 + 两辆事故车双闪应急灯
     const flashOn = Math.sin(seconds * 12) > 0;
     // 警车红灯 (-77.4, 1.72, 64.2)
-    transform.position.set(-77.65, flashOn ? 1.68 : -10, 64.05);
+    transform.position.set(-77.65, flashOn ? 1.96 : -10, 64.05);
     transform.rotation.set(0, 0.52, 0);
     transform.scale.set(0.42, 0.14, 0.22);
     transform.updateMatrix();
     strobeRedMesh.setMatrixAt(0, transform.matrix);
     // 警车蓝灯
-    transform.position.set(-77.15, !flashOn ? 1.68 : -10, 64.35);
+    transform.position.set(-77.15, !flashOn ? 1.96 : -10, 64.35);
     transform.updateMatrix();
     strobeBlueMesh.setMatrixAt(0, transform.matrix);
     strobeBlueMesh.setMatrixAt(1, transform.matrix);
@@ -1228,102 +1387,57 @@ export function buildCityWorld(): CityWorld {
       while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
       const angle = edge.heading + angleDiff * (turnBlend * turnBlend * (3 - 2 * turnBlend));
 
-      const isBus = route.kind === "bus";
-      const isTruck = route.kind === "truck";
-      const isSuv = route.kind === "suv";
-      const isTaxi = route.kind === "taxi";
-      const length = isBus ? 8.6 : isTruck ? 6.6 : isSuv ? 4.65 : 4.35;
-      const width = isBus ? 2.15 : isTruck ? 2.05 : 1.86;
-      const bodyH = isBus ? 1.85 : isTruck ? 0.78 : isSuv ? 0.76 : 0.66;
-      const y = 0.88 + (isBus ? 0.56 : isTruck ? 0.12 : 0);
+      const shell = shells[route.shell];
       const sinA = Math.sin(angle);
       const cosA = Math.cos(angle);
-
-      // 1. 车身底盘与流线型下车体
-      transform.position.set(x, y, z);
-      transform.rotation.set(0, angle, 0);
-      transform.scale.set(width, bodyH, length);
+      const placeLocal = (lx: number, ly: number, lz: number) => {
+        transform.position.set(x + sinA * lz + cosA * lx, 0.42 + ly, z + cosA * lz - sinA * lx);
+        transform.rotation.set(0, angle, 0);
+        transform.scale.set(1, 1, 1);
+      };
+      placeLocal(0, 0, 0);
       transform.updateMatrix();
-      cars.setMatrixAt(index, transform.matrix);
+      shellBodies[route.shell].setMatrixAt(route.shellSlot, transform.matrix);
+      shellGlass[route.shell].setMatrixAt(route.shellSlot, transform.matrix);
+      shellTrim[route.shell].setMatrixAt(route.shellSlot, transform.matrix);
+      shellChrome[route.shell].setMatrixAt(route.shellSlot, transform.matrix);
 
-      // 2. 乘员舱上车体 / 驾驶室
-      const cabinZOffset = isTruck ? length * 0.26 : isBus ? 0 : -length * 0.05;
-      const cabinLen = isBus ? length * 0.94 : isTruck ? length * 0.34 : isSuv ? length * 0.64 : length * 0.54;
-      const cabinH = isBus ? 0.72 : isTruck ? 1.05 : isSuv ? 0.58 : 0.48;
-      const cabinY = y + bodyH * 0.5 + cabinH * 0.46;
-      transform.position.set(x + sinA * cabinZOffset, cabinY, z + cosA * cabinZOffset);
-      transform.scale.set(width * 0.86, cabinH, cabinLen);
-      transform.updateMatrix();
-      cabins.setMatrixAt(index, transform.matrix);
-
-      // 3. 环绕式深色反光车窗与前后挡风玻璃
-      transform.position.set(x + sinA * cabinZOffset, cabinY - 0.02, z + cosA * cabinZOffset);
-      transform.scale.set(width * 0.89, cabinH * 0.78, cabinLen * 1.03);
-      transform.updateMatrix();
-      windshields.setMatrixAt(index, transform.matrix);
-
-      // 4. 车顶构件：出租车顶灯、巴士空调包、货车白色高顶货厢或SUV行李架
-      if (isTruck) {
-        const boxOffset = -length * 0.18;
-        transform.position.set(x + sinA * boxOffset, y + 0.95, z + cosA * boxOffset);
-        transform.scale.set(width * 0.98, 1.65, length * 0.58);
-      } else if (isTaxi) {
-        transform.position.set(x + sinA * cabinZOffset, cabinY + cabinH * 0.58, z + cosA * cabinZOffset);
-        transform.scale.set(0.62, 0.2, 0.28);
-      } else if (isBus) {
-        transform.position.set(x - sinA * 0.8, cabinY + cabinH * 0.56, z - cosA * 0.8);
-        transform.scale.set(1.4, 0.22, 2.6);
-      } else if (isSuv) {
-        transform.position.set(x + sinA * cabinZOffset, cabinY + cabinH * 0.54, z + cosA * cabinZOffset);
-        transform.scale.set(width * 0.68, 0.08, cabinLen * 0.72);
+      if (route.kind === "taxi") {
+        placeLocal(0, shell.height + 0.06, 0.1);
+        transform.scale.set(0.46, 0.12, 0.24);
+      } else if (route.kind === "bus") {
+        placeLocal(0, shell.height + 0.08, -0.6);
+        transform.scale.set(1.6, 0.2, 2.4);
       } else {
-        transform.position.set(x, -10, z);
+        transform.position.set(x, -20, z);
         transform.scale.set(0.001, 0.001, 0.001);
       }
       transform.updateMatrix();
       roofUnits.setMatrixAt(index, transform.matrix);
 
-      // 5. 前大灯、红宝石尾灯、轮胎与银色铝合金轮毂
       for (const side of [-1, 1]) {
-        const sideIndex = side > 0 ? 1 : 0;
-        const lampLateral = width * 0.34 * side;
-        transform.position.set(
-          x + sinA * (length / 2) + cosA * lampLateral,
-          y + 0.06,
-          z + cosA * (length / 2) - sinA * lampLateral,
-        );
-        transform.rotation.set(0, angle, 0);
-        transform.scale.set(0.36, 0.16, 0.12);
+        placeLocal(side * shell.width * 0.52, shell.height * 0.58, shell.length * 0.18);
+        transform.scale.set(0.18, 0.1, 0.24);
         transform.updateMatrix();
-        lights.setMatrixAt(index * 2 + sideIndex, transform.matrix);
-
-        transform.position.set(
-          x - sinA * (length / 2) + cosA * lampLateral,
-          y + 0.08,
-          z - cosA * (length / 2) - sinA * lampLateral,
-        );
-        transform.scale.set(0.4, 0.15, 0.1);
-        transform.updateMatrix();
-        taillights.setMatrixAt(index * 2 + sideIndex, transform.matrix);
-
-        for (const axle of [-1, 1]) {
-          const wheelIdx = index * 4 + sideIndex * 2 + (axle > 0 ? 1 : 0);
-          const wx = x + cosA * side * (width * 0.5) + sinA * axle * (length * 0.31);
-          const wy = y - (isBus ? 0.82 : 0.3);
-          const wz = z - sinA * side * (width * 0.5) + cosA * axle * (length * 0.31);
-          transform.position.set(wx, wy, wz);
-          transform.rotation.set(0, angle, Math.PI / 2);
-          transform.scale.set(0.36, 0.2, 0.36);
-          transform.updateMatrix();
-          wheels.setMatrixAt(wheelIdx, transform.matrix);
-
-          transform.position.set(wx + cosA * side * 0.02, wy, wz - sinA * side * 0.02);
-          transform.scale.set(0.21, 0.21, 0.21);
-          transform.updateMatrix();
-          rims.setMatrixAt(wheelIdx, transform.matrix);
-        }
-        transform.rotation.set(0, angle, 0);
+        mirrors.setMatrixAt(index * 2 + (side > 0 ? 1 : 0), transform.matrix);
       }
+      for (const lamp of shell.lamps) {
+        placeLocal(lamp.x, lamp.y, lamp.z);
+        transform.scale.set(lamp.tail ? 0.26 : 0.22, 0.09, 0.08);
+        transform.updateMatrix();
+        const lane = lamp.x > 0 ? 1 : 0;
+        (lamp.tail ? taillights : lights).setMatrixAt(index * 2 + lane, transform.matrix);
+      }
+      shell.wheels.forEach((wheel, wheelIndex) => {
+        const wx = x + sinA * wheel.z + cosA * wheel.x;
+        const wz = z + cosA * wheel.z - sinA * wheel.x;
+        transform.position.set(wx, 0.42 + shell.wheelR, wz);
+        transform.rotation.set(0, angle, Math.PI / 2);
+        transform.scale.setScalar(shell.wheelR);
+        transform.updateMatrix();
+        wheels.setMatrixAt(index * 4 + wheelIndex, transform.matrix);
+        rims.setMatrixAt(index * 4 + wheelIndex, transform.matrix);
+      });
     });
     vehicleMeshes.forEach((mesh) => { mesh.instanceMatrix.needsUpdate = true; });
     dynamicSceneMeshes.forEach((mesh) => { mesh.instanceMatrix.needsUpdate = true; });

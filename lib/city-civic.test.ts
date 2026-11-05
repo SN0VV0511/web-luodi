@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { buildCivicDistrict, type CivicKit } from "./city-civic";
 
 it("公园草坪覆层离开底板，并在远景保留独立深度偏移", () => {
@@ -25,6 +25,7 @@ it("公园草坪覆层离开底板，并在远景保留独立深度偏移", () =
     },
     beam() {},
     tree() {},
+    vehicle: vi.fn(() => ({ length: 6.7, width: 2.2, height: 2.5 })),
     canvasTexture() {
       const texture = new THREE.CanvasTexture(document.createElement("canvas"));
       textures.push(texture);
@@ -33,6 +34,9 @@ it("公园草坪覆层离开底板，并在远景保留独立深度偏移", () =
   };
   try {
     buildCivicDistrict(kit);
+    expect(kit.vehicle).toHaveBeenCalledTimes(3);
+    expect(kit.vehicle).toHaveBeenCalledWith("sedan", expect.any(THREE.Material), expect.any(Number), expect.any(Number));
+    expect(kit.vehicle).toHaveBeenCalledWith("truck", expect.any(THREE.Material), expect.any(Number), expect.any(Number));
     expect(lawns).toHaveLength(1);
     const lawn = lawns[0];
     expect(lawn.height - parkTop).toBeGreaterThanOrEqual(0.03);

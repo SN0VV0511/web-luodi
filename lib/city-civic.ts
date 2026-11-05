@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import type { PlaceId } from "./city-content";
 import { civicLots } from "./city-map";
+import { markCitySurface } from "./city-surfaces";
+import type { VehicleKind, VehicleShell } from "./city-vehicles";
 
 /** 公共街区复用主场景的实例批次、纹理登记与统一资源释放。 */
 export type CivicKit = {
@@ -12,6 +14,7 @@ export type CivicKit = {
   part: (material: THREE.Material, geometry: THREE.BufferGeometry, x: number, y: number, z: number, sx: number, sy: number, sz: number, place?: PlaceId, rotationY?: number, rotationZ?: number) => void;
   beam: (from: THREE.Vector3, to: THREE.Vector3, radius: number, material: THREE.Material) => void;
   tree: (x: number, z: number, size?: number, shade?: number, y?: number) => void;
+  vehicle: (kind: VehicleKind, material: THREE.Material, x: number, z: number) => Pick<VehicleShell, "length" | "width" | "height">;
   solid: (color: string, roughness?: number, metalness?: number) => THREE.MeshStandardMaterial;
   canvasTexture: (width: number, height: number, draw: (context: CanvasRenderingContext2D) => void) => THREE.CanvasTexture;
 };
@@ -48,7 +51,7 @@ export const centralParkGatherings = [{x:30,z:-66},{x:39,z:37},{x:-30,z:53},{x:9
 
 
 /** 分区公共设施与连续中央公园；公共楼保持在各自街区十五米边界内。 */
-export function buildCivicDistrict(kit: CivicKit): { landmarks: CivicLandmark[] } {
+export function buildCivicDistrict(kit: CivicKit): { landmarks: CivicLandmark[]; lakeMaterial: THREE.ShaderMaterial } {
   const { box, part, beam, tree, solid } = kit;
   const landmarks: CivicLandmark[] = [];
   const civic = (kind: typeof civicLots[number]["kind"]) => {
@@ -71,6 +74,7 @@ export function buildCivicDistrict(kit: CivicKit): { landmarks: CivicLandmark[] 
   const white = solid("#edf0e8");
   const concrete = solid("#b3b3a4");
   const path = solid("#c2b79e");
+  markCitySurface(path, "path");
   const asphalt = solid("#576160");
   const glass = solid("#477183", 0.27, 0.24);
   const litWindow = solid("#547888", 0.3, 0.2);
@@ -91,6 +95,11 @@ export function buildCivicDistrict(kit: CivicKit): { landmarks: CivicLandmark[] 
   const grassDark = solid("#6b815b");
   const hedge = solid("#506c47");
   const sand = solid("#d6c39a");
+  markCitySurface(grass, "grass");
+  markCitySurface(grassDark, "grass");
+  markCitySurface(hedge, "foliage");
+  markCitySurface(sand, "sand");
+  markCitySurface(timber, "bark");
   const water = solid("#5c9190", 0.28, 0.22);
   const clay = solid("#b56d54");
   const yellow = solid("#d8ac4f");
@@ -167,36 +176,24 @@ export function buildCivicDistrict(kit: CivicKit): { landmarks: CivicLandmark[] 
   function vehicle(x: number, z: number, kind: "police" | "ambulance" | "fire") {
     const fire = kind === "fire";
     const ambulance = kind === "ambulance";
-    const length = fire ? 6.3 : ambulance ? 5.4 : 4.6;
-    const body = fire ? red : white;
-    box(rubber, x, 0.72, z, 1.9, 0.26, length);
-    box(body, x, fire || ambulance ? 1.63 : 1.11, z, 2, fire || ambulance ? 1.55 : 0.9, length - 0.1);
-    box(glass, x, 1.84, z + length * 0.19, 1.86, 0.71, length * 0.3);
-    box(body, x, 2.26, z + length * 0.19, 1.95, 0.14, length * 0.34);
-    if (!fire && !ambulance) {
-      box(blue, x, 1.08, z, 2.03, 0.3, length * 0.88);
-      box(white, x, 2.3, z + 0.35, 1.96, 0.15, 1.65);
-    }
+    const shell = kit.vehicle(kind === "police" ? "sedan" : "truck", fire ? red : white, x, z);
+    const roof = shell.height + 0.42;
     for (const side of [-1, 1]) {
-      box(side < 0 ? blue : red, x + side * 0.39, 2.49, z + length * 0.15, 0.62, 0.2, 0.24);
-      for (const axle of [-1, 1]) {
-        part(rubber, cylinder, x + side * 1.02, 0.72, z + axle * length * 0.3, 0.38, 0.22, 0.38, undefined, 0, Math.PI / 2);
-        part(concrete, cylinder, x + side * 1.15, 0.72, z + axle * length * 0.3, 0.19, 0.025, 0.19, undefined, 0, Math.PI / 2);
+      box(side < 0 ? blue : red, x + side * 0.3, roof + 0.13, z + shell.length * 0.23, 0.48, 0.16, 0.22);
+      if (kind === "police") {
+        box(blue, x + side * (shell.width / 2 + 0.012), 1.21, z, 0.025, 0.14, 1.8);
       }
-      box(ivory, x + side * 0.68, 1.09, z + length / 2, 0.39, 0.23, 0.1);
       if (ambulance) {
-        box(red, x + side * 1.03, 1.4, z - 0.65, 0.06, 0.16, 2.5);
-        box(red, x + side * 1.035, 1.93, z - 0.75, 0.065, 0.85, 0.25);
-        box(red, x + side * 1.04, 1.93, z - 0.75, 0.065, 0.25, 0.85);
+        box(red, x + side * (shell.width / 2 + 0.012), 1.7, z - 0.9, 0.025, 0.16, 2.7);
+        box(red, x + side * (shell.width / 2 + 0.018), 2.2, z - 0.8, 0.03, 0.65, 0.2);
+        box(red, x + side * (shell.width / 2 + 0.018), 2.2, z - 0.8, 0.03, 0.2, 0.65);
+      }
+      if (fire) {
+        box(concrete, x + side * (shell.width / 2 + 0.018), 1.85, z - 1, 0.035, 0.95, 2.5);
+        box(metal, x + side * 0.55, roof + 0.15, z - 0.4, 0.085, 0.12, 4.5);
       }
     }
-    if (fire) {
-      for (const side of [-1, 1]) {
-        box(concrete, x + side * 1.035, 1.68, z - 1, 0.065, 0.98, 2.5);
-        box(metal, x + side * 0.55, 2.57, z - 0.4, 0.085, 0.12, 4.5);
-      }
-      for (let rung = 0; rung < 10; rung++) box(concrete, x, 2.57, z - 2.35 + rung * 0.43, 1.12, 0.08, 0.08);
-    }
+    if (fire) for (let rung = 0; rung < 10; rung++) box(concrete, x, roof + 0.15, z - 2.35 + rung * 0.43, 1.12, 0.08, 0.08);
   }
 
   function publicSite(x: number, z: number, name: string, height: number) {
@@ -453,7 +450,50 @@ export function buildCivicDistrict(kit: CivicKit): { landmarks: CivicLandmark[] 
   const lakeshore = flatShape(lakePoints(2.2));
   const lake = flatShape(lakePoints());
   part(sand, lakeshore, 0, 0.32, 0, 1, 1, 1);
-  part(water, lake, 0, 0.355, 0, 1, 1, 1);
+  const lakeMaterial = new THREE.ShaderMaterial({
+    uniforms: THREE.UniformsUtils.merge([
+      THREE.UniformsLib.fog,
+      { uTime: { value: 0 }, uNight: { value: 0 } },
+    ]),
+    vertexShader: `varying vec3 vWorld; varying vec3 vView;
+      #include <fog_pars_vertex>
+      void main() {
+        vec4 world = modelMatrix * vec4(position, 1.0);
+        vWorld = world.xyz;
+        vView = cameraPosition - world.xyz;
+        vec4 mvPosition = viewMatrix * world;
+        gl_Position = projectionMatrix * mvPosition;
+        #include <fog_vertex>
+      }`,
+    fragmentShader: `uniform float uTime; uniform float uNight; varying vec3 vWorld; varying vec3 vView;
+      #include <fog_pars_fragment>
+      void main() {
+        float ripple = sin(vWorld.x * 0.85 + vWorld.z * 1.15 + uTime * 0.8);
+        float rippleB = sin(vWorld.x * 1.7 - vWorld.z * 0.6 + uTime * 1.15);
+        vec3 normal = normalize(vec3(ripple * 0.04, 1.0, rippleB * 0.035));
+        vec3 view = normalize(vView);
+        float fresnel = pow(1.0 - max(dot(normal, view), 0.0), 3.0);
+        vec3 deep = vec3(0.05, 0.28, 0.32);
+        vec3 shallow = vec3(0.20, 0.48, 0.46);
+        vec3 day = mix(deep, shallow, 0.45 + ripple * 0.08);
+        day = mix(day, vec3(0.72, 0.84, 0.82), fresnel * 0.75);
+        day += vec3(1.0, 0.9, 0.7) * pow(max(dot(reflect(vec3(0.4, -0.6, -0.3), normal), view), 0.0), 48.0) * 0.35;
+        vec3 nightColor = mix(vec3(0.02, 0.08, 0.12), vec3(0.08, 0.16, 0.22), fresnel);
+        gl_FragColor = vec4(mix(day, nightColor, uNight), 0.92);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+        #include <fog_fragment>
+      }`,
+    transparent: true,
+    depthWrite: false,
+    fog: true,
+  });
+  kit.materials.add(lakeMaterial);
+  const lakeMesh = new THREE.Mesh(lake, lakeMaterial);
+  lakeMesh.name = "CentralParkLake";
+  lakeMesh.position.y = 0.37;
+  lakeMesh.renderOrder = 2;
+  kit.group.add(lakeMesh);
   centralParkWalks.forEach(trail);
 
   // 南部开阔草坪不堆放设施，保留完整的远景呼吸空间。
@@ -547,5 +587,5 @@ export function buildCivicDistrict(kit: CivicKit): { landmarks: CivicLandmark[] 
   part(timber, cylinder, -22.5, 0.42, -6.2, 0.85, 0.28, 2.3, undefined, 0.35);
   part(ivory, cube, -22.5, 0.52, -6.2, 1.1, 0.08, 0.28, undefined, 0.35);
 
-  return { landmarks };
+  return { landmarks, lakeMaterial };
 }

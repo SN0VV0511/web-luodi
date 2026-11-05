@@ -22,8 +22,12 @@ it("行人步态随城市时间变化，暂停可重现同一姿态且所有资�
   animate(10000);
   for (const mesh of meshes) {
     expect(geometries.has(mesh.geometry)).toBe(true);
-    for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material])
+    for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
       expect(materials.has(material)).toBe(true);
+      if (material instanceof THREE.MeshStandardMaterial && material.vertexColors) {
+        expect(mesh.geometry.getAttribute("color")?.count).toBe(mesh.geometry.getAttribute("position").count);
+      }
+    }
     expect(Array.from(mesh.instanceMatrix.array).every(Number.isFinite)).toBe(true);
     mesh.dispose();
   }

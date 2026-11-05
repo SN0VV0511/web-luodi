@@ -1,5 +1,10 @@
 import * as THREE from "three";
 import { centralParkWalks, centralParkBenches, centralParkGatherings } from "./city-civic";
+import {
+  createBackpack, createCalf, createCap, createForearm, createHair, createHand, createHead,
+  createNeck, createPelvis, createShoe, createThigh, createTorso, createUpperArm,
+} from "./city-figure";
+import { LEG_LENGTH, sampleWalkingLeg, type WalkingLeg } from "./city-gait";
 
 type RouteSegment = {
   x: number;
@@ -105,12 +110,12 @@ export function buildCityLife({
     ...streetSegments.map(([x, z, endX, endZ]) => ({
       points: [[x, z], [endX, endZ]] as const,
       population: 2,
-      ground: 0.35,
+      ground: 0.5,
       mode: "walk" as const,
     })),
     // 社区超市（FRESH MART）门前推购物车采购动线（西城 x=-136..-104, z=87.8 与 东城 x=104..136, z=87.8）
-    { points: [[-136, 87.6], [-104, 87.6]], population: 6, ground: 0.35, mode: "shop" },
-    { points: [[104, 87.6], [136, 87.6]], population: 4, ground: 0.35, mode: "shop" },
+    { points: [[-136, 87.6], [-104, 87.6]], population: 6, ground: 0.47, mode: "shop" },
+    { points: [[104, 87.6], [136, 87.6]], population: 4, ground: 0.47, mode: "shop" },
     // 滨海木栈道与观海大道漫步人群
     { points: [[-205, 108.5], [-82, 108.5]], population: 12, ground: 0.56, mode: "walk" },
     { points: [[-68, 106.5], [-10, 106.5]], population: 10, ground: 0.32, mode: "walk" },
@@ -346,16 +351,33 @@ export function buildCityLife({
     });
   }
 
-  const sphere = new THREE.SphereGeometry(1, 10, 8);
-  const cap = new THREE.SphereGeometry(1, 10, 5, 0, Math.PI * 2, 0, Math.PI * 0.55);
-  const cylinder = new THREE.CylinderGeometry(0.5, 0.44, 1, 9);
+  const headGeo = createHead();
+  const neckGeo = createNeck();
+  const torsoGeo = createTorso();
+  const pelvisGeo = createPelvis();
+  const backpackGeo = createBackpack();
+  const upperArmGeo = createUpperArm();
+  const forearmGeo = createForearm();
+  for (const geometry of [upperArmGeo, forearmGeo]) {
+    // 上衣共用 vertexColors 材质；袖子也必须提供白色属性，否则 WebGL 默认零值会把双臂染黑。
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(geometry.getAttribute("position").count * 3).fill(1), 3));
+  }
+  const handGeo = createHand();
+  const thighGeo = createThigh();
+  const calfGeo = createCalf();
+  const shoeGeo = createShoe();
+  const hairGeo = createHair();
+  const capGeo = createCap();
   const cube = new THREE.BoxGeometry(1, 1, 1);
+  const sphere = new THREE.SphereGeometry(1, 12, 10);
   const wheelGeo = new THREE.TorusGeometry(0.32, 0.045, 6, 16);
-  for (const geometry of [sphere, cap, cylinder, cube, wheelGeo]) geometries.add(geometry);
+  for (const geometry of [headGeo, neckGeo, torsoGeo, pelvisGeo, backpackGeo, upperArmGeo, forearmGeo, handGeo, thighGeo, calfGeo, shoeGeo, hairGeo, capGeo, cube, sphere, wheelGeo]) {
+    geometries.add(geometry);
+  }
 
-  const batch = (name: string, geometry: THREE.BufferGeometry, count: number, color: string, roughness = 0.85, metalness = 0.05): THREE.InstancedMesh => {
-    const material = new THREE.MeshStandardMaterial({ color, roughness, metalness });
-    materials.add(material);
+  const batch = (name: string, geometry: THREE.BufferGeometry, count: number, color: string, roughness = 0.85, metalness = 0.05, shared?: THREE.Material): THREE.InstancedMesh => {
+    const material = shared ?? new THREE.MeshStandardMaterial({ color, roughness, metalness });
+    if (!shared) materials.add(material);
     const mesh = new THREE.InstancedMesh(geometry, material, Math.max(1, count));
     mesh.name = name;
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -371,12 +393,29 @@ export function buildCityLife({
   const dogCount = residents.filter((r) => r.hasDog).length;
   const cartCount = residents.filter((r) => r.hasCart).length;
 
-  const skin = batch("Residents · heads and hands", sphere, count * 3, "#ffffff", 0.78);
-  const clothes = batch("Residents · coats and sleeves", cylinder, count * 5, "#ffffff", 0.82);
-  const trousers = batch("Residents · articulated legs", cube, count * 4, "#ffffff", 0.86);
-  const shoes = batch("Residents · shoes", cube, count * 2, "#272d30", 0.72);
-  const hair = batch("Residents · hair and hats", cap, count, "#ffffff", 0.88);
-  const bags = batch("Residents · bags and packs", cube, count, "#ffffff", 0.76);
+  const skinMaterial = new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.58 });
+  const headMaterial = new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.55, vertexColors: true });
+  materials.add(skinMaterial);
+  materials.add(headMaterial);
+  const heads = batch("Residents · heads", headGeo, count, "#ffffff", 0.55, 0.02, headMaterial);
+  const necks = batch("Residents · necks", neckGeo, count, "#ffffff", 0.58, 0.02, skinMaterial);
+  const hands = batch("Residents · hands", handGeo, count * 2, "#ffffff", 0.58, 0.02, skinMaterial);
+  const coatMaterial = new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.96, vertexColors: true });
+  materials.add(coatMaterial);
+  const torsos = batch("Residents · torsos", torsoGeo, count, "#ffffff", 0.92, 0.02, coatMaterial);
+  const upperArms = batch("Residents · upper arms", upperArmGeo, count * 2, "#ffffff", 0.92, 0.02, coatMaterial);
+  const forearms = batch("Residents · forearms", forearmGeo, count * 2, "#ffffff", 0.92, 0.02, coatMaterial);
+  const pantMaterial = new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.9 });
+  materials.add(pantMaterial);
+  const pelvis = batch("Residents · pelvis", pelvisGeo, count, "#ffffff", 0.9, 0.02, pantMaterial);
+  const thighs = batch("Residents · thighs", thighGeo, count * 2, "#ffffff", 0.9, 0.02, pantMaterial);
+  const calves = batch("Residents · calves", calfGeo, count * 2, "#ffffff", 0.9, 0.02, pantMaterial);
+  const shoeMaterial = new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.82, vertexColors: true });
+  materials.add(shoeMaterial);
+  const shoes = batch("Residents · shoes", shoeGeo, count * 2, "#ffffff", 0.82, 0, shoeMaterial);
+  const hair = batch("Residents · hair", hairGeo, count, "#ffffff", 0.72);
+  const hats = batch("Residents · caps", capGeo, count, "#ffffff", 0.7);
+  const bags = batch("Residents · bags and packs", backpackGeo, count, "#ffffff", 0.9);
   const bikeFrames = batch("Residents · bicycles", cube, Math.max(1, bikeCount * 2), "#ffffff", 0.35, 0.55);
   const bikeWheels = batch("Residents · bike wheels", wheelGeo, Math.max(1, bikeCount * 2), "#242a2e", 0.6, 0.25);
   const dogs = batch("Residents · pet dogs", cube, Math.max(1, dogCount * 6), "#ffffff", 0.85);
@@ -384,7 +423,7 @@ export function buildCityLife({
   const cartGoods = batch("Residents · cart groceries", cube, Math.max(1, cartCount * 2), "#ffffff", 0.65);
   const volleyBallMesh = batch("Beach · volleyball", sphere, 1, "#f7e39c", 0.5);
 
-  const meshes = [skin, clothes, trousers, shoes, hair, bags, bikeFrames, bikeWheels, dogs, shoppingCarts, cartGoods, volleyBallMesh];
+  const meshes = [heads, necks, hands, torsos, pelvis, upperArms, forearms, thighs, calves, shoes, hair, hats, bags, bikeFrames, bikeWheels, dogs, shoppingCarts, cartGoods, volleyBallMesh];
   const color = new THREE.Color();
   const coats = [
     "#d45d42", "#e2ad47", "#3f749c", "#f0ece1", "#d9847c",
@@ -404,12 +443,24 @@ export function buildCityLife({
   let cartIdx = 0;
   residents.forEach((res, index) => {
     color.set(skins[Math.floor(random() * skins.length)]);
-    for (let part = 0; part < 3; part++) skin.setColorAt(index * 3 + part, color);
+    heads.setColorAt(index, color);
+    necks.setColorAt(index, color);
+    hands.setColorAt(index * 2, color);
+    hands.setColorAt(index * 2 + 1, color);
     color.set(res.coatColor ?? coats[Math.floor(random() * coats.length)]);
-    for (let part = 0; part < 5; part++) clothes.setColorAt(index * 5 + part, color);
+    torsos.setColorAt(index, color);
+    upperArms.setColorAt(index * 2, color);
+    upperArms.setColorAt(index * 2 + 1, color);
+    forearms.setColorAt(index * 2, color);
+    forearms.setColorAt(index * 2 + 1, color);
     color.set(res.pantsColor ?? pants[Math.floor(random() * pants.length)]);
-    for (let part = 0; part < 4; part++) trousers.setColorAt(index * 4 + part, color);
+    pelvis.setColorAt(index, color);
+    thighs.setColorAt(index * 2, color);
+    thighs.setColorAt(index * 2 + 1, color);
+    calves.setColorAt(index * 2, color);
+    calves.setColorAt(index * 2 + 1, color);
     hair.setColorAt(index, color.set(hairs[Math.floor(random() * hairs.length)]));
+    hats.setColorAt(index, color.set(index % 2 ? "#243044" : "#1c1a17"));
     bags.setColorAt(index, color.set(bagColors[Math.floor(random() * bagColors.length)]));
     if (res.activity === "bike") {
       color.set(bikeColors[bikeIdx % bikeColors.length]);
@@ -475,6 +526,8 @@ export function buildCityLife({
     place(mesh, index, x, y - Math.cos(angle) * length / 2, z - Math.sin(angle) * length / 2, thickness, length, thickness, angle);
   }
 
+  const walkingLeg: WalkingLeg = { thigh: 0, calf: 0, ankleY: 0, ankleZ: 0, footPitch: 0, planted: true };
+
   function animate(seconds: number): void {
     let activeBikeIndex = 0;
     let activeDogIndex = 0;
@@ -515,6 +568,7 @@ export function buildCityLife({
             originZ = cw.z + startSide * waitDist;
             heading = startSide < 0 ? 0 : Math.PI;
           }
+          originY = 0.5;
         } else {
           // 绿灯阶段：沿斑马线匀速穿过马路抵达对面人行道
           const crossProgress = Math.min(1, (cycle - 10) / 7.5);
@@ -529,6 +583,7 @@ export function buildCityLife({
             originZ = cw.z + posAlong;
             heading = startSide < 0 ? 0 : Math.PI;
           }
+          originY = crossProgress > 0.12 && crossProgress < 0.88 ? 0.43 : 0.5;
         }
       } else if (route) {
         const travel = THREE.MathUtils.euclideanModulo(
@@ -550,8 +605,8 @@ export function buildCityLife({
       }
 
       const moving = walking || jogging || biking;
-      const cadence = biking ? 3.8 : jogging ? 7.2 : 5.4;
-      const phase = seconds * Math.max(0.8, resident.speed) * cadence + resident.phase;
+      const cadence = biking ? 3.8 : jogging ? 8.4 : 4.7 + resident.speed * 2.3;
+      const phase = seconds * cadence + resident.phase;
       const stride = biking
         ? Math.sin(phase) * 0.52
         : jogging
@@ -575,7 +630,7 @@ export function buildCityLife({
       const bob = jogging
         ? Math.abs(Math.cos(phase)) * 0.065
         : walking
-          ? Math.abs(Math.cos(phase)) * 0.028
+          ? Math.abs(Math.cos(phase)) * 0.015
           : jump;
       const hipShift = seated ? -0.05 : biking ? 0.12 : bob;
       const torsoPitch = biking
@@ -595,48 +650,54 @@ export function buildCityLife({
               ? Math.sin(seconds * 0.9 + resident.phase) * 0.08
               : 0;
 
-      place(clothes, index * 5, 0, 1.26 + hipShift, 0, 0.56, 0.65, 0.36, torsoPitch);
-      place(skin, index * 3, 0, 1.81 + hipShift, biking ? -0.08 : 0, 0.175, 0.22, 0.18, 0, headYaw);
-      place(
-        hair,
-        index,
-        0,
-        1.86 + hipShift,
-        biking ? -0.08 : 0,
-        resident.hasHat ? 0.24 : 0.185,
-        resident.hasHat ? 0.15 : 0.18,
-        resident.hasHat ? 0.25 : 0.19,
-        0,
-        headYaw,
-      );
+      const build = 0.92 + (index % 7) * 0.022;
+      const headY = 1.2 + Math.cos(torsoPitch) * 0.54 + hipShift;
+      const headZ = Math.sin(torsoPitch) * 0.54 + 0.015;
+      place(torsos, index, 0, 1.2 + hipShift, 0, 0.49 * build, 0.6, 0.32, torsoPitch);
+      place(pelvis, index, 0, 0.94 + hipShift, 0, 0.43 * build, 0.25, 0.32, torsoPitch * 0.25);
+      place(necks, index, 0, 1.2 + Math.cos(torsoPitch) * 0.35 + hipShift, Math.sin(torsoPitch) * 0.35, 0.15, 0.13, 0.15, torsoPitch * 0.6);
+      place(heads, index, 0, headY, headZ, 0.24, 0.24, 0.235, 0, headYaw);
+      if (resident.hasHat) {
+        place(hair, index, 0, -12, 0, 0.001, 0.001, 0.001);
+        place(hats, index, 0, headY + 0.09, headZ, 0.25, 0.13, 0.26, 0, headYaw);
+      } else {
+        place(hats, index, 0, -12, 0, 0.001, 0.001, 0.001);
+        place(hair, index, 0, headY, headZ, 0.25, 0.245, 0.245, 0, headYaw);
+      }
 
       if (resident.hasBag && !seated) {
-        place(bags, index, 0, 1.28 + hipShift, 0.24, 0.34, 0.42, 0.18, torsoPitch);
+        place(bags, index, 0, 1.27 + hipShift, -0.2, 0.34, 0.43, 0.25, torsoPitch);
       } else {
         place(bags, index, 0, -10, 0, 0.001, 0.001, 0.001);
       }
 
       for (let side = 0; side < 2; side++) {
         const sign = side === 0 ? -1 : 1;
-        const legAngle = seated
+        let legAngle = seated
           ? -Math.PI / 2
           : biking
             ? -0.45 + sign * stride * 0.65
             : sign * stride;
-        const kneeAngle = seated
+        let kneeAngle = seated
           ? 0
           : biking
             ? legAngle + 0.72 + Math.cos(phase) * sign * 0.32
             : legAngle + Math.max(0, Math.sin(phase) * sign) * (jogging ? 0.85 : 0.58);
-        const hipY = 0.94 + hipShift;
-        const kneeY = hipY - Math.cos(legAngle) * 0.41;
-        const kneeZ = -Math.sin(legAngle) * 0.41;
-        const lowerLegLength = seated ? 0.46 : 0.41;
+        const hipY = (seated ? 0.94 : 0.89) + hipShift;
+        const grounded = !seated && !biking && !jogging && !volley && !arguing;
+        if (grounded) {
+          sampleWalkingLeg(walking ? phase + side * Math.PI : 0, walking ? resident.speed / scale : 0, hipY, cadence, walkingLeg);
+          legAngle = walkingLeg.thigh;
+          kneeAngle = walkingLeg.calf;
+        }
+        const kneeY = hipY - Math.cos(legAngle) * LEG_LENGTH.thigh;
+        const kneeZ = -Math.sin(legAngle) * LEG_LENGTH.thigh;
+        const lowerLegLength = seated ? 0.38 : LEG_LENGTH.calf;
         const ankleY = kneeY - Math.cos(kneeAngle) * lowerLegLength;
         const ankleZ = kneeZ - Math.sin(kneeAngle) * lowerLegLength;
-        limb(trousers, index * 4 + side * 2, sign * 0.135, hipY, 0, 0.41, 0.16, legAngle);
-        limb(trousers, index * 4 + side * 2 + 1, sign * 0.135, kneeY, kneeZ, lowerLegLength, 0.135, kneeAngle);
-        place(shoes, index * 2 + side, sign * 0.135, ankleY - 0.055, ankleZ + 0.045, 0.18, 0.11, 0.29);
+        limb(thighs, index * 2 + side, sign * 0.092 * build, hipY, 0, LEG_LENGTH.thigh, 0.24 * build, legAngle);
+        limb(calves, index * 2 + side, sign * 0.092 * build, kneeY, kneeZ, lowerLegLength, 0.23 * build, kneeAngle);
+        place(shoes, index * 2 + side, sign * 0.092 * build, ankleY - 0.025, ankleZ + 0.055, 0.15, 0.14, 0.3, grounded ? walkingLeg.footPitch : kneeAngle * 0.2);
 
         const talking = resident.activity === "talk" && side === 1;
         const armAngle = seated
@@ -669,19 +730,28 @@ export function buildCityLife({
                     : jogging
                       ? armAngle - 0.85
                       : armAngle - 0.2;
-        const elbowY = 1.53 + hipShift - Math.cos(armAngle) * 0.31;
-        const elbowZ = -Math.sin(armAngle) * 0.31;
-        limb(clothes, index * 5 + 1 + side * 2, sign * 0.32, 1.53 + hipShift, 0, 0.31, 0.18, armAngle);
-        limb(clothes, index * 5 + 2 + side * 2, sign * 0.32, elbowY, elbowZ, 0.3, 0.15, forearmAngle);
+        const shoulderY = 1.2 + Math.cos(torsoPitch) * 0.24 + hipShift;
+        const shoulderZ = Math.sin(torsoPitch) * 0.24;
+        const upperLen = 0.29;
+        const lowerLen = 0.255;
+        const armX = sign * 0.235 * build;
+        const elbowY = shoulderY - Math.cos(armAngle) * upperLen;
+        const elbowZ = shoulderZ - Math.sin(armAngle) * upperLen;
+        limb(upperArms, index * 2 + side, armX, shoulderY, shoulderZ, upperLen, 0.165 * build, armAngle);
+        limb(forearms, index * 2 + side, armX, elbowY, elbowZ, lowerLen, 0.145 * build, forearmAngle);
+        const wristY = elbowY - Math.cos(forearmAngle) * lowerLen;
+        const wristZ = elbowZ - Math.sin(forearmAngle) * lowerLen;
+        const handLen = 0.14;
         place(
-          skin,
-          index * 3 + 1 + side,
-          sign * 0.32,
-          elbowY - Math.cos(forearmAngle) * 0.31,
-          elbowZ - Math.sin(forearmAngle) * 0.31,
-          0.074,
-          0.092,
-          0.074,
+          hands,
+          index * 2 + side,
+          armX,
+          wristY - Math.cos(forearmAngle) * handLen * 0.45,
+          wristZ - Math.sin(forearmAngle) * handLen * 0.45,
+          0.12,
+          handLen,
+          0.13,
+          forearmAngle,
         );
       }
 

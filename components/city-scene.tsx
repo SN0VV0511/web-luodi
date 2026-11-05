@@ -137,15 +137,15 @@ export default function CityScene(props: CitySceneProps) {
     controls.cursor.set(0, 0, 0);
     controls.maxTargetRadius = 530;
 
-    const hemisphere = new THREE.HemisphereLight("#d8ecff", "#5c7056", 1.25);
-    const sun = new THREE.DirectionalLight("#fff1d2", 3.25);
+    const hemisphere = new THREE.HemisphereLight("#c5d7ee", "#6d7a58", 1.55);
+    const sun = new THREE.DirectionalLight("#fff3d4", 2.35);
     sun.position.set(-300, 235, 160);
     sun.castShadow = true;
     sun.shadow.mapSize.set(1536, 1536);
     Object.assign(sun.shadow.camera, { left: -240, right: 240, top: 220, bottom: -220, near: 20, far: 820 });
     sun.shadow.normalBias = 0.35;
     sun.shadow.bias = -0.00008;
-    sun.shadow.radius = 2;
+    sun.shadow.radius = 3.5;
     const fill = new THREE.DirectionalLight("#9cc6f0", 0.38);
     fill.position.set(160, 100, -180);
     scene.add(hemisphere, sun, fill, sun.target);
@@ -179,29 +179,53 @@ export default function CityScene(props: CitySceneProps) {
             u.y
           );
         }
+        float fbm(vec2 p) {
+          float v = 0.0;
+          float a = 0.5;
+          for (int i = 0; i < 5; i++) {
+            v += a * noise2(p);
+            p = p * 2.02 + vec2(1.7, 9.2);
+            a *= 0.5;
+          }
+          return v;
+        }
         void main() {
           vec3 direction = normalize(vDirection);
           float altitude = direction.y;
-          vec3 color = mix(ground, horizon, smoothstep(-0.12, 0.04, altitude));
-          color = mix(color, zenith, pow(smoothstep(0.02, 0.82, altitude), 0.68));
-          float horizonBand = exp(-abs(altitude - 0.018) * 16.0);
-          color += vec3(0.98, 0.72, 0.45) * horizonBand * 0.14 * (1.0 - night);
+          float mu = clamp(altitude, 0.0, 1.0);
+          float rayleigh = exp(-mu * 3.2);
+          vec3 daySky = mix(zenith, vec3(0.45, 0.67, 0.92), rayleigh);
+          daySky = mix(horizon, daySky, smoothstep(-0.02, 0.22, altitude));
+          daySky = mix(ground, daySky, smoothstep(-0.2, 0.02, altitude));
+          float horizonBand = exp(-abs(altitude - 0.01) * 22.0);
+          daySky += vec3(1.0, 0.72, 0.42) * horizonBand * 0.22;
           float sunDistance = max(dot(direction, sunDirection), 0.0);
-          color += sunColor * pow(sunDistance, 20.0) * 0.12 * (1.0 - night);
-          color = mix(color, sunColor, smoothstep(0.99978, 0.99992, sunDistance) * (1.0 - night) * 0.78);
-          if (altitude > 0.03) {
-            vec2 cloudUv = direction.xz / (altitude + 0.16) * 1.45 + vec2(uTime * 0.0045, uTime * 0.002);
-            float n = noise2(cloudUv) * 0.58 + noise2(cloudUv * 2.3 + 4.1) * 0.28 + noise2(cloudUv * 4.8 - 2.7) * 0.14;
-            float cloudMask = smoothstep(0.56, 0.78, n) * smoothstep(0.03, 0.22, altitude) * (1.0 - smoothstep(0.65, 0.95, altitude));
-            vec3 cloudCol = mix(vec3(0.98, 0.96, 0.93), vec3(0.16, 0.24, 0.36), night);
-            color = mix(color, cloudCol, cloudMask * (0.46 - night * 0.28));
+          daySky += sunColor * pow(sunDistance, 8.0) * 0.35;
+          daySky += sunColor * pow(sunDistance, 256.0) * 1.4;
+          daySky = mix(daySky, sunColor, smoothstep(0.9996, 0.99995, sunDistance));
+          vec3 nightSky = mix(vec3(0.01, 0.02, 0.06), vec3(0.05, 0.1, 0.2), rayleigh);
+          nightSky = mix(vec3(0.08, 0.12, 0.22), nightSky, smoothstep(0.0, 0.25, altitude));
+          vec3 color = mix(daySky, nightSky, night);
+          if (altitude > 0.02) {
+            vec2 baseUv = direction.xz / (altitude + 0.12);
+            vec2 uvA = baseUv * 0.85 + vec2(uTime * 0.003, uTime * 0.001);
+            vec2 uvB = baseUv * 1.7 + vec2(-uTime * 0.004, uTime * 0.002);
+            float cumulus = smoothstep(0.48, 0.72, fbm(uvA));
+            float wisps = smoothstep(0.55, 0.82, fbm(uvB + 8.0));
+            float heightFade = smoothstep(0.02, 0.16, altitude) * (1.0 - smoothstep(0.72, 0.98, altitude));
+            float sunShade = mix(0.55, 1.0, pow(sunDistance, 2.0));
+            vec3 cloudLit = mix(vec3(0.62, 0.68, 0.76), vec3(1.0, 0.98, 0.94), sunShade);
+            vec3 cloudNight = vec3(0.12, 0.16, 0.24);
+            vec3 cloudCol = mix(cloudLit, cloudNight, night);
+            color = mix(color, cloudCol, cumulus * heightFade * 0.82);
+            color = mix(color, cloudCol, wisps * heightFade * 0.28);
           }
           if (night > 0.01 && altitude > 0.04) {
-            vec3 starCell = floor(direction * 280.0);
+            vec3 starCell = floor(direction * 320.0);
             float starHash = fract(sin(dot(starCell, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
-            float twinkle = 0.7 + 0.3 * sin(uTime * 2.2 + starHash * 40.0);
-            float starMask = smoothstep(0.9962, 0.9994, starHash) * smoothstep(0.04, 0.28, altitude);
-            color += vec3(0.88, 0.94, 1.0) * starMask * 0.72 * twinkle * night;
+            float twinkle = 0.65 + 0.35 * sin(uTime * 1.6 + starHash * 40.0);
+            float starMask = smoothstep(0.997, 0.9996, starHash) * smoothstep(0.08, 0.35, altitude);
+            color += vec3(0.9, 0.95, 1.0) * starMask * twinkle * night;
           }
           gl_FragColor = vec4(color, 1.0);
           #include <colorspace_fragment>

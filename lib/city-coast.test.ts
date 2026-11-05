@@ -22,6 +22,7 @@ it("海岸货轮可确定性行驶，船体与港区资源可统一释放", () =
     },
     beam(from, to, radius) { coordinates.push(...from.toArray(), ...to.toArray(), radius); },
     tree() {},
+    vehicle() { throw new Error("海岸场景不应生成城市车辆"); },
     canvasTexture() { throw new Error("海岸几何不应依赖外部图像或画布"); },
   };
   const coast = buildCityCoast(kit);
