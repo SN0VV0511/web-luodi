@@ -34,6 +34,7 @@ type CitySceneProps = {
   experienceReplayKey?: number;
   onFloorSelect?: (floorIndex: number) => void;
   onFlightChange?: (flying: boolean) => void;
+  onWorldTimeChange?: (seconds: number) => void;
   onReady?: () => void;
   information?: ReactNode;
 };
@@ -142,7 +143,7 @@ export default function CityScene(props: CitySceneProps) {
     sun.position.set(-300, 235, 160);
     sun.castShadow = true;
     sun.shadow.mapSize.set(1536, 1536);
-    Object.assign(sun.shadow.camera, { left: -240, right: 240, top: 220, bottom: -220, near: 20, far: 820 });
+    Object.assign(sun.shadow.camera, { left: -305, right: 325, top: 235, bottom: -235, near: 20, far: 860 });
     sun.shadow.normalBias = 0.35;
     sun.shadow.bias = -0.00008;
     sun.shadow.radius = 3.5;
@@ -320,6 +321,7 @@ export default function CityScene(props: CitySceneProps) {
     let previousFrame = 0;
     let lastShadowFrame = -Infinity;
     let lastAnimatedTime = -1;
+    let lastReportedWorldBucket = -1;
     let worldTime = 0;
     let hovered: PlaceId | null = null;
     let boardHovered = false;
@@ -646,6 +648,11 @@ export default function CityScene(props: CitySceneProps) {
         skyUniforms.uTime.value = worldTime;
         world.animate(worldTime, current.current.night);
         lastAnimatedTime = worldTime;
+        const timeBucket = Math.floor(worldTime * 2);
+        if (timeBucket !== lastReportedWorldBucket) {
+          lastReportedWorldBucket = timeBucket;
+          current.current.onWorldTimeChange?.(worldTime);
+        }
       }
       scene.updateMatrixWorld();
       if (labelsDirty || controlsChanged || flight || elevatorAnimating || now - lastOcclusionCheck >= 1000) projectLabels(now);
@@ -875,7 +882,7 @@ export default function CityScene(props: CitySceneProps) {
       focus: (point) => {
         departure = null;
         inspectedId = null;
-        const target = new THREE.Vector3(THREE.MathUtils.clamp(point.x, -240, 380), point.height ?? 12, THREE.MathUtils.clamp(point.z, -225, 350));
+        const target = new THREE.Vector3(THREE.MathUtils.clamp(point.x, -265, 380), point.height ?? 12, THREE.MathUtils.clamp(point.z, -225, 350));
         const offset = camera.position.clone().sub(controls.target);
         if (point.distance) {
           const isStreetCloseUp = point.distance < 55;

@@ -5,6 +5,10 @@ import { getBuildingExperience } from "./building-experience";
 import { buildCivicDistrict } from "./city-civic";
 import { buildCityLife } from "./city-life";
 import { buildCityCoast } from "./city-coast";
+import { buildModernResidentialDistrict } from "./city-residential";
+import { buildCityUtilities } from "./city-utilities";
+import { buildCityCruiseHarbor } from "./city-cruise";
+import { buildCityEvents } from "./city-events";
 import { applyCitySurface, markCitySurface, type CitySurface } from "./city-surfaces";
 import { createTreeCanopy, createTreeTrunk, createVehicleShell, createVehicleWheel, paintLeafCluster, type VehicleKind, type VehicleShell } from "./city-forms";
 
@@ -302,13 +306,14 @@ export function buildCityWorld(): CityWorld {
     brick: [facade("brick", "#a85c46"), facade("brick", "#9a6c54")],
   };
 
-  // 紧凑高密度海岸岛屿基底，大幅削减无意义的超远景面积以提升60FPS流畅度
+  // 紧凑高密度海岸岛屿基底，覆盖西侧观海别墅带 (x=-260) 与东侧电力/污水市政园区 (x=316)
   box(soil, 0, -2.2, -160, 860, 4, 580);
-  box(grass, 20, 0.08, -57.5, 500, 0.12, 345);
+  box(grass, 28, 0.08, -57.5, 584, 0.12, 345);
   box(concrete, 120, -1.7, 114, 400, 3, 2.5);
   box(pavement, 120, 0.15, 107, 400, 0.3, 14);
   box(pavement, -152.5, 0.15, 103, 145, 0.3, 6);
-  box(curb, 59, 0.27, 112, 278, 0.32, 1.1);
+  box(curb, -12, 0.27, 112, 136, 0.32, 1.1);
+  box(curb, 132, 0.27, 112, 128, 0.32, 1.1);
   box(curb, 271, 0.27, 112, 98, 0.32, 1.1);
 
   const signalIntersections: { x: number; z: number }[] = [];
@@ -510,12 +515,13 @@ export function buildCityWorld(): CityWorld {
   }
   for (let x = -210; x <= 210; x += 14) {
     const pavilionClearance = Math.abs(Math.abs(x) - 95) < 12;
+    const cruiseClearance = Math.abs(x - 48) < 20;
     const portClearance = x > 196;
-    if (!pavilionClearance && !portClearance) {
+    if (!pavilionClearance && !cruiseClearance && !portClearance) {
       tree(x, x < -80 ? 99 : 102, 0.95, Math.abs(x) % 4);
       streetLamp(x + 6, x < -80 ? 104 : 110, -1);
     }
-    if (x < -73 || portClearance) continue;
+    if (x < -73 || cruiseClearance || portClearance) continue;
     box(metal, x, 0.9, 112.2, 0.14, 1.6, 0.14);
     box(metal, x, 1.65, 112.2, 14, 0.12, 0.12);
     box(railMetal, x, 1.15, 112.2, 14, 0.06, 0.06);
@@ -661,116 +667,7 @@ export function buildCityWorld(): CityWorld {
   };
   cityLots.forEach((lot, index) => building(lot, index));
 
-  // 坡顶住宅使用真正三角棱柱，区别于办公楼幕墙；门廊、花园和围栏保持街道尺度。
-  const roofShape = new THREE.Shape();
-  roofShape.moveTo(-0.5, 0); roofShape.lineTo(0, 1); roofShape.lineTo(0.5, 0); roofShape.closePath();
-  const pitchedRoof = new THREE.ExtrudeGeometry(roofShape, { depth: 1, bevelEnabled: false });
-  pitchedRoof.translate(0, 0, -0.5);
-  geometries.add(pitchedRoof);
-  const homeWalls = [solid("#d8d6c9"), solid("#c3cbc3"), solid("#e0d2b7"), solid("#b99782")];
-  const roofTiles = [solid("#9b563f"), solid("#556369"), solid("#95604c")];
-  const brickCourse = solid("#8a5340", 0.86);
-  homeWalls.forEach((wall) => markCitySurface(wall, "stucco"));
-  roofTiles.forEach((tile) => markCitySurface(tile, "roof"));
-  markCitySurface(brickCourse, "brick");
-  const housingMaterials = new Set<THREE.Material>([...homeWalls, ...roofTiles, brickCourse]);
-  const homeWindow = solid("#465b60", 0.32, 0.13);
-  homeWindow.emissive.set("#ffd29a");
-  nightMaterials.push({ material: homeWindow, day: 0, night: 1.15 });
-  let houseCount = 0;
-  let shopCount = 0;
-  const cottage = (x: number, z: number, width: number, floors: number, variant: number, gardenWidth = 14) => {
-    houseCount++; buildingCount++;
-    const depth = variant % 3 === 0 ? 10 : 9;
-    const height = floors * 3.05;
-    const wall = homeWalls[variant % homeWalls.length];
-    const roof = roofTiles[variant % roofTiles.length];
-    box(turf, x, 0.27, z + 2.8, gardenWidth, 0.15, 27);
-    box(concrete, x, 0.48, z, width + 0.45, 0.34, depth + 0.45);
-    box(brickCourse, x, 0.86, z, width + 0.08, 0.46, depth + 0.08);
-    box(wall, x, 0.78 + height / 2, z, width, height, depth);
-    const roofRise = 2.15 + width * 0.06;
-    part(roof, pitchedRoof, x, height + 0.7, z, width + 1.15, roofRise, depth + 1.05);
-    if (floors > 1 && variant % 3 === 1) {
-      part(roof, pitchedRoof, x, height + 0.85, z + depth * 0.08, depth * 0.62, roofRise * 0.7, width * 0.46, undefined, Math.PI / 2);
-    }
-    box(darkRoof, x - (width + 1.05) / 2, height + 0.78, z, 0.14, 0.1, depth + 1.05);
-    box(darkRoof, x + (width + 1.05) / 2, height + 0.78, z, 0.14, 0.1, depth + 1.05);
-    box(roof, x, height + 0.7 + roofRise - 0.08, z, 0.22, 0.12, depth + 0.85);
-    box(lightStone, x, height + 0.66, z + depth / 2 + 0.2, width + 0.9, 0.16, 0.28);
-    box(lightStone, x, height + 0.66, z - depth / 2 - 0.2, width + 0.9, 0.16, 0.28);
-    box(brickCourse, x + width * 0.24, height + 2.15, z - depth * 0.22, 0.72, 2.4, 0.72);
-    box(lightStone, x + width * 0.24, height + 3.4, z - depth * 0.22, 0.9, 0.14, 0.9);
-    box(metal, x - width / 2 + 0.08, height * 0.55, z + depth / 2 + 0.08, 0.06, height * 0.85, 0.06);
-    const windowGlass = variant % 3 === 0 ? glass : homeWindow;
-    for (let floor = 0; floor < floors; floor++) {
-      const y = 2.05 + floor * 3.05;
-      for (const side of [-1, 1]) for (const dx of [-width * 0.29, width * 0.29]) {
-        box(lightStone, x + dx, y, z + side * (depth / 2 + 0.065), 1.5, 1.65, 0.13);
-        box(windowGlass, x + dx, y, z + side * (depth / 2 + 0.145), 1.17, 1.32, 0.07);
-        box(lightStone, x + dx, y, z + side * (depth / 2 + 0.195), 0.07, 1.32, 0.08);
-        if (side === 1) {
-          if (variant % 2 === 0) {
-            for (const shutter of [-1, 1]) {
-              box(trunk, x + dx + shutter * 0.86, y, z + depth / 2 + 0.2, 0.1, 1.4, 0.05);
-            }
-          }
-          if (floor === 0) {
-            box(trunk, x + dx, y - 0.92, z + depth / 2 + 0.24, 1.42, 0.24, 0.32);
-            box(leaves[(variant + 1) % leaves.length], x + dx, y - 0.72, z + depth / 2 + 0.24, 1.32, 0.25, 0.28);
-          }
-        }
-      }
-      for (const side of [-1, 1]) {
-        box(lightStone, x + side * (width / 2 + 0.065), y, z - 0.4, 0.13, 1.65, 1.5);
-        box(windowGlass, x + side * (width / 2 + 0.145), y, z - 0.4, 0.07, 1.32, 1.17);
-      }
-    }
-    box(trunk, x, 1.67, z + depth / 2 + 0.13, 1.18, 2.2, 0.19);
-    box(lightStone, x, 0.47, z + depth / 2 + 0.7, 2.4, 0.32, 1.4);
-    box(concrete, x, 0.22, z + depth / 2 + 1.35, 1.7, 0.14, 0.55);
-    box(concrete, x, 0.1, z + depth / 2 + 1.85, 1.95, 0.12, 0.5);
-    box(darkRoof, x, 2.94, z + depth / 2 + 0.62, 2.7, 0.18, 1.7);
-    box(lamp, x, 2.78, z + depth / 2 + 0.32, 0.28, 0.14, 0.18);
-    for (const side of [-1, 1]) box(trunk, x + side, 1.65, z + depth / 2 + 1.13, 0.1, 2.3, 0.1);
-    box(pavement, x, 0.38, z + 10.8, 1.7, 0.08, 8.4);
-    // 花园留真实出入口，围栏不会横穿入户步道。
-    for (const side of [-1, 1]) {
-      const fx = x + side * (gardenWidth / 2 - 0.3);
-      box(trunk, fx, 1, z + 2.4, 0.1, 0.8, 26);
-      for (let dz = -10; dz <= 14; dz += 4) box(lightStone, fx, 0.95, z + dz, 0.2, 1.25, 0.2);
-      const frontWidth = gardenWidth / 2 - 1.3;
-      box(trunk, x + side * (gardenWidth / 4 + 0.5), 1, z + 15, frontWidth, 0.8, 0.12);
-    }
-    box(trunk, x, 1, z - 10.6, gardenWidth - 0.6, 0.8, 0.12);
-    tree(x + gardenWidth * 0.28, z + 11.5, 0.64, variant);
-    if (gardenWidth >= 13 && variant % 2 === 0) {
-      box(soil, x - gardenWidth * 0.29, 0.42, z + 10.4, 2.6, 0.22, 4.8);
-      for (let row = 0; row < 4; row++) box(leaves[2], x - gardenWidth * 0.29, 0.72, z + 8.6 + row * 1.05, 2.2, 0.45, 0.55);
-    }
-  };
-  const shop = (x: number, z: number, variant: number) => {
-    buildingCount++; shopCount++;
-    box(homeWalls[variant % 4], x, 2.55, z, 10, 4.2, 10);
-    box(darkRoof, x, 4.78, z, 10.8, 0.35, 10.8);
-    box(lightStone, x, 5.02, z, 11.0, 0.18, 11.0);
-    box(homeWindow, x, 2.05, z + 5.1, 8.8, 3, 0.18);
-    for (const mx of [-2.9, 0, 2.9]) box(darkRoof, x + mx, 2.05, z + 5.18, 0.14, 3, 0.12);
-    box(variant % 2 ? leaves[0] : orange, x, 3.72, z + 5.75, 10.2, 0.35, 1.7);
-    box(lightStone, x, 3.68, z + 6.58, 10.2, 0.18, 0.14);
-    box(lightStone, x, 4.17, z + 5.15, 9.4, 0.65, 0.2);
-    box(lamp, x, 3.48, z + 5.25, 7.6, 0.12, 0.16);
-    // 屋顶空调外机与街角露天咖啡遮阳伞座
-    box(railMetal, x - 2.8, 5.3, z - 2.4, 1.6, 0.75, 1.2);
-    for (const dx of [-3, 3]) {
-      part(trunk, cylinderGeometry, x + dx, 0.8, z + 8, 0.85, 0.12, 0.85);
-      box(metal, x + dx, 1.45, z + 8, 0.08, 1.9, 0.08);
-      part(variant % 2 ? orange : lightStone, coneGeometry, x + dx, 2.45, z + 8, 1.35, 0.65, 1.35);
-      for (const sx of [-0.95, 0.95]) box(trunk, x + dx + sx, 0.56, z + 8, 0.36, 0.42, 0.36);
-    }
-  };
-
-  // 每个小办公楼带口袋广场，办公与住宅在三个城区中交错分布。
+  // 每个小办公楼带口袋广场，办公与现代高层住宅、泳池别墅区、商业综合体在三个城区交错分布。
   for (const lot of cityLots) {
     if (lot.width > 20) continue;
     box(turf, lot.x, 0.3, lot.z, 29, 0.18, 29);
@@ -782,32 +679,41 @@ export function buildCityWorld(): CityWorld {
     tree(lot.x - 10.5, lot.z - 9.5, 0.76, 1);
     box(trunk, lot.x + 10, 0.95, lot.z + 4, 0.55, 0.24, 3.2);
     box(trunk, lot.x - 4.5, 0.95, lot.z + 11.8, 3.0, 0.24, 0.55);
-    // 口袋广场暖光庭院矮柱灯
     for (const bz of [-3, 8]) {
       box(metal, lot.x + 9.4, 0.72, lot.z + bz, 0.18, 0.65, 0.18);
       box(lamp, lot.x + 9.4, 1.12, lot.z + bz, 0.24, 0.22, 0.24);
     }
   }
+
+  const baseKit = {
+    group,
+    geometries,
+    materials,
+    nightMaterials,
+    box,
+    part,
+    beam,
+    tree,
+    solid,
+    canvasTexture,
+    vehicle: (kind: VehicleKind, material: THREE.Material, x: number, z: number) => {
+      placeVehicle(shells[kind], material, x, z, 0);
+      return shells[kind];
+    },
+    parkVehicle: (kind: "sedan" | "suv" | "truck", colorHex: string, px: number, pz: number, rotY: number) => {
+      placeVehicle(shells[kind], solid(colorHex, 0.28, 0.35), px, pz, rotY);
+    },
+  };
+
   const residentialBlocks = cityBlocks.filter((block) =>
     ![...cityLots, ...civicLots].some((reserved) => reserved.x === block.x && reserved.z === block.z));
-  const districtApartments = new Map<string, number>();
-  residentialBlocks.forEach((block, index) => {
-    box(turf, block.x, 0.27, block.z, 29, 0.15, 29);
-    const apartments = districtApartments.get(block.district) ?? 0;
-    if (apartments < 2) {
-      // 每区两栋低中层公寓，楼下有商店，相邻一户带花园的独立住宅。
-      districtApartments.set(block.district, apartments + 1);
-      building({ x: block.x - 7, z: block.z - 6, width: 12, depth: 12, height: 11.2 + apartments * 3.2, style: "stone" }, index);
-      cottage(block.x + 8, block.z - 3.5, 7.2, 2, houseCount, 12);
-      shop(block.x - 7, block.z + 8.5, shopCount);
-    } else if ([3, 7, 12, 18].includes(index)) {
-      for (const dx of [-9.4, 0, 9.4]) cottage(block.x + dx, block.z - 3.5, 6.6, 2, houseCount, 8.8);
-    } else {
-      cottage(block.x - 7.2, block.z - 3.5, 7.5, index % 4 === 0 ? 1 : 2, houseCount);
-      cottage(block.x + 7.2, block.z - 3.5, 7.5, 2, houseCount);
-    }
-  });
-  // 城区之外直接过渡为不规则林地和少量菜田，不再生成第四片空路网。
+  const residentialSummary = buildModernResidentialDistrict(baseKit, residentialBlocks);
+  const housingMaterials = residentialSummary.housingMaterials;
+  const houseCount = residentialSummary.apartmentCount + residentialSummary.villaCount;
+  const shopCount = residentialSummary.commercialCount;
+  buildingCount += residentialSummary.totalBuildings;
+
+  // 城区外围生态林带（避让西海岸泳池别墅特区 x∈[-258,-216] 与东侧发电/污水市政基地 x∈[220,316]）
   const woodlandPatches = [
     { x: -189, z: -222, radius: 24 }, { x: -131, z: -279, radius: 40 },
     { x: -42, z: -259, radius: 27 }, { x: 114, z: -263, radius: 30 },
@@ -815,10 +721,10 @@ export function buildCityWorld(): CityWorld {
     { x: 76, z: -365, radius: 35 }, { x: 211, z: -281, radius: 38 },
   ];
   for (const [index, patch] of woodlandPatches.entries()) {
-    for (let i = 0; i < 25; i++) {
+    for (let i = 0; i < 22; i++) {
       const angle = random() * Math.PI * 2, distance = Math.sqrt(random()) * patch.radius;
       const x = patch.x + Math.cos(angle) * distance, z = patch.z + Math.sin(angle) * distance;
-      if (z < -405 || z > -216 && x > -82) continue;
+      if (z < -405 || (z > -216 && x > -82)) continue;
       tree(x, z, 0.9 + random() * 0.85, index + i);
       if (i % 3 === 0) part(leaves[(index + 1) % 4], crownGeometry, x + 2.4, 0.45, z - 1.5, 2.5, 0.75, 1.8);
     }
@@ -827,9 +733,10 @@ export function buildCityWorld(): CityWorld {
     box(soil, field.x, 0.2, field.z, field.w, 0.12, field.d);
     for (let row = 0; row < 6; row++) box(leaves[row % 3], field.x, 0.43, field.z - field.d * 0.4 + row * field.d * 0.16, field.w - 1.6, 0.35, 0.65);
   }
-  for (let i = 0; i < 65; i++) {
+  for (let i = 0; i < 42; i++) {
     const side = i % 2 ? -1 : 1;
-    tree(side * (233 + random() * 30), -168 + random() * 250, 0.9 + random() * 0.5, i);
+    const tx = side < 0 ? -(262 + random() * 24) : 316 + random() * 24;
+    tree(tx, -168 + random() * 250, 0.9 + random() * 0.5, i);
   }
   group.userData.houseCount = houseCount;
   group.userData.shopCount = shopCount;
@@ -1092,9 +999,30 @@ export function buildCityWorld(): CityWorld {
     if (meshMaterials.every((material) => !material.transparent)) pickables.push(object);
   }));
 
+  const materialsBeforeUtilities = new Set(materials);
+  const utilities = buildCityUtilities(cityKit);
+  const utilityMaterials = new Set([...materials].filter((material) => !materialsBeforeUtilities.has(material) && !material.transparent));
+  group.userData.windTurbineCount = utilities.windTurbineCount;
+  group.userData.clarifierCount = utilities.clarifierCount;
+
+  const firstCruiseObject = group.children.length;
+  const materialsBeforeCruise = new Set(materials);
+  const cruise = buildCityCruiseHarbor(cityKit);
+  const cruiseMaterials = new Set([...materials].filter((material) => !materialsBeforeCruise.has(material) && !material.transparent));
+  group.children.slice(firstCruiseObject).forEach((root) => {
+    if (root.name.includes("Wake")) return;
+    root.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const meshMaterials = Array.isArray(object.material) ? object.material : [object.material];
+      if (meshMaterials.every((material) => !material.transparent)) pickables.push(object);
+    });
+  });
+
+  const events = buildCityEvents(cityKit);
+
   const drawBatches = new Map<string, { sources: Batch[]; pickable: boolean }>();
   for (const batch of batches.values()) {
-    const pickable = batch.parts.some((value) => value.place) || housingMaterials.has(batch.material) || civicMaterials.has(batch.material) || coastMaterials.has(batch.material);
+    const pickable = batch.parts.some((value) => value.place) || housingMaterials.has(batch.material) || civicMaterials.has(batch.material) || coastMaterials.has(batch.material) || utilityMaterials.has(batch.material) || cruiseMaterials.has(batch.material);
     const material = batch.material;
     let surfaceKey = material.uuid;
     if (material instanceof THREE.MeshStandardMaterial && material.constructor === THREE.MeshStandardMaterial
@@ -1289,6 +1217,9 @@ export function buildCityWorld(): CityWorld {
     setNight(night);
     life.animate(seconds);
     coast.animate(seconds);
+    utilities.animate(seconds);
+    cruise.animate(seconds);
+    events.animate(seconds);
     waterMaterial.uniforms.uTime.value = seconds;
     lakeMaterial.uniforms.uTime.value = seconds;
 

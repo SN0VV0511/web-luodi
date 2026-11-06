@@ -47,7 +47,9 @@ import {
 } from "@/lib/site-content";
 import { CityInformation } from "@/components/city-information";
 import { BuildingExperiencePanel } from "@/components/building-experience-panel";
+import { CitySkylinesHud } from "@/components/city-skylines-hud";
 import { getBuildingExperience } from "@/lib/building-experience";
+import { getActiveCityIncidents } from "@/lib/city-events";
 
 const CityScene = dynamic(() => import("@/components/city-scene"), {
   ssr: false,
@@ -90,6 +92,7 @@ export function LandingPage(): ReactNode {
   const [elevatorNotice, setElevatorNotice] = useState<string | null>(null);
   const [flightApproaching, setFlightApproaching] = useState(false);
   const [hologramCollapsed, setHologramCollapsed] = useState(false);
+  const [worldSeconds, setWorldSeconds] = useState(0);
   const elevatorTimersRef = useRef<number[]>([]);
   const wheelCooldownRef = useRef(0);
   const detailRef = useRef<HTMLElement>(null);
@@ -284,6 +287,7 @@ export function LandingPage(): ReactNode {
           experienceReplayKey={experienceReplayKey}
           onFloorSelect={(floorIdx) => dispatchElevator(floorIdx, place?.floors?.length ?? 2)}
           onFlightChange={setFlightApproaching}
+          onWorldTimeChange={setWorldSeconds}
           information={informationPlace ? (
             <CityInformation
               place={informationPlace}
@@ -376,7 +380,10 @@ export function LandingPage(): ReactNode {
           { name: t("东湾城区", "East bay"), x: 142.5, z: -12, distance: 170, height: 16 },
           { name: t("北部新城", "North quarter"), x: 60, z: -163, distance: 160, height: 10 },
           { name: t("海边走走", "Beach walk"), x: -153, z: 132, distance: 115, height: 2 },
+          { name: t("邮轮母港", "Cruise harbor"), x: 48, z: 178, distance: 86, height: 11 },
           { name: t("货运港口", "Cargo harbor"), x: 235, z: 193, distance: 190, height: 12 },
+          { name: t("海景别墅", "Pool villas"), x: -241.5, z: -38, distance: 52, height: 6 },
+          { name: t("电力污水厂", "Eco utilities"), x: 266, z: -4, distance: 138, height: 12 },
         ].map(({ name, ...point }) => (
           <button key={name} type="button" onClick={() => {
             setFocusPoint(point);
@@ -387,38 +394,17 @@ export function LandingPage(): ReactNode {
         ))}
       </nav>
 
-      <aside className="live-scenes-panel" aria-label={t("小镇实时剧场", "Town live vignettes")}>
-        <div className="live-scenes-header">
-          <span className="live-pulse-dot" />
-          <strong>{t("小镇实况近景 · 点击直达现场", "LIVE STREET VIGNETTES")}</strong>
-        </div>
-        <div className="live-scenes-grid">
-          {[
-            { badge: "CRASH", title: t("路口追尾与车主争吵", "Car Crash & Dispute"), desc: t("浓烟 · 警车爆闪 · 双方争执", "Smoke, sirens & argument"), x: -73.5, z: 69.5, distance: 25, height: 1.8 },
-            { badge: "MART", title: t("鲜活超市推车采购", "Supermarket Shopping"), desc: t("手推购物车 · 蔬果摊挑拣", "3D carts & fresh stalls"), x: -120, z: 86.5, distance: 26, height: 2.0 },
-            { badge: "SIGNAL", title: t("红绿灯斑马线过街", "Traffic Light Crossing"), desc: t("红灯驻足等待 · 绿灯通行", "Wait on red, walk on green"), x: -75, z: 89.5, distance: 28, height: 1.8 },
-            { badge: "BEACH", title: t("黄金海岸排球对决", "Beach Volleyball"), desc: t("扣球起跳 · 海鸥盘旋", "Spiking & soaring gulls"), x: -172, z: 119, distance: 29, height: 2.0 },
-          ].map((scene) => (
-            <button
-              key={scene.badge}
-              type="button"
-              className="live-scene-card"
-              onClick={() => {
-                setFocusPoint({ x: scene.x, z: scene.z, distance: scene.distance, height: scene.height });
-                setSelected(null);
-                setPanel(null);
-                setTouring(false);
-              }}
-            >
-              <span className={`live-scene-badge is-${scene.badge.toLowerCase()}`}>{scene.badge}</span>
-              <span className="live-scene-copy">
-                <strong>{scene.title}</strong>
-                <small>{scene.desc}</small>
-              </span>
-            </button>
-          ))}
-        </div>
-      </aside>
+      <CitySkylinesHud
+        worldSeconds={worldSeconds}
+        night={night}
+        locale={locale}
+        onFocusPoint={(target) => {
+          setFocusPoint(target);
+          setSelected(null);
+          setPanel(null);
+          setTouring(false);
+        }}
+      />
 
       <div
         className="view-switch"
@@ -1148,6 +1134,18 @@ export function LandingPage(): ReactNode {
             <rect x="165" y="115" width="135" height="70" fill="#8f9688" />
             <rect x="266" y="180" width="25" height="78" fill="#8f9688" />
             <rect x="181" y="180" width="22" height="74" fill="#8f9688" />
+            {/* 海洋邮轮母港栈桥与航站楼 */}
+            <rect x="20" y="114" width="56" height="28" rx="3" fill="#9fb8c9" />
+            <rect x="22" y="142" width="52" height="44" rx="2" fill="#899ea8" />
+            {/* 东湾污水处理厂（含4座圆形沉淀池）与北湾发电厂（含2座双曲冷却塔） */}
+            <rect x="236" y="26" width="56" height="56" rx="4" fill="#5e7975" stroke="#8ab5ae" strokeWidth="1.2" />
+            <circle cx="251" cy="41" r="6.5" fill="#2d7b8c" stroke="#cce5ea" strokeWidth="1" />
+            <circle cx="277" cy="41" r="6.5" fill="#2d7b8c" stroke="#cce5ea" strokeWidth="1" />
+            <circle cx="251" cy="67" r="6.5" fill="#3a6b63" stroke="#cce5ea" strokeWidth="1" />
+            <circle cx="277" cy="67" r="6.5" fill="#3a6b63" stroke="#cce5ea" strokeWidth="1" />
+            <rect x="238" y="-92" width="60" height="60" rx="4" fill="#6f757c" stroke="#d9aa5b" strokeWidth="1.2" />
+            <circle cx="254" cy="-73" r="8" fill="#b8bfc6" stroke="#485058" strokeWidth="1.4" />
+            <circle cx="281" cy="-73" r="8" fill="#b8bfc6" stroke="#485058" strokeWidth="1.4" />
             {ROAD_SEGMENTS.map((road, index) => (
               <path key={index} d={`M${road.x1},${road.z1}L${road.x2},${road.z2}`} stroke="#82887b" strokeWidth="8.5" strokeLinecap="square" />
             ))}
@@ -1177,6 +1175,24 @@ export function LandingPage(): ReactNode {
                 strokeWidth={lot.id === selected ? "3" : "1.2"}
               />
             ))}
+            {getActiveCityIncidents(worldSeconds, locale).map((inc) => {
+              const color =
+                inc.kind === "fire"
+                  ? "#ff453a"
+                  : inc.kind === "burglar"
+                    ? "#3898ff"
+                    : inc.kind === "cruise"
+                      ? "#5ce0e6"
+                      : inc.kind === "medical"
+                        ? "#34d399"
+                        : "#f59e0b";
+              return (
+                <g key={inc.id}>
+                  <circle cx={inc.x} cy={inc.z} r="10" fill={color} opacity="0.28" />
+                  <circle cx={inc.x} cy={inc.z} r="4.2" fill={color} stroke="#ffffff" strokeWidth="1.1" />
+                </g>
+              );
+            })}
             <circle
               cx={focusPoint?.x ?? 0}
               cy={focusPoint?.z ?? 0}

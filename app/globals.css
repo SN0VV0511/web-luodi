@@ -389,31 +389,31 @@ svg {
 .neighborhood-tour {
   position: absolute;
   z-index: 3;
-  top: 230px;
+  top: 224px;
   left: 32px;
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
-  max-width: 348px;
+  gap: 5px;
+  max-width: 356px;
 }
 .neighborhood-tour > span {
   width: 100%;
-  margin-bottom: 4px;
-  font: 600 9px var(--mono);
-  letter-spacing: 2.2px;
+  margin-bottom: 2px;
+  font: 600 8.5px var(--mono);
+  letter-spacing: 2.1px;
   color: #eef5fc;
   text-shadow: 0 1px 8px #081524;
 }
 .neighborhood-tour > button {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 8.5px 11px;
+  gap: 5px;
+  padding: 6.5px 9.5px;
   border: 1px solid #c8e0f833;
   border-radius: 7px;
   background: linear-gradient(145deg, #112236de, #0b1726e6);
   box-shadow: 0 4px 16px #07121e45, inset 0 1px 0 #ffffff1a;
-  font-size: 10.5px;
+  font-size: 10px;
   color: #edf4fc;
   backdrop-filter: blur(16px);
   transition: background 0.16s, border-color 0.16s, transform 0.16s;
@@ -438,103 +438,560 @@ svg {
   background: #254466;
   transform: translateY(1px);
 }
-.live-scenes-panel {
+.live-scenes-panel.skylines-console {
   position: absolute;
-  z-index: 3;
-  top: 344px;
+  z-index: 4;
+  top: 356px;
   left: 32px;
-  width: 288px;
-  padding: 11px 12px;
-  border-radius: 10px;
-  background: linear-gradient(155deg, #0c192be6, #08121fe8);
-  border: 1px solid #c8e0f833;
-  box-shadow: 0 10px 32px #050d1766, inset 0 1px 0 #ffffff1a;
-  backdrop-filter: blur(18px);
+  width: 332px;
+  max-height: calc(100dvh - 558px);
+  min-height: 76px;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 11px;
+  border-radius: 11px;
+  background: linear-gradient(160deg, #0b182ae8, #07111ef0);
+  border: 1px solid #88c2f03d;
+  border-top: 2px solid #52b8ff99;
+  box-shadow: 0 14px 38px #040b1580, inset 0 1px 0 #ffffff1c;
+  backdrop-filter: blur(20px);
+  overflow: hidden;
+  transition: max-height 0.24s ease, opacity 0.24s ease, visibility 0.24s;
 }
-.live-scenes-header {
+.live-scenes-panel.skylines-console.is-collapsed {
+  max-height: 76px;
+}
+.is-inspecting-landmark .skylines-console {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.skylines-topbar {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex-shrink: 0;
+}
+.skylines-brand-row {
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin-bottom: 9px;
-  padding-bottom: 7px;
-  border-bottom: 1px solid #c8e0f81f;
+  gap: 6px;
 }
 .live-pulse-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
+  flex-shrink: 0;
   background: #ff453a;
   box-shadow: 0 0 0 3px #ff453a33, 0 0 8px #ff453a;
 }
-.live-scenes-header > strong {
-  font: 600 8.5px var(--mono);
-  letter-spacing: 1.4px;
-  color: #f0c372;
+.skylines-brand-row > strong {
+  font: 700 8.5px var(--mono);
+  letter-spacing: 1.1px;
+  color: #f3cd82;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.live-scenes-grid {
+.skylines-rci {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: #06101c;
+  border: 1px solid #9cc8ee2b;
+}
+.rci-bar {
+  width: 4px;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  background: #ffffff14;
+  border-radius: 1px;
+  overflow: hidden;
+}
+.rci-bar > i {
+  display: block;
+  width: 100%;
+  border-radius: 1px;
+}
+.rci-bar.is-res > i {
+  background: #44d66c;
+}
+.rci-bar.is-com > i {
+  background: #3da5ff;
+}
+.rci-bar.is-off > i {
+  background: #f5b942;
+}
+.skylines-icon-btn {
+  width: 22px;
+  height: 22px;
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 5px;
+  place-items: center;
+  border-radius: 5px;
+  color: #b4cce4;
+  background: #13253a99;
+  border: 1px solid #9cc8ee26;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
-.live-scene-card {
+.skylines-icon-btn:hover,
+.skylines-icon-btn.is-active {
+  background: #214063;
+  color: #ffe09e;
+  border-color: #f0c37280;
+}
+.skylines-metrics-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+.skylines-metric-pill {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 6.5px 8px;
-  border-radius: 6px;
-  border: 1px solid #c8e0f81f;
-  background: #13253a88;
-  text-align: left;
-  transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 5px;
+  border-radius: 5px;
+  background: #0f2034b8;
+  border: 1px solid #9cc8ee24;
+  font: 600 8.5px var(--mono);
+  color: #e8f2fc;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
-.live-scene-card:hover {
-  background: #1d3654cc;
-  border-color: #f0c37275;
-  transform: translateX(2px);
+button.skylines-metric-pill:hover {
+  background: #1a3554;
+  border-color: #6bc2ff80;
 }
-.live-scene-badge {
-  font: 700 7px var(--mono);
-  letter-spacing: 0.8px;
-  padding: 3px 5px;
-  border-radius: 4px;
-  min-width: 42px;
-  text-align: center;
+.skylines-metric-pill svg.is-amber {
+  color: #ffc247;
+}
+.skylines-metric-pill svg.is-cyan {
+  color: #4ad8ff;
+}
+.skylines-metric-pill svg.is-green {
+  color: #4ee38b;
+}
+.skylines-metric-pill svg.is-gold {
+  color: #f6d379;
+}
+.skylines-policy-drawer {
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: 7px;
+  background: #071220db;
+  border: 1px solid #7ab8f536;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
   flex-shrink: 0;
 }
-.live-scene-badge.is-crash {
-  background: #ff453a2e;
-  color: #ff8a80;
-  border: 1px solid #ff453a66;
+.policy-telemetry-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
 }
-.live-scene-badge.is-mart {
-  background: #30d15829;
-  color: #72f294;
-  border: 1px solid #30d15859;
+.policy-telemetry-grid > div {
+  padding: 5px 7px;
+  border-radius: 5px;
+  background: #0f213699;
+  border: 1px solid #9cc8ee1c;
 }
-.live-scene-badge.is-signal {
-  background: #ffd60a29;
-  color: #ffe270;
-  border: 1px solid #ffd60a59;
+.policy-telemetry-grid small {
+  display: block;
+  font: 6.5px var(--mono);
+  letter-spacing: 0.6px;
+  color: #8fb0cf;
 }
-.live-scene-badge.is-beach {
-  background: #0a84ff29;
-  color: #7cc4ff;
-  border: 1px solid #0a84ff59;
+.policy-telemetry-grid strong {
+  display: block;
+  margin-top: 2px;
+  font: 700 9.5px var(--mono);
+  color: #eff7ff;
 }
-.live-scene-copy {
+.policy-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.policy-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 7px;
+  border-radius: 5px;
+  background: #10213680;
+  border: 1px solid #9cc8ee1f;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.policy-toggle-row.is-on {
+  background: #15324ecc;
+  border-color: #54c2ff66;
+}
+.policy-check {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid #8fb4d866;
+  background: #081320;
+  display: grid;
+  place-items: center;
+  color: #5ce0a0;
+  flex-shrink: 0;
+}
+.policy-toggle-row.is-on .policy-check {
+  border-color: #5ce0a0;
+  background: #12362a;
+}
+.policy-copy {
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
-.live-scene-copy > strong {
-  font-size: 10.5px;
+.policy-copy strong {
+  font-size: 9.5px;
   font-weight: 550;
-  color: #f0f6fc;
+  color: #eef6ff;
 }
-.live-scene-copy > small {
+.policy-copy small {
+  font-size: 8px;
+  color: #93b3cf;
+}
+.skylines-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: 8px;
+  padding: 3px;
+  border-radius: 7px;
+  background: #06101cd9;
+  border: 1px solid #9cc8ee24;
+  flex-shrink: 0;
+}
+.skylines-tabs > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 4px;
+  border-radius: 5px;
+  font-size: 9.5px;
+  font-weight: 500;
+  color: #9eb9d4;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.skylines-tabs > button.is-active {
+  background: linear-gradient(145deg, #245785, #183d61);
+  color: #f5fbff;
+  box-shadow: inset 0 1px 0 #8bd0ff45;
+}
+.skylines-tabs > button em {
+  font: 700 7.5px var(--mono);
+  font-style: normal;
+  padding: 1px 4px;
+  border-radius: 99px;
+  background: #ff453a38;
+  color: #ff9b94;
+}
+.skylines-tab-body {
+  margin-top: 7px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #5b82a855 transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 2px;
+}
+.skylines-incident-list,
+.skylines-infra-list,
+.skylines-chirp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.skylines-incident-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  background: #102136a8;
+  border: 1px solid #9cc8ee24;
+  text-align: left;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+.skylines-incident-card:hover {
+  background: #183250db;
+  border-color: #79c4ff88;
+  transform: translateX(2px);
+}
+.skylines-incident-card.is-fire {
+  border-left: 2.5px solid #ff5548;
+}
+.skylines-incident-card.is-burglar {
+  border-left: 2.5px solid #3c9dff;
+}
+.skylines-incident-card.is-cruise {
+  border-left: 2.5px solid #44d9e8;
+}
+.skylines-incident-card.is-medical {
+  border-left: 2.5px solid #38d996;
+}
+.skylines-incident-card.is-utility,
+.skylines-incident-card.is-traffic {
+  border-left: 2.5px solid #f5b038;
+}
+.incident-card-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.incident-code {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font: 700 7px var(--mono);
+  letter-spacing: 0.6px;
+  flex-shrink: 0;
+}
+.incident-code.is-fire {
+  background: #ff453a2e;
+  color: #ff948b;
+  border: 1px solid #ff453a66;
+}
+.incident-code.is-burglar {
+  background: #0a84ff30;
+  color: #8ac6ff;
+  border: 1px solid #0a84ff66;
+}
+.incident-code.is-cruise {
+  background: #2ad4e82b;
+  color: #8ef0fc;
+  border: 1px solid #2ad4e866;
+}
+.incident-code.is-medical {
+  background: #30d15829;
+  color: #84f5a4;
+  border: 1px solid #30d15860;
+}
+.incident-code.is-utility,
+.incident-code.is-traffic {
+  background: #ffd60a26;
+  color: #ffe074;
+  border: 1px solid #ffd60a59;
+}
+.incident-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 10px;
+  font-weight: 600;
+  color: #f2f8ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.incident-arrow {
+  color: #8eb0d0;
+  flex-shrink: 0;
+}
+.incident-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 8px;
+}
+.incident-loc {
+  color: #9ec0df;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.incident-phase {
+  font: 600 7.5px var(--mono);
+  color: #ffd98a;
+  flex-shrink: 0;
+}
+.incident-detail {
+  margin: 0;
   font-size: 8.5px;
-  color: #9cb4cc;
-  margin-top: 2px;
+  line-height: 1.45;
+  color: #adc5dc;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.incident-progress {
+  height: 2.5px;
+  border-radius: 99px;
+  background: #ffffff14;
+  overflow: hidden;
+}
+.incident-progress > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #4cc3ff, #6df0b2);
+}
+.skylines-street-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-top: 3px;
+  border-top: 1px solid #9cc8ee1f;
+}
+.street-chip-btn {
+  flex: 1;
+  min-width: 84px;
+  padding: 5px 6px;
+  border-radius: 5px;
+  background: #0d1d30cc;
+  border: 1px solid #9cc8ee26;
+  font-size: 8.5px;
+  color: #d6e8fa;
+  text-align: center;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.street-chip-btn:hover {
+  background: #193452;
+  border-color: #f0c37275;
+}
+.skylines-infra-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  background: #102136a8;
+  border: 1px solid #9cc8ee24;
+  text-align: left;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+.skylines-infra-card:hover {
+  background: #193454db;
+  border-color: #7cc6ff88;
+  transform: translateX(2px);
+}
+.infra-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: #16324f;
+  color: #84d2ff;
+  border: 1px solid #84d2ff40;
+}
+.infra-icon.accent-emerald {
+  background: #12362d;
+  color: #6df0b2;
+  border-color: #6df0b240;
+}
+.infra-icon.accent-amber {
+  background: #382a12;
+  color: #ffd166;
+  border-color: #ffd16645;
+}
+.infra-icon.accent-gold {
+  background: #362c16;
+  color: #f6d58e;
+  border-color: #f6d58e45;
+}
+.infra-icon.accent-violet {
+  background: #282042;
+  color: #c5a8ff;
+  border-color: #c5a8ff45;
+}
+.infra-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.infra-copy strong {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #f0f7ff;
+}
+.infra-copy strong em {
+  font: 700 6.5px var(--mono);
+  font-style: normal;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #ffffff14;
+  color: #b8d6f2;
+}
+.infra-copy small {
+  font-size: 8.5px;
+  color: #9cb9d6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.skylines-chirp-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 7px 9px;
+  border-radius: 7px;
+  background: #0f2136b0;
+  border: 1px solid #9cc8ee26;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.skylines-chirp-card:hover {
+  background: #183454d9;
+  border-color: #6cc4ff88;
+}
+.skylines-chirp-card.mood-alert {
+  border-left: 2.5px solid #ff645a;
+}
+.skylines-chirp-card.mood-praise {
+  border-left: 2.5px solid #4ad8ff;
+}
+.skylines-chirp-card.mood-chat {
+  border-left: 2.5px solid #6df0b2;
+}
+.chirp-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 8.5px;
+}
+.chirp-header strong {
+  color: #eff7ff;
+  font-weight: 600;
+}
+.chirp-header span {
+  color: #7fa4c8;
+  font: 7.5px var(--mono);
+}
+.chirp-header em {
+  margin-left: auto;
+  font-style: normal;
+  font: 600 7.5px var(--mono);
+  color: #6bc8ff;
+}
+.skylines-chirp-card p {
+  margin: 0;
+  font-size: 9px;
+  line-height: 1.48;
+  color: #c6dcf2;
 }
 .view-switch {
   position: absolute;
@@ -3641,5 +4098,16 @@ svg {
   .news-retry {
     min-height: 40px;
     padding: 8px 20px;
+  }
+  .live-scenes-panel.skylines-console {
+    top: 218px;
+    left: 14px;
+    right: 54px;
+    width: auto;
+    max-height: 215px;
+    padding: 8px 9px;
+  }
+  .live-scenes-panel.skylines-console.is-collapsed {
+    max-height: 68px;
   }
 }

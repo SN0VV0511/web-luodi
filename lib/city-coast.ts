@@ -179,15 +179,15 @@ export function buildCityCoast(kit: CivicKit): { animate: (seconds: number) => v
   part(glass, cylinder, 381, 10.3, 253, 1.8, 1, 1.8);
   part(coral, parasol, 381, 11.35, 253, 0.9, 0.85, 0.9);
 
-  // 近海点缀白帆游艇与航道浮标，丰富海面空间层次
-  for (const [sx, sz, rot] of [[-142, 198, 0.42], [-48, 224, -0.28], [68, 212, 0.55]] as const) {
+  // 近海点缀白帆游艇与航道浮标（避让邮轮主航道 z=195..235，错落分布在外海与西侧海湾）
+  for (const [sx, sz, rot] of [[-174, 218, 0.42], [-64, 246, -0.28], [146, 256, 0.55]] as const) {
     part(white, cylinder, sx, -0.42, sz, 1.45, 0.75, 4.8, undefined, rot);
     part(timber, cube, sx, -0.02, sz, 2.1, 0.12, 6.2, undefined, rot);
     part(white, cylinder, sx, 4.2, sz, 0.08, 8.2, 0.08);
     part(white, cube, sx, 4.3, sz - 0.9, 0.1, 6.4, 2.4, undefined, rot, 0.06);
     part(coral, cube, sx, 3.6, sz + 1.4, 0.09, 4.8, 1.6, undefined, rot, -0.05);
   }
-  for (const [bx, bz] of [[148, 195], [326, 268]] as const) {
+  for (const [bx, bz] of [[154, 196], [326, 268]] as const) {
     part(coral, cylinder, bx, -0.2, bz, 0.65, 0.9, 0.65);
     part(yellow, cylinder, bx, 0.55, bz, 0.22, 0.7, 0.22);
   }
