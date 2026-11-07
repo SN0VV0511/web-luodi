@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { sampleSeasonState, type SeasonMode } from "@/lib/city-seasons";
 import { cityBuildings, type PlaceId } from "@/lib/city-content";
 import { cityLots } from "@/lib/city-map";
 import { buildCityWorld } from "@/lib/city-world";
@@ -13,6 +13,18 @@ import { getBuildingExperience } from "@/lib/building-experience";
 import { parseSnapshot } from "@/lib/quant-board";
 import { createAssetBoard, parseAssetSnapshot } from "@/lib/asset-board";
 import type { Locale } from "@/lib/site-content";
+import type { CityLifeSnapshot } from "@/lib/real-city/snapshot";
+import { CityRenderPipeline } from "@/lib/real-city/render/pipeline";
+import { CityRenderQuality } from "@/lib/real-city/render/quality";
+import { CitySkyEnvironment } from "@/lib/real-city/render/sky-environment";
+import { CityShadowController } from "@/lib/real-city/render/shadows";
+import { CityPickingIndex } from "@/lib/real-city/render/picking";
+import { CityCameraSafety } from "@/lib/real-city/render/camera-safety";
+import { CityLocalReflections } from "@/lib/real-city/render/local-reflections";
+import { CityGlassOptics } from "@/lib/real-city/render/glass-optics";
+import { configureCityMaterialSampling } from "@/lib/real-city/render/material-sampling";
+import { CityGpuTimer } from "@/lib/real-city/render/gpu-timer";
+import { CityModelVisibility } from "@/lib/real-city/render/model-batches";
 
 type CityView = "aerial" | "district" | "street";
 type CitySceneProps = {
@@ -20,9 +32,11 @@ type CitySceneProps = {
   selectionKey: number;
   onSelect: (id: PlaceId) => void;
   night: boolean;
+  seasonMode?: SeasonMode;
   paused: boolean;
   resetKey: number;
   zoom: number;
+  zoomKey: number;
   onZoomChange?: (zoom: number) => void;
   locale: Locale;
   view?: CityView;
@@ -35,6 +49,7 @@ type CitySceneProps = {
   onFloorSelect?: (floorIndex: number) => void;
   onFlightChange?: (flying: boolean) => void;
   onWorldTimeChange?: (seconds: number) => void;
+  onCityLifeChange?: (snapshot: CityLifeSnapshot | null) => void;
   onReady?: () => void;
   information?: ReactNode;
 };
@@ -60,9 +75,6 @@ type CameraFlight = {
   place?: PlaceId;
 };
 
-const FRAME_INTERVAL = 1000 / 60;
-const SHADOW_INTERVAL = 1000 / 4;
-const MAX_RENDER_PIXELS = 2_000_000;
 const MIN_ZOOM = 0.6;
 const MAX_ZOOM = 2.8;
 const CAMERA_VIEWS: Record<CityView, { position: [number, number, number]; target: [number, number, number] }> = {
@@ -73,16 +85,6 @@ const CAMERA_VIEWS: Record<CityView, { position: [number, number, number]; targe
 const defaultLabels = new Set<PlaceId>(["quant", "affine", "agents", "openclaw", "news", "guestbook"]);
 const buildingById = new Map(cityBuildings.map((place) => [place.id, place]));
 const lotById = new Map(cityLots.map((lot) => [lot.id, lot]));
-
-/** 射线不会自动忽略隐藏祖先；关闭的室内模型不能挡住真实可见的楼宇。 */
-function visibleSurface(object: THREE.Object3D): boolean {
-  let node: THREE.Object3D | null = object;
-  while (node) {
-    if (!node.visible) return false;
-    node = node.parent;
-  }
-  return true;
-}
 
 /** 连续比例的三维城市视口；应用选择与实际导航仍由页面统一处理。 */
 export default function CityScene(props: CitySceneProps) {
@@ -108,14 +110,19 @@ export default function CityScene(props: CitySceneProps) {
     }
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.autoUpdate = false;
-    renderer.shadowMap.type = THREE.PCFShadowMap;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.domElement.className = "city-canvas";
     renderer.domElement.setAttribute("aria-label", "Interactive 3D city. Drag to move, right-drag to orbit, scroll to zoom.");
     container.prepend(renderer.domElement);
+    const compactDisplay = window.matchMedia("(max-width: 760px)").matches;
+    const renderQuality = new CityRenderQuality(renderer, compactDisplay);
+    const renderPipeline = new CityRenderPipeline(renderer, compactDisplay);
 
     const scene = new THREE.Scene();
+    // 每帧在投影标签前统一更新矩阵，后续渲染通道复用结果。
+    scene.matrixWorldAutoUpdate = false;
     const fog = new THREE.FogExp2("#c1b7ac", 0.00058);
     scene.fog = fog;
     const camera = new THREE.PerspectiveCamera(43, 1, 0.8, 4000);
@@ -140,13 +147,15 @@ export default function CityScene(props: CitySceneProps) {
 
     const hemisphere = new THREE.HemisphereLight("#c5d7ee", "#6d7a58", 1.55);
     const sun = new THREE.DirectionalLight("#fff3d4", 2.35);
+    const seasonSunOffset = new THREE.Vector3(-300, 235, 160);
     sun.position.set(-300, 235, 160);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(1536, 1536);
+    sun.shadow.mapSize.setScalar(renderQuality.state.shadowSize);
     Object.assign(sun.shadow.camera, { left: -305, right: 325, top: 235, bottom: -235, near: 20, far: 860 });
     sun.shadow.normalBias = 0.35;
-    sun.shadow.bias = -0.00008;
+    sun.shadow.bias = -0.00002;
     sun.shadow.radius = 3.5;
+    const shadowController = new CityShadowController(sun, renderQuality.state.shadowSize);
     const fill = new THREE.DirectionalLight("#9cc6f0", 0.38);
     fill.position.set(160, 100, -180);
     scene.add(hemisphere, sun, fill, sun.target);
@@ -240,18 +249,14 @@ export default function CityScene(props: CitySceneProps) {
     sky.frustumCulled = false;
     scene.add(sky);
 
-    const environmentScene = new RoomEnvironment();
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    const environment = pmrem.fromScene(environmentScene, 0.035, 0.1, 100, { size: 64 });
+    const environment = new CitySkyEnvironment(renderer, skyGeometry, skyMaterial);
     scene.environment = environment.texture;
     scene.environmentIntensity = 0.56;
-    environmentScene.dispose();
-    pmrem.dispose();
 
     let world!: ReturnType<typeof buildCityWorld>;
     let landmarks!: ReturnType<typeof buildCityLandmarks>;
     try {
-      world = buildCityWorld();
+      world = buildCityWorld({ compact: compactDisplay });
       landmarks = buildCityLandmarks(cityLots);
       scene.add(world.group, landmarks.group);
       world.pickables.push(...landmarks.pickables);
@@ -266,6 +271,7 @@ export default function CityScene(props: CitySceneProps) {
       skyMaterial.dispose();
       sun.shadow.dispose();
       controls.dispose();
+      renderPipeline.dispose();
       renderer.dispose();
       renderer.forceContextLoss();
       renderer.domElement.remove();
@@ -304,6 +310,14 @@ export default function CityScene(props: CitySceneProps) {
       scene.add(archiveTower.group);
       world.pickables.push(...archiveTower.pickables);
     }
+    const pickingIndex = new CityPickingIndex(world.pickables);
+    const cameraSafety = new CityCameraSafety(world.builtSites);
+    const localReflections = new CityLocalReflections(renderer, scene, world.builtSites, compactDisplay);
+    const glassOptics = new CityGlassOptics(scene);
+    const materialSampling = configureCityMaterialSampling(scene, renderer, compactDisplay);
+    container.dataset.filteredTextures = String(materialSampling.textures);
+    const gpuTimer = new CityGpuTimer(renderer);
+    const modelVisibility = new CityModelVisibility(scene);
     let lastWheelSwitch = 0;
 
     // 左牌(billboardSign)动态轮播: 品牌帧/数据帧10秒切换, 数据60秒拉取。
@@ -319,8 +333,9 @@ export default function CityScene(props: CitySceneProps) {
     let preparing = true;
     let frameHandle: number | null = null;
     let previousFrame = 0;
-    let lastShadowFrame = -Infinity;
     let lastAnimatedTime = -1;
+    let lastSeasonMode: SeasonMode | undefined;
+    let lastLightingBucket = -1;
     let lastReportedWorldBucket = -1;
     let worldTime = 0;
     let hovered: PlaceId | null = null;
@@ -333,6 +348,7 @@ export default function CityScene(props: CitySceneProps) {
     let lastOcclusionCheck = -Infinity;
     let labelsDirty = true;
     let lastHoverCheck = 0;
+    let lastControlChange = -Infinity;
     const occlusion = new Map<PlaceId, boolean>();
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const raycaster = new THREE.Raycaster();
@@ -375,6 +391,7 @@ export default function CityScene(props: CitySceneProps) {
       if (immediate || reducedMotion.matches) {
         flight = null;
         camera.position.copy(position);
+        cameraSafety.reset(position);
         controls.target.copy(target);
         controls.update();
         setArrived(place ?? null);
@@ -496,22 +513,37 @@ export default function CityScene(props: CitySceneProps) {
       flyTo(position, target);
     }
 
-    function applyLighting() {
+    function applySeasonLighting() {
       const night = current.current.night;
+      const state = sampleSeasonState(worldTime, current.current.seasonMode ?? "auto");
       hemisphere.color.set(night ? "#6889be" : "#d8ecff");
       hemisphere.groundColor.set(night ? "#1b2838" : "#647a5e");
-      hemisphere.intensity = night ? 0.85 : 1.42;
-      sun.color.set(night ? "#9cb8e4" : "#fff1d4");
-      sun.intensity = night ? 0.68 : 3.25;
+      hemisphere.intensity = night ? 0.65 : 1.05;
+      sun.color.copy(state.sunColor);
+      if (night) sun.color.set("#9cb8e4");
+      seasonSunOffset.copy(state.sunPosition);
+      sun.position.copy(seasonSunOffset).add(sun.target.position);
+      sun.intensity = night ? 0.48 : state.sunIntensity;
       fill.intensity = night ? 0.24 : 0.42;
-      renderer.toneMappingExposure = night ? 0.94 : 1.06;
-      scene.environmentIntensity = night ? 0.34 : 0.62;
-      fog.color.set(night ? "#0e1d34" : "#dde6ef");
-      fog.density = night ? 0.00095 : 0.00034;
-      skyUniforms.zenith.value.set(night ? "#050f22" : "#2460a4");
-      skyUniforms.horizon.value.set(night ? "#1d3554" : "#eddac2");
+      renderer.toneMappingExposure = night ? 0.94 : 0.98;
+      scene.environmentIntensity = night ? 0.25 : 0.7;
+      fog.color.copy(state.fogDayColor);
+      if (night) fog.color.set("#0e1d34");
+      fog.density = night ? 0.00095 : state.fogDensity;
+      skyUniforms.zenith.value.copy(state.skyZenith);
+      skyUniforms.horizon.value.copy(state.skyHorizon);
+      skyUniforms.sunDirection.value.copy(seasonSunOffset).normalize();
+      skyUniforms.sunColor.value.copy(sun.color);
       skyUniforms.ground.value.set(night ? "#112238" : "#9fb2c0");
       skyUniforms.night.value = night ? 1 : 0;
+      environment.update(scene, state, night, worldTime);
+      return state;
+    }
+
+    function applyLighting() {
+      const night = current.current.night;
+      applySeasonLighting();
+      lastAnimatedTime = -1;
       world.setNight(night);
       if (reducedMotion.matches && flight) {
         camera.position.copy(flight.to);
@@ -522,12 +554,13 @@ export default function CityScene(props: CitySceneProps) {
         current.current.onFlightChange?.(false);
       }
       renderer.shadowMap.needsUpdate = true;
+      shadowController.invalidate();
       controls.enableDamping = !reducedMotion.matches;
       updateHighlight();
     }
 
-    function projectLabels(now: number) {
-      const checkOcclusion = now - lastOcclusionCheck > 250;
+    function projectLabels(now: number, checkVisibility = true) {
+      const checkOcclusion = checkVisibility && now - lastOcclusionCheck > 250;
       if (checkOcclusion) lastOcclusionCheck = now;
       const occupied: { x: number; y: number; width: number }[] = [];
       const labels = [...world.anchors].sort(([a], [b]) =>
@@ -546,8 +579,7 @@ export default function CityScene(props: CitySceneProps) {
           const distance = direction.copy(anchor).sub(camera.position).length();
           labelRaycaster.set(camera.position, direction.normalize());
           labelRaycaster.far = Math.max(0, distance - 5);
-          const obstruction = labelRaycaster.intersectObjects(world.pickables, false).find((hit) => visibleSurface(hit.object));
-          occlusion.set(id, Boolean(obstruction));
+          occlusion.set(id, pickingIndex.occluded(labelRaycaster));
         }
         if (occlusion.get(id) && !active) show = false;
         const x = (projected.x * 0.5 + 0.5) * width;
@@ -599,12 +631,6 @@ export default function CityScene(props: CitySceneProps) {
     function render(now: number) {
       frameHandle = null;
       if (disposed || contextUnavailable || !visible || document.hidden) return;
-      // 浏览器时钟会在 33.33ms 两侧抖动，留出 1ms 容差，避免实际掉到 20fps。
-      const frameInterval = flight ? 1000 / 60 : FRAME_INTERVAL;
-      if (now - previousFrame < frameInterval - 1) {
-        schedule();
-        return;
-      }
       const elapsed = previousFrame ? Math.min((now - previousFrame) / 1000, 0.08) : 0;
       previousFrame = now;
       const moving = !current.current.paused && !reducedMotion.matches;
@@ -643,31 +669,70 @@ export default function CityScene(props: CitySceneProps) {
       }
       const mechanismsAnimating = landmarks.animate(elapsed || .016, worldTime, current.current.selected, current.current.experienceChapter ?? 0, reducedMotion.matches || current.current.paused);
       const controlsChanged = controls.update(elapsed);
+      const allowInterior = Boolean(flight || inspectedId || current.current.selected && buildingById.get(current.current.selected)?.floors?.length);
+      if (cameraSafety.update(camera, controls.target, allowInterior)) labelsDirty = true;
+      const cameraInteracting = activePointers.size > 0 || Boolean(flight)
+        || !controls.autoRotate && now - lastControlChange < 160;
       sky.position.copy(camera.position);
-      if (worldTime !== lastAnimatedTime) {
+      if (worldTime !== lastAnimatedTime || current.current.seasonMode !== lastSeasonMode) {
         skyUniforms.uTime.value = worldTime;
-        world.animate(worldTime, current.current.night);
+        const season = sampleSeasonState(worldTime, current.current.seasonMode ?? "auto");
+        if (Math.floor(worldTime * 4) !== lastLightingBucket || current.current.seasonMode !== lastSeasonMode) {
+          applySeasonLighting();
+          lastLightingBucket = Math.floor(worldTime * 4);
+        }
+        world.animate(worldTime, current.current.night, current.current.seasonMode, season);
+        glassOptics.update(worldTime, season);
+        if (container) {
+          container.dataset.season = season.season;
+          container.dataset.weather = season.weather.en;
+        }
+        lastSeasonMode = current.current.seasonMode;
         lastAnimatedTime = worldTime;
         const timeBucket = Math.floor(worldTime * 2);
         if (timeBucket !== lastReportedWorldBucket) {
           lastReportedWorldBucket = timeBucket;
           current.current.onWorldTimeChange?.(worldTime);
+          current.current.onCityLifeChange?.(world.getLifeSnapshot?.() ?? null);
         }
       }
-      scene.updateMatrixWorld();
-      if (labelsDirty || controlsChanged || flight || elevatorAnimating || now - lastOcclusionCheck >= 1000) projectLabels(now);
-      // 阴影保留动态，每秒更新十次；相机移动不改变世界中的光照投影。
-      if (!hasRendered || moving && now - lastShadowFrame >= SHADOW_INTERVAL) {
-        renderer.shadowMap.needsUpdate = true;
-        lastShadowFrame = now;
+      // 调整画布会清空缓冲区，必须在本帧绘制前完成。
+      if (renderQuality.observe(now, moving || Boolean(flight) || controlsChanged, gpuTimer.milliseconds)
+        && renderer.getPixelRatio() !== renderQuality.state.pixelRatio) {
+        renderer.setPixelRatio(renderQuality.state.pixelRatio);
+        renderPipeline.resize();
       }
-      renderer.render(scene, camera);
+      const shadow = shadowController.update(camera, controls.target, seasonSunOffset, now, moving || Boolean(flight) || controlsChanged);
+      scene.updateMatrixWorld();
+      modelVisibility.update(camera, renderer.domElement.height, now);
+      if (labelsDirty || controlsChanged || flight || elevatorAnimating || now - lastOcclusionCheck >= 1000)
+        projectLabels(now, !cameraInteracting);
+      if (shadow.needsUpdate) renderer.shadowMap.needsUpdate = true;
+      if (!cameraInteracting) {
+        localReflections.update(camera, controls.target, now,
+          `${current.current.night}:${container?.dataset.season}:${container?.dataset.weather}`,
+          renderQuality.state.bloom);
+      }
+      gpuTimer.begin();
+      try {
+        renderPipeline.render(scene, camera, renderQuality.state, current.current.night);
+      } finally {
+        gpuTimer.end();
+      }
+      if (container && Math.floor(worldTime) !== Number(container.dataset.renderSecond)) {
+        const statistics = renderPipeline.snapshot();
+        container.dataset.renderSecond = String(Math.floor(worldTime));
+        container.dataset.renderCalls = String(statistics.calls);
+        container.dataset.renderTriangles = String(statistics.triangles);
+        container.dataset.renderEffects = String(statistics.effects);
+        container.dataset.gpuMilliseconds = gpuTimer.milliseconds.toFixed(2);
+      }
       if (!hasRendered) {
         hasRendered = true;
         setStatus("ready");
         current.current.onReady?.();
       }
-      if (moving || controlsChanged || flight || elevatorAnimating || mechanismsAnimating) schedule();
+      if (moving || controlsChanged || cameraInteracting || flight || elevatorAnimating || mechanismsAnimating) schedule();
     }
 
     function resize() {
@@ -677,8 +742,10 @@ export default function CityScene(props: CitySceneProps) {
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       // 楼牌与操作界面仍以原生分辨率绘制，只限制 WebGL 在高分屏上的像素量。
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5, Math.sqrt(MAX_RENDER_PIXELS / (width * height))));
+      renderQuality.resize(width, height, window.devicePixelRatio);
+      renderer.setPixelRatio(renderQuality.state.pixelRatio);
       renderer.setSize(width, height);
+      renderPipeline.resize();
       if (!hasRendered) cameraView(activeView, true);
       else if (getBuildingExperience(current.current.selected) && Math.abs(previousAspect - camera.aspect) > .05)
         inspect();
@@ -694,8 +761,8 @@ export default function CityScene(props: CitySceneProps) {
       const bounds = renderer.domElement.getBoundingClientRect();
       pointer.set(((clientX - bounds.left) / bounds.width) * 2 - 1, (-(clientY - bounds.top) / bounds.height) * 2 + 1);
       raycaster.setFromCamera(pointer, camera);
-      for (const intersection of raycaster.intersectObjects(world.pickables, false)) {
-        if (!visibleSurface(intersection.object)) continue;
+      const intersection = pickingIndex.first(raycaster);
+      if (intersection) {
         const id: PlaceId | undefined = intersection.instanceId === undefined
           ? intersection.object.userData.place
           : intersection.object.userData.places?.[intersection.instanceId];
@@ -819,6 +886,7 @@ export default function CityScene(props: CitySceneProps) {
 
     function controlsChange() {
       labelsDirty = true;
+      lastControlChange = performance.now();
       if (!flight) reportZoom(referenceDistance / Math.max(1, camera.position.distanceTo(controls.target)));
       schedule();
     }
@@ -833,6 +901,7 @@ export default function CityScene(props: CitySceneProps) {
 
     function visibilityChange() {
       previousFrame = 0;
+      renderQuality.suspend();
       if (document.hidden && frameHandle !== null) {
         cancelAnimationFrame(frameHandle);
         frameHandle = null;
@@ -854,6 +923,7 @@ export default function CityScene(props: CitySceneProps) {
     const intersectionObserver = new IntersectionObserver(([entry]) => {
       visible = entry.isIntersecting;
       previousFrame = 0;
+      renderQuality.suspend();
       if (!visible && frameHandle !== null) {
         cancelAnimationFrame(frameHandle);
         frameHandle = null;
@@ -974,6 +1044,9 @@ export default function CityScene(props: CitySceneProps) {
       window.clearInterval(boardTimer);
       assetBoard.dispose();
       archiveTower?.dispose();
+      pickingIndex.dispose();
+      localReflections.dispose();
+      gpuTimer.dispose();
       landmarks.dispose();
       world.dispose();
       selectionGeometry.dispose();
@@ -982,20 +1055,22 @@ export default function CityScene(props: CitySceneProps) {
       skyMaterial.dispose();
       environment.dispose();
       sun.shadow.dispose();
+      renderPipeline.dispose();
       renderer.dispose();
       renderer.forceContextLoss();
       renderer.domElement.remove();
     };
   }, []);
 
-  useEffect(() => { sceneRef.current?.update(); }, [props.night, props.paused, props.labelsVisible, props.touring, props.locale]);
+  useEffect(() => { sceneRef.current?.update(); }, [props.night, props.paused, props.labelsVisible, props.touring, props.locale, props.seasonMode]);
   useEffect(() => { sceneRef.current?.syncFloor(); }, [props.activeFloorIndex]);
   useEffect(() => { sceneRef.current?.inspect(); }, [props.experienceChapter]);
   useEffect(() => { if (props.experienceReplayKey) sceneRef.current?.inspect(true); }, [props.experienceReplayKey]);
   // 动态场景首次就绪后再执行选择，避免载入期间的点击被初始视角覆盖。
   useEffect(() => { if (status === "ready") sceneRef.current?.select(props.selected); }, [props.selected, props.selectionKey, status]);
   useEffect(() => { sceneRef.current?.reset(); }, [props.resetKey]);
-  useEffect(() => { sceneRef.current?.zoom(props.zoom); }, [props.zoom]);
+  // 滚轮回报只同步界面，只有显式缩放指令才重新设置相机。
+  useEffect(() => { sceneRef.current?.zoom(current.current.zoom); }, [props.zoomKey]);
   useEffect(() => { sceneRef.current?.view(props.view ?? "aerial"); }, [props.view]);
   useEffect(() => { if (props.focusPoint) sceneRef.current?.focus(props.focusPoint); }, [props.focusPoint]);
 

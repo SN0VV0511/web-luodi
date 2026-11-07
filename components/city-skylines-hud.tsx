@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Activity,
   Building2,
@@ -23,13 +23,16 @@ import {
   Zap,
 } from "lucide-react";
 import {
-  getActiveCityIncidents,
+  getCityTimeline,
   getCityChirps,
   getCityTelemetry,
   type ActiveCityIncident,
   type IncidentKind,
 } from "@/lib/city-events";
 import type { Locale } from "@/lib/site-content";
+import { sampleSeasonState, type SeasonMode } from "@/lib/city-seasons";
+import { sampleCityClock } from "@/lib/city-physics";
+import { liveCityIncidents, type CityLifeSnapshot } from "@/lib/real-city/snapshot";
 
 type HudTab = "incidents" | "infra" | "chirper";
 type PolicyId = "smokeDetector" | "greenGrid" | "cruiseDutyFree" | "zeroDischarge";
@@ -42,9 +45,12 @@ type FocusTarget = {
 };
 
 type CitySkylinesHudProps = {
+  cityLife?: CityLifeSnapshot | null;
   worldSeconds: number;
   night?: boolean;
   locale: Locale;
+  seasonMode: SeasonMode;
+  onSeasonModeChange: (season: SeasonMode) => void;
   onFocusPoint: (target: FocusTarget) => void;
 };
 
@@ -62,17 +68,27 @@ function incidentIcon(kind: IncidentKind): ReactNode {
       return <Wrench size={13} />;
     case "traffic":
       return <Siren size={13} />;
+    case "life":
+      return <Users size={13} />;
   }
 }
 
 export function CitySkylinesHud({
+  cityLife = null,
   worldSeconds,
   night = false,
   locale,
+  seasonMode,
+  onSeasonModeChange,
   onFocusPoint,
 }: CitySkylinesHudProps): ReactNode {
   const [tab, setTab] = useState<HudTab>("incidents");
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
+  const expandedPanelRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!collapsed) expandedPanelRef.current?.focus({ preventScroll: true });
+  }, [collapsed]);
+  const foldButtonRef = useRef<HTMLButtonElement>(null);
   const [policyDrawerOpen, setPolicyDrawerOpen] = useState(false);
   const [policies, setPolicies] = useState<Record<PolicyId, boolean>>({
     smokeDetector: true,
@@ -85,8 +101,15 @@ export function CitySkylinesHud({
   const t = (cn: string, en: string): string => (zh ? cn : en);
 
   const telemetry = getCityTelemetry(worldSeconds, night);
-  const incidents = getActiveCityIncidents(worldSeconds, locale);
+  const incidents = [...liveCityIncidents(cityLife, locale), ...getCityTimeline(worldSeconds, locale)];
   const chirps = getCityChirps(worldSeconds, locale);
+  const season = sampleSeasonState(worldSeconds, seasonMode);
+  const hour = sampleCityClock(worldSeconds).hour;
+  const cityTime = `${String(Math.floor(hour)).padStart(2, "0")}:${String(Math.floor(hour % 1 * 60)).padStart(2, "0")}`;
+  const seasonLabels = {
+    auto: t("自动更替", "Cycle seasons"), spring: t("春", "Spring"),
+    summer: t("夏", "Summer"), autumn: t("秋", "Autumn"), winter: t("冬", "Winter"),
+  };
 
   const effectivePowerOutput =
     telemetry.powerOutputMw + (policies.greenGrid ? 48 : 0);
@@ -116,6 +139,10 @@ export function CitySkylinesHud({
       distance: item.focusDistance,
       height: item.focusHeight,
     });
+  };
+  const collapse = (): void => {
+    setCollapsed(true);
+    requestAnimationFrame(() => foldButtonRef.current?.focus({ preventScroll: true }));
   };
 
   const infraLandmarks = [
@@ -238,16 +265,39 @@ export function CitySkylinesHud({
     },
   ];
 
+  if (collapsed) return (
+    <aside className="live-scenes-panel skylines-console is-collapsed" aria-label={t("城市生活", "City life")}>
+      <button
+        ref={foldButtonRef}
+        type="button"
+        className="skylines-fold-toggle"
+        aria-expanded={false}
+        aria-label={t("展开城市生活与四季", "Open city life and seasons")}
+        onClick={() => setCollapsed(false)}
+      >
+        <span className="live-pulse-dot" aria-hidden="true" />
+        <span>{t("城市生活", "City life")}</span>
+        <small title={t("模拟城市时间 / 正在发生的事件", "Simulated city time / active events")}>{seasonLabels[season.season]} · {cityTime} · {incidents.length}</small>
+        <ChevronRight size={14} aria-hidden="true" />
+      </button>
+    </aside>
+  );
+
   return (
     <aside
+      ref={expandedPanelRef}
+      tabIndex={-1}
       className={`live-scenes-panel skylines-console${collapsed ? " is-collapsed" : ""}`}
-      aria-label={t("城市天际线实时调度台", "Cities Skylines live dispatch console")}
+      aria-label={t("城市生活与四季", "City life and seasons")}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") { event.stopPropagation(); collapse(); }
+      }}
     >
       <div className="skylines-topbar">
         <div className="skylines-brand-row">
           <span className="live-pulse-dot" aria-hidden="true" />
           <strong>
-            {t("天际线市政与事件中心", "SKYLINES DISPATCH & INFRA")}
+            {t("城市生活与四季", "City life & seasons")}
           </strong>
           <div className="skylines-rci" title={t("RCI 住/商/办需求指数", "RCI Zoning Demand")}>
             <span className="rci-bar is-res">
@@ -278,10 +328,10 @@ export function CitySkylinesHud({
             aria-expanded={!collapsed}
             aria-label={
               collapsed
-                ? t("展开天际线面板", "Expand Skylines panel")
-                : t("收起天际线面板", "Collapse Skylines panel")
+                ? t("展开城市生活", "Expand city life")
+                : t("收起城市生活", "Collapse city life")
             }
-            onClick={() => setCollapsed((v) => !v)}
+            onClick={collapse}
           >
             <ChevronDown
               size={13}
@@ -336,6 +386,15 @@ export function CitySkylinesHud({
 
       {!collapsed && (
         <>
+          <label className="skylines-season-control">
+            <span>{t("四季", "Season")}</span>
+            <select value={seasonMode} onChange={(event) => onSeasonModeChange(event.target.value as SeasonMode)}>
+              {(Object.keys(seasonLabels) as SeasonMode[]).map((mode) => (
+                <option key={mode} value={mode}>{seasonLabels[mode]}</option>
+              ))}
+            </select>
+            <small>{season.temperatureC}°C</small>
+          </label>
           {policyDrawerOpen && (
             <div className="skylines-policy-drawer">
               <div className="policy-telemetry-grid">
@@ -393,7 +452,7 @@ export function CitySkylinesHud({
               onClick={() => setTab("incidents")}
             >
               <Radio size={11} />
-              <span>{t("随机事件", "Incidents")}</span>
+              <span>{t("此刻发生", "Happening now")}</span>
               <em>{incidents.length}</em>
             </button>
             <button

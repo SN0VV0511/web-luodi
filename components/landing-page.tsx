@@ -49,7 +49,9 @@ import { CityInformation } from "@/components/city-information";
 import { BuildingExperiencePanel } from "@/components/building-experience-panel";
 import { CitySkylinesHud } from "@/components/city-skylines-hud";
 import { getBuildingExperience } from "@/lib/building-experience";
-import { getActiveCityIncidents } from "@/lib/city-events";
+import { getCityTimeline } from "@/lib/city-events";
+import { liveCityIncidents, type CityLifeSnapshot } from "@/lib/real-city/snapshot";
+import type { SeasonMode } from "@/lib/city-seasons";
 
 const CityScene = dynamic(() => import("@/components/city-scene"), {
   ssr: false,
@@ -70,11 +72,13 @@ type Filter = "all" | "occupied" | "vacant";
 export function LandingPage(): ReactNode {
   const [locale, setLocale] = useState<Locale>("zh");
   const [night, setNight] = useState(false);
+  const [seasonMode, setSeasonMode] = useState<SeasonMode>("auto");
   const [paused, setPaused] = useState(false);
   const [touring, setTouring] = useState(false);
   const [labelsVisible, setLabelsVisible] = useState(true);
   const [resetKey, setResetKey] = useState(0);
   const [zoom, setZoom] = useState(1);
+  const [zoomKey, setZoomKey] = useState(0);
   const [selected, setSelected] = useState<PlaceId | null>(null);
   const [selectionKey, setSelectionKey] = useState(0);
   const [panel, setPanel] = useState<Panel>(null);
@@ -93,6 +97,7 @@ export function LandingPage(): ReactNode {
   const [flightApproaching, setFlightApproaching] = useState(false);
   const [hologramCollapsed, setHologramCollapsed] = useState(false);
   const [worldSeconds, setWorldSeconds] = useState(0);
+  const [cityLife, setCityLife] = useState<CityLifeSnapshot | null>(null);
   const elevatorTimersRef = useRef<number[]>([]);
   const wheelCooldownRef = useRef(0);
   const detailRef = useRef<HTMLElement>(null);
@@ -273,9 +278,11 @@ export function LandingPage(): ReactNode {
           selectionKey={selectionKey}
           onSelect={selectPlace}
           night={night}
+          seasonMode={seasonMode}
           paused={paused}
           resetKey={resetKey}
           zoom={zoom}
+          zoomKey={zoomKey}
           onZoomChange={setZoom}
           locale={locale}
           view={view}
@@ -288,6 +295,7 @@ export function LandingPage(): ReactNode {
           onFloorSelect={(floorIdx) => dispatchElevator(floorIdx, place?.floors?.length ?? 2)}
           onFlightChange={setFlightApproaching}
           onWorldTimeChange={setWorldSeconds}
+          onCityLifeChange={setCityLife}
           information={informationPlace ? (
             <CityInformation
               place={informationPlace}
@@ -384,6 +392,7 @@ export function LandingPage(): ReactNode {
           { name: t("货运港口", "Cargo harbor"), x: 235, z: 193, distance: 190, height: 12 },
           { name: t("海景别墅", "Pool villas"), x: -241.5, z: -38, distance: 52, height: 6 },
           { name: t("电力污水厂", "Eco utilities"), x: 266, z: -4, distance: 138, height: 12 },
+          { name: t("麦当劳街角", "McDonald's"), x: 168, z: 83, distance: 31, height: 2.5 },
         ].map(({ name, ...point }) => (
           <button key={name} type="button" onClick={() => {
             setFocusPoint(point);
@@ -395,9 +404,12 @@ export function LandingPage(): ReactNode {
       </nav>
 
       <CitySkylinesHud
+        cityLife={cityLife}
         worldSeconds={worldSeconds}
         night={night}
         locale={locale}
+        seasonMode={seasonMode}
+        onSeasonModeChange={setSeasonMode}
         onFocusPoint={(target) => {
           setFocusPoint(target);
           setSelected(null);
@@ -452,9 +464,10 @@ export function LandingPage(): ReactNode {
           type="button"
           aria-label={t("放大", "Zoom in")}
           disabled={zoom >= 2.8}
-          onClick={() =>
-            setZoom((value) => Math.min(2.8, +(value + 0.2).toFixed(2)))
-          }
+          onClick={() => {
+            setZoom((value) => Math.min(2.8, +(value + 0.2).toFixed(2)));
+            setZoomKey((value) => value + 1);
+          }}
         >
           <Plus size={18} />
         </button>
@@ -462,9 +475,10 @@ export function LandingPage(): ReactNode {
           type="button"
           aria-label={t("缩小", "Zoom out")}
           disabled={zoom <= 0.6}
-          onClick={() =>
-            setZoom((value) => Math.max(0.6, +(value - 0.2).toFixed(2)))
-          }
+          onClick={() => {
+            setZoom((value) => Math.max(0.6, +(value - 0.2).toFixed(2)));
+            setZoomKey((value) => value + 1);
+          }}
         >
           <Minus size={18} />
         </button>
@@ -1175,7 +1189,7 @@ export function LandingPage(): ReactNode {
                 strokeWidth={lot.id === selected ? "3" : "1.2"}
               />
             ))}
-            {getActiveCityIncidents(worldSeconds, locale).map((inc) => {
+            {[...liveCityIncidents(cityLife, locale), ...getCityTimeline(worldSeconds, locale)].map((inc) => {
               const color =
                 inc.kind === "fire"
                   ? "#ff453a"
@@ -1183,7 +1197,7 @@ export function LandingPage(): ReactNode {
                     ? "#3898ff"
                     : inc.kind === "cruise"
                       ? "#5ce0e6"
-                      : inc.kind === "medical"
+                      : inc.kind === "medical" || inc.kind === "life"
                         ? "#34d399"
                         : "#f59e0b";
               return (

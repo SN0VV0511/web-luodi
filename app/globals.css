@@ -441,11 +441,11 @@ svg {
 .live-scenes-panel.skylines-console {
   position: absolute;
   z-index: 4;
-  top: 356px;
+  bottom: 206px;
   left: 32px;
   width: 332px;
-  max-height: calc(100dvh - 558px);
-  min-height: 76px;
+  max-height: min(64dvh, 480px);
+  min-height: 0;
   display: flex;
   flex-direction: column;
   padding: 10px 11px;
@@ -456,10 +456,61 @@ svg {
   box-shadow: 0 14px 38px #040b1580, inset 0 1px 0 #ffffff1c;
   backdrop-filter: blur(20px);
   overflow: hidden;
-  transition: max-height 0.24s ease, opacity 0.24s ease, visibility 0.24s;
+  transition: opacity 0.24s ease, visibility 0.24s;
 }
 .live-scenes-panel.skylines-console.is-collapsed {
-  max-height: 76px;
+  width: max-content;
+  max-width: calc(100vw - 64px);
+  max-height: 42px;
+  padding: 0;
+  border-top-width: 1px;
+  border-radius: 7px;
+  background: #0c1b2bee;
+  box-shadow: 0 4px 16px #040b1540;
+}
+.skylines-fold-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  min-height: 40px;
+  color: #e4edf1;
+  font-size: 12px;
+}
+.skylines-fold-toggle small {
+  color: #b3c6cd;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.skylines-fold-toggle:hover {
+  background: #254156;
+}
+.skylines-fold-toggle:focus-visible,
+.skylines-season-control select:focus-visible {
+  outline: 2px solid #ceddba;
+  outline-offset: -3px;
+}
+.skylines-season-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  color: #d6e1df;
+  font-size: 11px;
+}
+.skylines-season-control select {
+  flex: 1;
+  min-height: 32px;
+  border: 1px solid #698083;
+  border-radius: 4px;
+  color: #edf1e5;
+  background: #152735;
+  padding: 4px 8px;
+  font: inherit;
+}
+.skylines-season-control small {
+  color: #c3d0cf;
+  font-variant-numeric: tabular-nums;
 }
 .is-inspecting-landmark .skylines-console {
   opacity: 0;
@@ -482,13 +533,14 @@ svg {
   height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
-  background: #ff453a;
-  box-shadow: 0 0 0 3px #ff453a33, 0 0 8px #ff453a;
+  background: #b2cca1;
+  box-shadow: 0 0 0 3px #b2cca11f;
 }
 .skylines-brand-row > strong {
-  font: 700 8.5px var(--mono);
-  letter-spacing: 1.1px;
-  color: #f3cd82;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: #dbe6de;
   flex: 1;
   min-width: 0;
   white-space: nowrap;
@@ -734,6 +786,13 @@ button.skylines-metric-pill:hover {
 }
 .skylines-incident-card.is-fire {
   border-left: 2.5px solid #ff5548;
+}
+.skylines-incident-card.is-life {
+  border-color: #7c9b7955;
+}
+.incident-code.is-life {
+  color: #b8cfae;
+  background: #294632;
 }
 .skylines-incident-card.is-burglar {
   border-left: 2.5px solid #3c9dff;
@@ -4100,14 +4159,17 @@ button.skylines-metric-pill:hover {
     padding: 8px 20px;
   }
   .live-scenes-panel.skylines-console {
-    top: 218px;
+    bottom: 140px;
     left: 14px;
     right: 54px;
     width: auto;
-    max-height: 215px;
+    max-height: min(57dvh, 390px);
     padding: 8px 9px;
   }
   .live-scenes-panel.skylines-console.is-collapsed {
-    max-height: 68px;
+    right: auto;
+    width: max-content;
+    max-height: 42px;
+    padding: 0;
   }
 }

@@ -81,17 +81,24 @@ it.each(kinds)("%s 的玻璃与车身共用接缝位置，封闭车壳没有边�
 });
 
 it.each([
-  ["树干", createTreeTrunk, 27],
-  ["树冠", createTreeCanopy, 128],
-] as const)("%s 合并完成后释放临时几何体，保留返回值的所有权", (_name, create, count) => {
+  ["树干", createTreeTrunk],
+  ["树冠", createTreeCanopy],
+] as const)("%s 的烘焙资源独立且由调用方释放", (_name, create) => {
   const dispose = vi.spyOn(THREE.BufferGeometry.prototype, "dispose");
   const geometry = create();
+  const copy = create();
   try {
-    expect(dispose).toHaveBeenCalledTimes(count);
     expect(dispose.mock.instances).not.toContain(geometry);
-  } finally {
-    dispose.mockRestore();
+    expect(dispose.mock.instances).not.toContain(copy);
+    expect(copy.getAttribute("position").array).not.toBe(geometry.getAttribute("position").array);
+    expect(copy.getAttribute("position").array).toEqual(geometry.getAttribute("position").array);
     geometry.dispose();
+    expect(dispose.mock.instances).toContain(geometry);
+    expect(dispose.mock.instances).not.toContain(copy);
+    expect(Array.from(copy.getAttribute("position").array).every(Number.isFinite)).toBe(true);
+  } finally {
+    copy.dispose();
+    dispose.mockRestore();
   }
 });
 

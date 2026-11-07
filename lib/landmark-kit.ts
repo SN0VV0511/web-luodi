@@ -1,6 +1,13 @@
 import * as THREE from "three";
 import type { PlaceId } from "./city-content";
 import type { CityLot } from "./city-map";
+import {
+  bindWorldScalePbr,
+  createAshlarStonePbr,
+  createBrushedMetalPbr,
+  createGlassCurtainWallPbr,
+  createOrganicShrubGeometry,
+} from "./city-pbr";
 
 export type Surface = "stone" | "metal" | "glass" | "light";
 export type Point3 = readonly [number, number, number];
@@ -27,6 +34,7 @@ export class LandmarkKit {
   readonly ringGeometry = new THREE.TorusGeometry(1, .035, 6, 48);
   readonly crystalGeometry = new THREE.OctahedronGeometry(1);
   readonly dishGeometry = new THREE.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI * .36);
+  readonly shrubGeometry = createOrganicShrubGeometry();
   private readonly roots = new Map<THREE.Group, CityLot>();
   private readonly batches = new Map<string, Batch>();
   private readonly geometries = new Set<THREE.BufferGeometry>();
@@ -38,16 +46,44 @@ export class LandmarkKit {
   private readonly live = new Set<PlaceId>();
   private finished = false;
   private disposed = false;
-  private readonly materials: Record<Surface, THREE.Material> = {
-    stone: new THREE.MeshStandardMaterial({ roughness: .7, metalness: .06 }),
-    metal: new THREE.MeshStandardMaterial({ roughness: .3, metalness: .72 }),
-    glass: new THREE.MeshStandardMaterial({ roughness: .14, metalness: .32, transparent: true, opacity: .23, depthWrite: false, side: THREE.DoubleSide }),
-    light: new THREE.MeshBasicMaterial({ toneMapped: false }),
-  };
+  private readonly materials: Record<Surface, THREE.Material>;
 
   constructor() {
     this.group.name = "InteractiveCityLandmarks";
-    [this.boxGeometry, this.cylinderGeometry, this.sphereGeometry, this.ringGeometry, this.crystalGeometry, this.dishGeometry].forEach((geometry) => this.geometries.add(geometry));
+    [this.boxGeometry, this.cylinderGeometry, this.sphereGeometry, this.ringGeometry, this.crystalGeometry, this.dishGeometry, this.shrubGeometry].forEach((geometry) => this.geometries.add(geometry));
+
+    const stonePbr = createAshlarStonePbr();
+    const metalPbr = createBrushedMetalPbr();
+    const glassPbr = createGlassCurtainWallPbr(4, 8);
+    [stonePbr.normalMap, stonePbr.roughnessMap, metalPbr.normalMap, metalPbr.roughnessMap, glassPbr.normalMap, glassPbr.roughnessMap].forEach((tex) => this.textures.add(tex));
+
+    const stoneMat = new THREE.MeshStandardMaterial({ roughness: .76, metalness: .05 });
+    bindWorldScalePbr(stoneMat, stonePbr, 4.8, 3.2, 0.72);
+
+    const metalMat = new THREE.MeshStandardMaterial({ roughness: .34, metalness: .78, envMapIntensity: 1.18 });
+    bindWorldScalePbr(metalMat, metalPbr, 3.6, 3.6, 0.55);
+
+    const glassMat = new THREE.MeshPhysicalMaterial({
+      roughness: .08,
+      metalness: .08,
+      clearcoat: 1.0,
+      clearcoatRoughness: .05,
+      reflectivity: .96,
+      ior: 1.52,
+      envMapIntensity: 1.45,
+      transparent: true,
+      opacity: .6,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    bindWorldScalePbr(glassMat, glassPbr, 6.4, 25.6, 0.14);
+
+    this.materials = {
+      stone: stoneMat,
+      metal: metalMat,
+      glass: glassMat,
+      light: new THREE.MeshBasicMaterial({ toneMapped: false }),
+    };
   }
 
   /** 注册少量独有轮廓的几何，使定制月牙、穹顶等也遵循统一释放规则。 */
@@ -113,13 +149,25 @@ export class LandmarkKit {
     this.record(parent, this.cylinderGeometry, color, "metal", this.transform.matrix.clone());
   }
 
-  /** 四角金属框、玻璃和横竖分缝组成可近看的幕墙。 */
+  /** Each insulated glass unit has its own reveal, mullion, sill, and spandrel. */
   glazing(parent: THREE.Group, x: number, y: number, z: number, width: number, height: number, tint: string = finish.glass): void {
-    this.box(parent, tint, x, y, z, width, height, .09, "glass");
-    for (let column = 0; column <= 4; column++)
-      this.box(parent, finish.silver, x - width / 2 + width * column / 4, y, z + .08, .09, height, .13, "metal");
-    for (let row = 0; row <= 3; row++)
-      this.box(parent, finish.silver, x, y - height / 2 + height * row / 3, z + .08, width, .08, .13, "metal");
+    const columns = Math.max(1, Math.ceil(width / 1.5));
+    const rows = Math.max(1, Math.ceil(height / 3.2));
+    const bayWidth = width / columns;
+    const bayHeight = height / rows;
+    for (let column = 0; column < columns; column++) {
+      for (let row = 0; row < rows; row++) {
+        const px = x - width / 2 + (column + 0.5) * bayWidth;
+        const py = y - height / 2 + (row + 0.5) * bayHeight;
+        this.box(parent, tint, px, py + 0.07, z, bayWidth - 0.055, bayHeight - 0.2, .035, "glass");
+        this.box(parent, finish.dark, px, py - bayHeight / 2 + 0.06, z - .025, bayWidth, .14, .08, "metal");
+        this.box(parent, finish.silver, px, py - bayHeight / 2, z + .045, bayWidth, .045, .12, "metal");
+      }
+    }
+    for (let column = 0; column <= columns; column++) {
+      this.box(parent, finish.silver, x - width / 2 + column * bayWidth, y, z + .045, .055, height + .05, .12, "metal");
+    }
+    this.box(parent, finish.silver, x, y + height / 2, z + .045, width + .055, .055, .12, "metal");
   }
 
   /** 具有金属支腿、键盘与屏幕的工作站；屏幕仅使用装饰线条，不伪造数据。 */
@@ -135,11 +183,13 @@ export class LandmarkKit {
     this.box(parent, finish.dark, x, y + 1.2, z + 1.5, .75, .8, .12);
   }
 
-  /** 带种植盆与分叉树冠的微缩植物，避免引入模型与贴图下载。 */
+  /** 带石材种植钵与自然簇生枝叶的景观植物，替代卡通球体树冠。 */
   plant(parent: THREE.Group, x: number, y: number, z: number, size = 1): void {
-    this.box(parent, finish.ivory, x, y + size * .3, z, size, size * .6, size);
-    this.cylinder(parent, finish.oak, x, y + size * 1.1, z, size * .07, size * 1.3, "stone");
-    for (const side of [-1, 0, 1]) this.part(parent, this.sphereGeometry, side === 0 ? finish.green : finish.leaf, [x + side * size * .22, y + size * (1.8 - Math.abs(side) * .25), z], [size * .48, size * .65, size * .45]);
+    this.box(parent, finish.ivory, x, y + size * .26, z, size * 1.04, size * .52, size * 1.04);
+    this.box(parent, finish.oak, x, y + size * .52, z, size * .88, size * .06, size * .88);
+    this.cylinder(parent, finish.oak, x, y + size * .96, z, size * .055, size * .95, "stone");
+    this.part(parent, this.shrubGeometry, finish.leaf, [x, y + size * 1.15, z], [size * 1.15, size * 1.25, size * 1.15]);
+    this.part(parent, this.shrubGeometry, finish.green, [x, y + size * 1.52, z], [size * .86, size * .92, size * .86], "stone", [0, 1.1, 0]);
   }
 
   /** 楼前台阶、平台、导向灯与铆接基础，与所有建筑共用同一细节尺度。 */

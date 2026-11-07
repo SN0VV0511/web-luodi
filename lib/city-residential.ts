@@ -82,6 +82,7 @@ export function buildModernResidentialDistrict(
 
   markCitySurface(whiteStucco, "stucco");
   markCitySurface(warmConcrete, "concrete");
+  markCitySurface(darkSlate, "roof");
   markCitySurface(turfLush, "grass");
   markCitySurface(hedgeGreen, "foliage");
   markCitySurface(stonePaver, "path");

@@ -13,9 +13,9 @@ export const buildExchange: LandmarkBuilder = (kit, root, { width: w, depth: d, 
     const top = h * (side === -1 ? 1 : .83);
     kit.box(root, f.dark, x, top / 2 + 1, -d * .08, w * .27, top, d * .75, "metal");
     for (let y = 4; y < top; y += 3.4) {
-      kit.box(root, f.blue, x, y, d * .3, w * .25, 2.6, .14, "metal");
+      kit.glazing(root, x, y, d * .3, w * .25, 2.6);
       for (const edge of [-1, 1]) {
-        kit.box(root, f.blue, x + edge * w * .138, y, -d * .08, .12, 2.6, d * .73, "metal");
+        kit.box(root, f.glass, x + edge * w * .138, y, -d * .08, .12, 2.6, d * .73, "glass");
         for (let mullion = 0; mullion < 7; mullion++) kit.box(root, f.silver, x + edge * w * .142, y, -d * .4 + mullion * d * .105, .12, 3.4, .08, "metal");
       }
       kit.box(root, f.copper, x, y - 1.5, -d * .08, w * .29, .22, d * .79, "metal");

@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { CivicKit } from "./city-civic";
+import { buildPbrMapsFromField, bindWorldScalePbr, createAshlarStonePbr } from "./city-pbr";
 
 export type ModernFacadeStyle = "pearl-condo" | "graphite-tower" | "terracotta-modern" | "coastal-residences";
 
@@ -146,6 +147,12 @@ export function buildResidentialMaterials(kit: CivicKit): ResidentialMaterialPal
           vec2 uvRepeats = vec2(abs(normal.x) > 0.5 ? instScale.z : instScale.x, instScale.y) / vec2(${scaleX.toFixed(1)}, ${scaleY.toFixed(1)});
           vMapUv *= uvRepeats;
           vEmissiveMapUv *= uvRepeats;
+          #ifdef USE_NORMALMAP
+            vNormalMapUv *= uvRepeats;
+          #endif
+          #ifdef USE_ROUGHNESSMAP
+            vRoughnessMapUv *= uvRepeats;
+          #endif
         #endif`,
       );
       shader.fragmentShader = `varying float vResWall;\n${shader.fragmentShader}`
@@ -315,16 +322,35 @@ export function buildResidentialMaterials(kit: CivicKit): ResidentialMaterialPal
       });
     });
 
-    const material = new THREE.MeshStandardMaterial({
+    const pbr = buildPbrMapsFromField(256, 512, 1.4, (u, v) => {
+      const x = (u * 4) % 1;
+      const y = ((1 - v) * 16) % 1;
+      const pad = style === "graphite-tower" ? 8 / 128 : 12 / 128;
+      const window = x > pad && x < 1 - pad && y > 15 / 64 && y < 59 / 64;
+      const mullion = Math.abs(x - 0.5) < 0.013 || Math.abs(y - 0.67) < 0.018;
+      if (window && !mullion) return {
+        height: 0.42 + Math.sin(x * Math.PI) * Math.sin(y * Math.PI) * 0.012,
+        roughness: 0.105,
+      };
+      return { height: window ? 0.63 : 0.82, roughness: window ? 0.39 : 0.88 };
+    });
+    const material = new THREE.MeshPhysicalMaterial({
       color: "#ffffff",
       map,
       emissiveMap,
       emissive: "#ffe5ba",
       emissiveIntensity: 0.06,
-      roughness: style === "graphite-tower" ? 0.28 : 0.62,
-      metalness: style === "graphite-tower" ? 0.36 : 0.1,
+      normalMap: pbr.normalMap,
+      normalScale: new THREE.Vector2(0.32, 0.32),
+      roughnessMap: pbr.roughnessMap,
+      roughness: 0.96,
+      metalness: 0.06,
+      clearcoat: 0.2,
+      clearcoatRoughness: 0.12,
+      ior: 1.52,
     });
     applyWorldFacadeUv(material, 18.0, 51.2);
+    material.userData.cityWeather = "roof";
     materials.add(material);
     nightMaterials.push({ material, day: 0.05, night: 1.48 });
     return material;
@@ -458,6 +484,9 @@ export function buildResidentialMaterials(kit: CivicKit): ResidentialMaterialPal
   const villaTravertine = solid("#e8dfd0", 0.66, 0.04);
   const villaCedar = solid("#9c6844", 0.68, 0.05);
   const villaBoardConcrete = solid("#c6c9c8", 0.72, 0.06);
+  const stoneMaps = createAshlarStonePbr();
+  bindWorldScalePbr(villaTravertine, stoneMaps, 4, 4, 0.32);
+  bindWorldScalePbr(villaBoardConcrete, stoneMaps, 7, 4, 0.2);
   const balconyGlass = solid("#4a7d96", 0.14, 0.48);
   const warmInteriorGlow = solid("#5b7482", 0.22, 0.24);
   warmInteriorGlow.emissive.set("#ffd394");

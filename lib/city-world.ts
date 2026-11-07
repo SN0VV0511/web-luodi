@@ -3,12 +3,23 @@ import { cityLots, ROAD_SEGMENTS, cityBlocks, districts, civicLots, type CityLot
 import type { PlaceId } from "./city-content";
 import { getBuildingExperience } from "./building-experience";
 import { buildCivicDistrict } from "./city-civic";
-import { buildCityLife } from "./city-life";
+import { buildDetailedCityLife } from "./real-city/life";
 import { buildCityCoast } from "./city-coast";
-import { buildModernResidentialDistrict } from "./city-residential";
+import { buildDetailedArchitecture } from "./real-city/architecture";
+import { buildDetailedEnvironment } from "./real-city/environment";
+import { cityDetailBudget, type CityBuiltSite } from "./real-city/contracts";
+import { sampleSignalPhase } from "./real-city/traffic/signals";
+import { buildTrafficDetails } from "./real-city/traffic/details";
+import { CityFacadeInteriors } from "./real-city/render/facade-interiors";
 import { buildCityUtilities } from "./city-utilities";
 import { buildCityCruiseHarbor } from "./city-cruise";
 import { buildCityEvents } from "./city-events";
+import { buildCommercialAndCurtainWalls } from "./city-mcdonalds";
+import { buildSeasonalAtmosphere, sampleSeasonState, type SeasonMode, type SeasonState } from "./city-seasons";
+import { createCityWeather } from "./city-weather";
+import { createCityTraffic } from "./city-traffic";
+import type { CityLifeSnapshot } from "./real-city/snapshot";
+import { bindWorldScalePbr, createGlassCurtainWallPbr, createAshlarStonePbr, createSidewalkPaverPbr } from "./city-pbr";
 import { applyCitySurface, markCitySurface, type CitySurface } from "./city-surfaces";
 import { createTreeCanopy, createTreeTrunk, createVehicleShell, createVehicleWheel, paintLeafCluster, type VehicleKind, type VehicleShell } from "./city-forms";
 
@@ -17,8 +28,10 @@ export type CityWorld = {
   billboardSign: THREE.Mesh;
   anchors: Map<PlaceId, THREE.Vector3>;
   pickables: THREE.Object3D[];
-  animate: (seconds: number, night: boolean) => void;
+  builtSites: readonly CityBuiltSite[];
+  animate: (seconds: number, night: boolean, seasonMode?: SeasonMode, seasonState?: SeasonState) => void;
   setNight: (night: boolean) => void;
+  getLifeSnapshot?: () => CityLifeSnapshot;
   dispose: () => void;
 };
 type Part = { matrix: THREE.Matrix4; place?: PlaceId };
@@ -26,7 +39,8 @@ type Batch = { geometry: THREE.BufferGeometry; material: THREE.Material; parts: 
 type Building = Pick<CityLot, "x" | "z" | "width" | "depth" | "height" | "style"> & { id?: PlaceId };
 
 /** 米制街区、独立楼宇与公共设施。重复构件按材质实例化，避免逐窗生成对象。 */
-export function buildCityWorld(): CityWorld {
+export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
+  const detailBudget = cityDetailBudget(options.compact);
   const group = new THREE.Group();
   group.name = "SN0VV Coastal City";
   const anchors = new Map<PlaceId, THREE.Vector3>();
@@ -36,6 +50,8 @@ export function buildCityWorld(): CityWorld {
   const geometries = new Set<THREE.BufferGeometry>();
   const materials = new Set<THREE.Material>();
   const nightMaterials: { material: THREE.MeshStandardMaterial; day: number; night: number }[] = [];
+  const weather = createCityWeather();
+  const facadeInteriors = new CityFacadeInteriors();
   const transform = new THREE.Object3D();
   const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
   const cylinderGeometry = new THREE.CylinderGeometry(1, 1, 1, 12);
@@ -75,10 +91,15 @@ export function buildCityWorld(): CityWorld {
   markCitySurface(turf, "grass");
   markCitySurface(soil, "soil");
   markCitySurface(trunk, "bark");
+  markCitySurface(darkRoof, "roof");
+  markCitySurface(paleRoof, "roof");
+  markCitySurface(concrete, "concrete");
+  markCitySurface(lightStone, "concrete");
   leaves.forEach((leaf) => markCitySurface(leaf, "foliage"));
   const metal = solid("#3e494d", 0.38, 0.58);
   const railMetal = solid("#b2babd", 0.3, 0.62);
   const glass = solid("#2b5872", 0.16, 0.62);
+  glass.userData.cityGlazing = true;
   const orange = solid("#d66c38", 0.52, 0.12);
   const tailRed = solid("#ff3b30", 0.35, 0.1);
   tailRed.emissive.set("#ff2a1f");
@@ -137,6 +158,9 @@ export function buildCityWorld(): CityWorld {
     return texture;
   };
 
+  const facadeMaps = { glass: createGlassCurtainWallPbr(), stone: createAshlarStonePbr(), brick: createAshlarStonePbr() };
+  const pavingMaps = createSidewalkPaverPbr();
+  bindWorldScalePbr(pavement, pavingMaps, 3.2, 3.2, 0.32);
   const facade = (kind: "glass" | "stone" | "brick", tone: string) => {
     const lit: { on: boolean; blinds: number; warm: number }[] = [];
     const map = canvasTexture(512, 1024, (ctx) => {
@@ -278,6 +302,7 @@ export function buildCityWorld(): CityWorld {
       color: "#ffffff", map, emissiveMap, emissive: "#ffe4b5", emissiveIntensity: 0.065,
       roughness: kind === "glass" ? 0.18 : 0.78, metalness: kind === "glass" ? 0.52 : 0.04,
     });
+    value.userData.cityGlazing = kind === "glass";
     // 立面UV按实例实际米数铺设，十五米公寓与百米高楼保持同一楼层比例。
     value.onBeforeCompile = (shader) => {
       shader.vertexShader = `varying float vWall;\n${shader.vertexShader}`.replace(
@@ -296,6 +321,8 @@ export function buildCityWorld(): CityWorld {
         .replace("totalEmissiveRadiance *= emissiveColor.rgb;", "totalEmissiveRadiance *= emissiveColor.rgb * vWall;");
     };
     value.customProgramCacheKey = () => "city-facade-metres-v1";
+    bindWorldScalePbr(value, facadeMaps[kind], kind === "glass" ? 24 : 4, kind === "glass" ? 51.2 : 4, kind === "glass" ? 0.28 : 0.45);
+    if (kind === "glass") facadeInteriors.attach(value);
     materials.add(value);
     nightMaterials.push({ material: value, day: 0.055, night: 1.35 });
     return value;
@@ -426,6 +453,7 @@ export function buildCityWorld(): CityWorld {
     const material = new THREE.MeshStandardMaterial({
       color, map: leafMap, vertexColors: true, roughness: 0.92, alphaTest: 0.35, side: THREE.DoubleSide,
     });
+    markCitySurface(material, "foliage");
     materials.add(material);
     return material;
   });
@@ -705,14 +733,21 @@ export function buildCityWorld(): CityWorld {
     },
   };
 
-  const residentialBlocks = cityBlocks.filter((block) =>
-    ![...cityLots, ...civicLots].some((reserved) => reserved.x === block.x && reserved.z === block.z));
-  const residentialSummary = buildModernResidentialDistrict(baseKit, residentialBlocks);
+  const architectureStart = group.children.length;
+  const architecture = buildDetailedArchitecture(baseKit, detailBudget);
+  const residentialSummary = architecture.summary;
+  group.children.slice(architectureStart).forEach(root => root.traverse(object => {
+    if (object instanceof THREE.Mesh && ![object.material].flat().every(material => material.transparent)) pickables.push(object);
+  }));
   const housingMaterials = residentialSummary.housingMaterials;
   const houseCount = residentialSummary.apartmentCount + residentialSummary.villaCount;
   const shopCount = residentialSummary.commercialCount;
   buildingCount += residentialSummary.totalBuildings;
 
+  const terrainHeight = (x: number, z: number) => {
+    const rise = THREE.MathUtils.smoothstep(-z, 225, 480);
+    return rise * (34 + 16 * Math.sin(x * 0.008 + z * 0.003) + 12 * Math.cos(z * 0.014)) - 0.15;
+  };
   // 城区外围生态林带（避让西海岸泳池别墅特区 x∈[-258,-216] 与东侧发电/污水市政基地 x∈[220,316]）
   const woodlandPatches = [
     { x: -189, z: -222, radius: 24 }, { x: -131, z: -279, radius: 40 },
@@ -725,13 +760,27 @@ export function buildCityWorld(): CityWorld {
       const angle = random() * Math.PI * 2, distance = Math.sqrt(random()) * patch.radius;
       const x = patch.x + Math.cos(angle) * distance, z = patch.z + Math.sin(angle) * distance;
       if (z < -405 || (z > -216 && x > -82)) continue;
-      tree(x, z, 0.9 + random() * 0.85, index + i);
-      if (i % 3 === 0) part(leaves[(index + 1) % 4], crownGeometry, x + 2.4, 0.45, z - 1.5, 2.5, 0.75, 1.8);
+      tree(x, z, 0.9 + random() * 0.85, index + i, Math.max(0, terrainHeight(x, z)));
+      if (i % 3 === 0) part(canopyMaterials[(index + 1) % 4], trees[0].crown, x + 2.4, terrainHeight(x + 2.4, z - 1.5) - 0.3, z - 1.5, 0.36, 0.17, 0.28);
     }
   }
   for (const field of [{ x: -112, z: -225, w: 23, d: 17 }, { x: 8, z: -287, w: 25, d: 15 }, { x: 165, z: -247, w: 21, d: 18 }]) {
-    box(soil, field.x, 0.2, field.z, field.w, 0.12, field.d);
-    for (let row = 0; row < 6; row++) box(leaves[row % 3], field.x, 0.43, field.z - field.d * 0.4 + row * field.d * 0.16, field.w - 1.6, 0.35, 0.65);
+    const fieldGeometry = new THREE.PlaneGeometry(field.w, field.d, 12, 8);
+    fieldGeometry.rotateX(-Math.PI / 2);
+    const positions = fieldGeometry.getAttribute("position");
+    for (let i = 0; i < positions.count; i++)
+      positions.setY(i, Math.max(0.15, terrainHeight(field.x + positions.getX(i), field.z + positions.getZ(i))) + 0.05);
+    fieldGeometry.computeVertexNormals();
+    geometries.add(fieldGeometry);
+    const patch = new THREE.Mesh(fieldGeometry, soil);
+    patch.position.set(field.x, 0, field.z);
+    patch.receiveShadow = true;
+    group.add(patch);
+    for (let row = 0; row < 6; row++) for (let plant = 0; plant < 18; plant++) {
+      const x = field.x - field.w * 0.43 + plant * field.w * 0.05;
+      const z = field.z - field.d * 0.4 + row * field.d * 0.16;
+      part(canopyMaterials[row % 3], trees[0].crown, x, Math.max(0.15, terrainHeight(x, z)) - 0.15, z, 0.11, 0.07, 0.09);
+    }
   }
   for (let i = 0; i < 42; i++) {
     const side = i % 2 ? -1 : 1;
@@ -880,11 +929,7 @@ export function buildCityWorld(): CityWorld {
   const water = new THREE.Mesh(waterGeometry, waterMaterial);
   water.rotation.x = -Math.PI / 2; water.position.set(20, -0.65, 540); group.add(water);
 
-  // 紧凑北侧丘陵与林带：削减80%远景冗余顶点与实例，保障60FPS丝滑帧率
-  const terrainHeight = (x: number, z: number) => {
-    const rise = THREE.MathUtils.smoothstep(-z, 225, 480);
-    return rise * (34 + 16 * Math.sin(x * 0.008 + z * 0.003) + 12 * Math.cos(z * 0.014)) - 0.15;
-  };
+  // 丘陵与林带共享米制高度场，树根和农田实际落在坡面上。
   for (let i = 0; i < 52; i++) {
     const x = -250 + random() * 500;
     const z = -222 - random() * 95;
@@ -908,6 +953,8 @@ export function buildCityWorld(): CityWorld {
   terrainGeometry.computeVertexNormals();
   geometries.add(terrainGeometry);
   const terrainMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
+  markCitySurface(terrainMaterial, "grass");
+  applyCitySurface(terrainMaterial, "grass");
   materials.add(terrainMaterial);
   const terrain = new THREE.Mesh(terrainGeometry, terrainMaterial);
   terrain.position.z = -435; terrain.receiveShadow = true; group.add(terrain);
@@ -987,7 +1034,12 @@ export function buildCityWorld(): CityWorld {
     if (object instanceof THREE.Mesh) pickables.push(object);
   });
   group.userData.civicLandmarks = civicLandmarks;
-  const life = buildCityLife({ group, geometries, materials });
+  const commercialStart = group.children.length;
+  const commercial = buildCommercialAndCurtainWalls(cityKit);
+  group.children.slice(commercialStart).forEach((root) => root.traverse((object) => {
+    if (object instanceof THREE.Mesh && ![object.material].flat().every((material) => material.transparent)) pickables.push(object);
+  }));
+  const atmosphere = buildSeasonalAtmosphere({ group, geometries, materials });
   const firstCoastObject = group.children.length;
   const materialsBeforeCoast = new Set(materials);
   const coast = buildCityCoast(cityKit);
@@ -1019,6 +1071,12 @@ export function buildCityWorld(): CityWorld {
   });
 
   const events = buildCityEvents(cityKit);
+  const detailedEnvironment = buildDetailedEnvironment(cityKit, { sites: architecture.sites, budget: detailBudget });
+  const life = buildDetailedCityLife(cityKit, {
+    sites: architecture.sites,
+    budget: detailBudget,
+    onFootstep: detailedEnvironment.footstep,
+  });
 
   const drawBatches = new Map<string, { sources: Batch[]; pickable: boolean }>();
   for (const batch of batches.values()) {
@@ -1108,6 +1166,9 @@ export function buildCityWorld(): CityWorld {
   const signalGreen = solid("#30d158", 0.3, 0.1);
   signalGreen.emissive.set("#28cd4f");
   nightMaterials.push({ material: signalGreen, day: 0.85, night: 3.2 });
+  const signalAmber = solid("#ffc244", 0.3, 0.1);
+  signalAmber.emissive.set("#ffaf1a");
+  nightMaterials.push({ material: signalAmber, day: 0.85, night: 3.2 });
   const sirenBlue = solid("#0a84ff", 0.3, 0.1);
   sirenBlue.emissive.set("#0a84ff");
   nightMaterials.push({ material: sirenBlue, day: 0.9, night: 3.5 });
@@ -1116,11 +1177,12 @@ export function buildCityWorld(): CityWorld {
   const signalCount = Math.max(1, signalIntersections.length);
   const signalRedMesh = new THREE.InstancedMesh(boxGeometry, tailRed, signalCount);
   const signalGreenMesh = new THREE.InstancedMesh(boxGeometry, signalGreen, signalCount);
+  const signalAmberMesh = new THREE.InstancedMesh(boxGeometry, signalAmber, signalCount);
   const smokeCount = 7;
   const crashSmokeMesh = new THREE.InstancedMesh(crownGeometry, smokeMat, smokeCount);
   const strobeRedMesh = new THREE.InstancedMesh(boxGeometry, tailRed, 5);
   const strobeBlueMesh = new THREE.InstancedMesh(boxGeometry, sirenBlue, 2);
-  const dynamicSceneMeshes = [signalRedMesh, signalGreenMesh, crashSmokeMesh, strobeRedMesh, strobeBlueMesh];
+  const dynamicSceneMeshes = [signalRedMesh, signalGreenMesh, signalAmberMesh, crashSmokeMesh, strobeRedMesh, strobeBlueMesh];
   dynamicSceneMeshes.forEach((mesh) => {
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     mesh.frustumCulled = false;
@@ -1204,6 +1266,20 @@ export function buildCityWorld(): CityWorld {
       phase: random() * Math.PI * 2,
     };
   });
+  const traffic = createCityTraffic(routes, signalIntersections);
+  const trafficDetails = buildTrafficDetails(cityKit, routes, shells);
+  const trafficObstacles = routes.map((_route, index) => ({
+    x: traffic.states[index].pose.x,
+    z: traffic.states[index].pose.z,
+    radius: traffic.specifications[index].length * 0.5,
+    speed: 0,
+    heading: traffic.states[index].pose.heading,
+  }));
+  const chassisRotation = new THREE.Quaternion();
+  const chassisEuler = new THREE.Euler(0, 0, 0, "YXZ");
+  const wheelRotation = new THREE.Quaternion();
+  const wheelAxis = new THREE.Vector3(0, 1, 0);
+  const localPart = new THREE.Vector3();
   let lastNight: boolean | undefined;
   const setNight = (night: boolean) => {
     if (lastNight === night) return;
@@ -1213,9 +1289,27 @@ export function buildCityWorld(): CityWorld {
     waterMaterial.uniforms.uNight.value = night ? 1 : 0;
     lakeMaterial.uniforms.uNight.value = night ? 1 : 0;
   };
-  const animate = (seconds: number, night: boolean) => {
+  const animate = (seconds: number, night: boolean, seasonMode: SeasonMode = "auto", seasonState?: SeasonState) => {
+    const state = seasonState ?? sampleSeasonState(seconds, seasonMode);
     setNight(night);
-    life.animate(seconds);
+    weather.update(seconds, state);
+    facadeInteriors.update(seconds, night);
+    detailedEnvironment.animate(seconds, night, state);
+    atmosphere.animate(seconds, state);
+    for (let index = 0; index < trafficObstacles.length; index++) {
+      const car = traffic.states[index];
+      const obstacle = trafficObstacles[index];
+      obstacle.x = car.pose.x;
+      obstacle.z = car.pose.z;
+      obstacle.speed = car.speed;
+      obstacle.heading = car.pose.heading;
+    }
+    life.setTrafficObstacles(trafficObstacles);
+    life.animate(seconds, night, state);
+    const doorOccupants = life.getDoorOccupants();
+    architecture.setDoorOccupants(doorOccupants);
+    architecture.animate(seconds, night, state.season);
+    commercial.animate(seconds, night, doorOccupants);
     coast.animate(seconds);
     utilities.animate(seconds);
     cruise.animate(seconds);
@@ -1223,21 +1317,22 @@ export function buildCityWorld(): CityWorld {
     waterMaterial.uniforms.uTime.value = seconds;
     lakeMaterial.uniforms.uTime.value = seconds;
 
-    // 10秒周期交通信号灯切换：0..10s 东西向绿灯/南北向红灯；10..20s 东西向红灯/南北向绿灯
-    const cycle = THREE.MathUtils.euclideanModulo(seconds, 20);
-    const ewGreen = cycle < 10;
+    const signal = sampleSignalPhase(seconds, true).vehicle;
     signalIntersections.forEach((node, idx) => {
       // 悬臂红灯与绿灯位置切换高亮
-      transform.position.set(node.x + 2.5, ewGreen ? -10 : 5.38, node.z + 6.58);
+      transform.position.set(node.x + 2.5, signal === "red" ? 5.38 : -10, node.z + 6.58);
       transform.rotation.set(0, 0, 0);
       transform.scale.set(0.24, 0.24, 0.08);
       transform.updateMatrix();
       signalRedMesh.setMatrixAt(idx, transform.matrix);
 
-      transform.position.set(node.x + 3.08, ewGreen ? 5.38 : -10, node.z + 6.58);
+      transform.position.set(node.x + 3.08, signal === "green" ? 5.38 : -10, node.z + 6.58);
       transform.scale.set(0.24, 0.24, 0.08);
       transform.updateMatrix();
       signalGreenMesh.setMatrixAt(idx, transform.matrix);
+      transform.position.set(node.x + 2.79, signal === "amber" ? 5.38 : -10, node.z + 6.58);
+      transform.updateMatrix();
+      signalAmberMesh.setMatrixAt(idx, transform.matrix);
     });
 
     // 追尾事故引擎盖浓烟升腾动画 (-73.9, y, 69.4)
@@ -1280,50 +1375,30 @@ export function buildCityWorld(): CityWorld {
       strobeRedMesh.setMatrixAt(hIdx + 1, transform.matrix);
     });
 
+    const trafficStates = traffic.animate(seconds, {
+      night,
+      wetness: state.precipitation,
+      snow: state.season === "winter" ? state.precipitation : 0,
+      temperature: state.temperatureC,
+      obstacles: life.getCrossingObstacles(),
+    });
+    trafficDetails.animate(seconds, trafficStates);
+    group.userData.traffic = traffic.snapshot();
     routes.forEach((route, index) => {
-      let distance = THREE.MathUtils.euclideanModulo(route.offset + seconds * route.speed, route.totalLength);
-      let edgeIdx = 0;
-      let along = distance;
-      for (let e = 0; e < route.edges.length; e++) {
-        if (along <= route.edges[e].len || e === route.edges.length - 1) {
-          edgeIdx = e;
-          break;
-        }
-        along -= route.edges[e].len;
-      }
-      const edge = route.edges[edgeIdx];
-      const nextEdge = route.edges[(edgeIdx + 1) % route.edges.length];
-      const isHorizontal = Math.abs(edge.ux) > 0.5;
-      const redLight = isHorizontal ? !ewGreen : ewGreen;
-      const distToCorner = edge.len - along;
-
-      // 红灯停车逻辑：当车辆接近路口停止线 (9m..16m) 且当前方向为红灯时，平稳停在斑马线停止线前等待绿灯
-      if (redLight && distToCorner > 8.2 && distToCorner < 16.5) {
-        along = edge.len - 8.8;
-      }
-
-      // 车道右侧通行偏移 (2.35m)，在路口前 3.2m 内平滑转向下一条道路方向，杜绝直角瞬移和冲出路面
-      const turnZone = 3.2;
-      const turnBlend = along > edge.len - turnZone ? (along - (edge.len - turnZone)) / turnZone : 0;
-      const laneOffset = 2.35;
-      const baseX = edge.from.x + edge.ux * along + edge.uz * laneOffset;
-      const baseZ = edge.from.z + edge.uz * along - edge.ux * laneOffset;
-      const nextStartX = nextEdge.from.x + nextEdge.uz * laneOffset;
-      const nextStartZ = nextEdge.from.z - nextEdge.ux * laneOffset;
-      const x = turnBlend > 0 ? THREE.MathUtils.lerp(baseX, nextStartX, turnBlend * 0.45) : baseX;
-      const z = turnBlend > 0 ? THREE.MathUtils.lerp(baseZ, nextStartZ, turnBlend * 0.45) : baseZ;
-
-      let angleDiff = nextEdge.heading - edge.heading;
-      while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-      while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-      const angle = edge.heading + angleDiff * (turnBlend * turnBlend * (3 - 2 * turnBlend));
+      const motion = trafficStates[index];
+      const { x, z, heading: angle } = motion.pose;
 
       const shell = shells[route.shell];
       const sinA = Math.sin(angle);
       const cosA = Math.cos(angle);
+      const pitch = motion.bodyPitch;
+      const roll = motion.bodyRoll;
+      const heave = motion.bodyHeave;
+      chassisRotation.setFromEuler(chassisEuler.set(pitch, angle, roll));
       const placeLocal = (lx: number, ly: number, lz: number) => {
-        transform.position.set(x + sinA * lz + cosA * lx, 0.42 + ly, z + cosA * lz - sinA * lx);
-        transform.rotation.set(0, angle, 0);
+        localPart.set(lx, ly, lz).applyQuaternion(chassisRotation);
+        transform.position.set(x + localPart.x, 0.42 + localPart.y + heave, z + localPart.z);
+        transform.quaternion.copy(chassisRotation);
         transform.scale.set(1, 1, 1);
       };
       placeLocal(0, 0, 0);
@@ -1360,10 +1435,13 @@ export function buildCityWorld(): CityWorld {
         (lamp.tail ? taillights : lights).setMatrixAt(index * 2 + lane, transform.matrix);
       }
       shell.wheels.forEach((wheel, wheelIndex) => {
+        const contactIndex = (wheel.z > 0 ? 0 : 2) + (wheel.x > 0 ? 1 : 0);
         const wx = x + sinA * wheel.z + cosA * wheel.x;
         const wz = z + cosA * wheel.z - sinA * wheel.x;
-        transform.position.set(wx, 0.42 + shell.wheelR, wz);
-        transform.rotation.set(0, angle, Math.PI / 2);
+        transform.position.set(wx, 0.42 + shell.wheelR + motion.wheelHeights[contactIndex], wz);
+        transform.rotation.set(0, angle + motion.wheelSteering[contactIndex], Math.PI / 2);
+        wheelRotation.setFromAxisAngle(wheelAxis, -motion.travelled / shell.wheelR);
+        transform.quaternion.multiply(wheelRotation);
         transform.scale.setScalar(shell.wheelR);
         transform.updateMatrix();
         wheels.setMatrixAt(index * 4 + wheelIndex, transform.matrix);
@@ -1377,14 +1455,27 @@ export function buildCityWorld(): CityWorld {
   vehicleMeshes.forEach((mesh) => { mesh.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 5, 65), 390); });
   group.userData.buildingCount = buildingCount + 5;
   group.userData.vehicleCount = carCount;
+  materials.forEach((material) => {
+    const kind = material.userData.cityWeather ?? material.userData.citySurface;
+    if (material instanceof THREE.MeshStandardMaterial && kind)
+      weather.attach(material, kind as CitySurface);
+    for (const value of Object.values(material)) if (value instanceof THREE.Texture) textures.add(value);
+  });
   animate(0, false);
   return {
-    group, billboardSign: sign, anchors, pickables, animate, setNight,
+    group, billboardSign: sign, anchors, pickables, builtSites: architecture.sites, animate, setNight,
+    getLifeSnapshot: life.snapshot,
     dispose: () => {
+      life.dispose();
+      traffic.dispose();
+      trafficDetails.dispose();
+      detailedEnvironment.dispose();
       geometries.forEach((geometry) => geometry.dispose());
       materials.forEach((material) => material.dispose());
       textures.forEach((texture) => texture.dispose());
-      group.traverse((object) => { if (object instanceof THREE.InstancedMesh) object.dispose(); });
+      group.traverse((object) => {
+        if (object instanceof THREE.InstancedMesh || object instanceof THREE.BatchedMesh) object.dispose();
+      });
       group.clear();
       anchors.clear();
       pickables.length = 0;

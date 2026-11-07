@@ -2,8 +2,10 @@ import * as THREE from "three";
 import type { CivicKit } from "./city-civic";
 import { sampleCruiseVoyage } from "./city-cruise";
 import type { Locale } from "./site-content";
+import { buildStreetActivities, getStreetActivityIncidents } from "./city-street-events";
+import { createHead, createTorso, createUpperArm } from "./city-figure";
 
-export type IncidentKind = "fire" | "burglar" | "medical" | "utility" | "cruise" | "traffic";
+export type IncidentKind = "fire" | "burglar" | "medical" | "utility" | "cruise" | "traffic" | "life";
 
 export type ActiveCityIncident = {
   id: string;
@@ -315,9 +317,20 @@ const UTILITY_SITES: readonly UtilitySiteSpec[] = [
   },
 ];
 
+function shuffledSite(cycle: number, count: number, salt: number): number {
+  const order = Array.from({ length: count }, (_, index) => index);
+  let seed = (Math.floor(cycle / count) * 173 + salt) | 0;
+  for (let index = count - 1; index > 0; index--) {
+    seed = Math.imul(seed ^ (seed >>> 13), 1597334677);
+    const other = (seed >>> 0) % (index + 1);
+    [order[index], order[other]] = [order[other], order[index]];
+  }
+  return order[cycle % count];
+}
+
 function sampleFireIncident(seconds: number) {
   const safeT = Math.max(0, seconds);
-  const slot = Math.floor(safeT / FIRE_CYCLE) % FIRE_SITES.length;
+  const slot = shuffledSite(Math.floor(safeT / FIRE_CYCLE), FIRE_SITES.length, 19);
   const local = THREE.MathUtils.euclideanModulo(safeT, FIRE_CYCLE);
   const progress = local / FIRE_CYCLE;
   const site = FIRE_SITES[slot];
@@ -351,7 +364,7 @@ function sampleFireIncident(seconds: number) {
 
 function sampleBurglarIncident(seconds: number) {
   const safeT = Math.max(0, seconds + 11);
-  const slot = Math.floor(safeT / BURGLAR_CYCLE) % BURGLAR_SITES.length;
+  const slot = shuffledSite(Math.floor(safeT / BURGLAR_CYCLE), BURGLAR_SITES.length, 29);
   const local = THREE.MathUtils.euclideanModulo(safeT, BURGLAR_CYCLE);
   const progress = local / BURGLAR_CYCLE;
   const site = BURGLAR_SITES[slot];
@@ -396,7 +409,7 @@ function sampleBurglarIncident(seconds: number) {
 
 function sampleMedicalIncident(seconds: number) {
   const safeT = Math.max(0, seconds + 19);
-  const slot = Math.floor(safeT / MEDICAL_CYCLE) % MEDICAL_SITES.length;
+  const slot = shuffledSite(Math.floor(safeT / MEDICAL_CYCLE), MEDICAL_SITES.length, 37);
   const local = THREE.MathUtils.euclideanModulo(safeT, MEDICAL_CYCLE);
   const progress = local / MEDICAL_CYCLE;
   const site = MEDICAL_SITES[slot];
@@ -412,7 +425,7 @@ function sampleMedicalIncident(seconds: number) {
 
 function sampleUtilityIncident(seconds: number) {
   const safeT = Math.max(0, seconds + 25);
-  const slot = Math.floor(safeT / UTILITY_CYCLE) % UTILITY_SITES.length;
+  const slot = shuffledSite(Math.floor(safeT / UTILITY_CYCLE), UTILITY_SITES.length, 47);
   const local = THREE.MathUtils.euclideanModulo(safeT, UTILITY_CYCLE);
   const progress = local / UTILITY_CYCLE;
   const site = UTILITY_SITES[slot];
@@ -574,6 +587,11 @@ export function getActiveCityIncidents(seconds: number, locale: Locale): ActiveC
   ];
 }
 
+/** Daily encounters and emergency services share one clock and focus coordinates. */
+export function getCityTimeline(seconds: number, locale: Locale): ActiveCityIncident[] {
+  return [...getStreetActivityIncidents(seconds, locale), ...getActiveCityIncidents(seconds, locale)];
+}
+
 /**
  * 模拟《城市：天际线》实时市政运行遥测指标（电力、净水、排污、治安、消防、RCI需求、游轮客流）。
  */
@@ -702,6 +720,7 @@ export function getCityChirps(seconds: number, locale: Locale): CityChirpMessage
  */
 export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => void } {
   const { group, geometries, materials, nightMaterials, solid } = kit;
+  const streetActivities = buildStreetActivities(kit);
 
   const regGeo = <T extends THREE.BufferGeometry>(geo: T): T => {
     geometries.add(geo);
@@ -794,10 +813,10 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
 
   // 3. 事件角色小人批次（3名消防员 + 1名蒙面小偷 + 2名追捕特警 + 2名急救医护 + 1名患者 + 2名抢修工程师 = 11 人）
   const ACTOR_COUNT = 11;
-  const actorHeads = makeBatch("Events · actor heads", sphereGeo, skinMat, ACTOR_COUNT);
+  const actorHeads = makeBatch("Events · actor heads", regGeo(createHead().scale(2, 2, 2)), skinMat, ACTOR_COUNT);
   const actorHelmets = makeBatch("Events · actor helmets", sphereGeo, strobeRedMat, 5); // 3消防头盔 + 2工程帽
-  const actorTorsos = makeBatch("Events · actor torsos", boxGeo, ambulanceWhite, ACTOR_COUNT);
-  const actorLimbs = makeBatch("Events · actor limbs", boxGeo, tireDark, ACTOR_COUNT * 4);
+  const actorTorsos = makeBatch("Events · actor torsos", regGeo(createTorso()), ambulanceWhite, ACTOR_COUNT);
+  const actorLimbs = makeBatch("Events · actor limbs", regGeo(createUpperArm()), tireDark, ACTOR_COUNT * 4);
   const lootAndProps = makeBatch("Events · loot sack & stretcher", boxGeo, lootBagTan, 6);
 
   // 给每位事件角色躯干赋予精准职业制服颜色
@@ -929,6 +948,7 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
   };
 
   const animate = (seconds: number) => {
+    streetActivities.animate(seconds);
     const flashA = Math.sin(seconds * 15) > 0;
     const flashB = !flashA;
 
