@@ -5,6 +5,7 @@ import { angleDelta, lerp, point3, type Point3 } from "./math";
 import type { Actor, LifeContext } from "./types";
 import { LifePropRenderer } from "./render-props";
 import { createVehicleShell, createVehicleWheel, type VehicleShell } from "../../city-vehicles";
+import { SkinnedPeople, createWorldPose } from "./skinned-people";
 
 interface BodyBatch {
   mesh: THREE.InstancedMesh;
@@ -91,10 +92,14 @@ export class LifeRenderer {
   private vehicleRims: BodyBatch;
   private vehicleLamps: BodyBatch;
   private vehicleDoors: BodyBatch;
+  /** 写实蒙皮人体（CC0 模型，懒加载）；加载完成前与失败时继续使用程序化人形。 */
+  private readonly people: SkinnedPeople;
+  private readonly worldPose = createWorldPose();
 
   constructor(private readonly kit: CivicKit, maximumActors: number) {
     this.group.name = "Detailed neighborhood residents";
     kit.group.add(this.group);
+    this.people = new SkinnedPeople(this.group, maximumActors);
     const skin = kit.solid("#ffffff", 0.77, 0);
     const cloth = kit.solid("#ffffff", 0.94, 0);
     const hair = kit.solid("#ffffff", 0.96, 0);
@@ -176,11 +181,13 @@ export class LifeRenderer {
 
   render(context: LifeContext, alpha: number): void {
     for (const batch of this.batches) batch.used = 0;
+    this.people.begin();
     for (const actor of context.actors) {
       if (!actor.visible || actor.interiorId || actor.vehicleId >= 0) continue;
       this.drawActor(actor, alpha);
     }
     this.activeActor = null;
+    this.people.end();
     this.drawAnimals(context, alpha);
     this.drawVehicles(context, alpha);
     for (const batch of this.batches) {
@@ -248,6 +255,7 @@ export class LifeRenderer {
     const a = actor.appearance;
     const width = a.shoulderWidth;
     const bulk = a.winterCoat ? 1.12 : 1;
+    if (this.drawSkinned(actor)) return;
     // 写实比例：头高约为身高的 1/7.5（约 0.24 m），颈部可见，躯干厚度接近真人胸廓。
     this.local.x = p.head.x;
     this.local.y = p.head.y + HEAD_LIFT;
@@ -329,6 +337,83 @@ export class LifeRenderer {
       this.local.z += 0.012;
       this.part(this.brims, this.local, 0.135, 0.012, 0.145, a.coat);
     }
+  }
+
+  /** 头部局部偏移（右 dx、上 dy、前 dz）按点头与转头换算到居民局部坐标，配件随头部转动。 */
+  private headPoint(p: Actor["pose"], dx: number, dy: number, dz: number): Point3 {
+    const pitch = p.headPitch;
+    const y = dy * Math.cos(pitch) - dz * Math.sin(pitch);
+    const z = dy * Math.sin(pitch) + dz * Math.cos(pitch);
+    const yaw = p.headYaw;
+    this.local.x = p.head.x + dx * Math.cos(yaw) + z * Math.sin(yaw);
+    this.local.y = p.head.y + HEAD_LIFT + y;
+    this.local.z = p.head.z + z * Math.cos(yaw) - dx * Math.sin(yaw);
+    return this.local;
+  }
+
+  /** 写实人体：身体由蒙皮网格绘制，这里只补发型、帽子、眼镜与背包等配件。 */
+  private drawSkinned(actor: Actor): boolean {
+    const p = actor.pose;
+    const a = actor.appearance;
+    const w = this.worldPose;
+    this.world(p.hips, w.hips);
+    this.world(p.chest, w.chest);
+    this.local.x = p.head.x;
+    this.local.y = p.head.y + HEAD_LIFT;
+    this.local.z = p.head.z;
+    this.world(this.local, w.head);
+    this.world(p.leftShoulder, w.leftShoulder);
+    this.world(p.rightShoulder, w.rightShoulder);
+    this.world(p.leftElbow, w.leftElbow);
+    this.world(p.rightElbow, w.rightElbow);
+    this.world(p.leftHand, w.leftHand);
+    this.world(p.rightHand, w.rightHand);
+    this.world(p.leftKnee, w.leftKnee);
+    this.world(p.rightKnee, w.rightKnee);
+    this.world(p.leftAnkle, w.leftAnkle);
+    this.world(p.rightAnkle, w.rightAnkle);
+    this.local.y = p.hips.y;
+    this.local.z = p.hips.z;
+    this.local.x = p.hips.x - 0.105;
+    this.world(this.local, w.leftHip);
+    this.local.x = p.hips.x + 0.105;
+    this.world(this.local, w.rightHip);
+    w.heading = this.activeHeading;
+    w.headYaw = p.headYaw;
+    w.headPitch = p.headPitch;
+    w.leftFootPitch = p.leftFootPitch;
+    w.rightFootPitch = p.rightFootPitch;
+    w.scale = this.activeScale;
+    if (!this.people.add(w, a)) return false;
+    this.headPoint(p, 0, 0.03, -0.008);
+    const style = a.hat ? 0 : a.hairStyle;
+    const hairBatch = style === 2 ? this.hairLong : style === 3 ? this.hairBun : style === 4 ? this.hairPonytail : this.hair;
+    this.part(hairBatch, this.local, 0.178, style === 1 ? 0.19 : 0.2, style === 1 ? 0.19 : 0.2, a.hair, p.headPitch, p.headYaw);
+    if (a.skirt) {
+      this.local.x = p.hips.x;
+      this.local.y = p.hips.y - 0.17;
+      this.local.z = p.hips.z;
+      this.part(this.skirts, this.local, a.shoulderWidth * 0.82, 0.42, 0.25 * a.build, a.trousers);
+    }
+    if (a.backpack) {
+      this.local.x = p.chest.x;
+      this.local.y = p.chest.y + 0.02;
+      this.local.z = p.chest.z - 0.19 * a.build;
+      this.part(this.backpacks, this.local, 0.3, 0.38, 0.16, shirtTone(a.shoes === "#d9d6cf" ? "#46566b" : "#6b3a32"), p.chestPitch, p.chestYaw);
+    }
+    if (a.glasses) {
+      for (const side of [-1, 1]) {
+        this.headPoint(p, side * 0.034, 0.02, 0.1);
+        this.part(this.glasses, this.local, 0.026, 0.018, 0.012, "#4f4c47", p.headPitch, p.headYaw);
+      }
+    }
+    if (a.hat) {
+      this.headPoint(p, 0, 0.085, 0);
+      this.part(this.hats, this.local, 0.1, 0.09, 0.106, a.coat, p.headPitch, p.headYaw);
+      this.headPoint(p, 0, 0.081, 0.012);
+      this.part(this.brims, this.local, 0.13, 0.012, 0.14, a.coat, p.headPitch, p.headYaw);
+    }
+    return true;
   }
 
   private faceDetail(actor: Actor, side: number): void {
@@ -480,6 +565,7 @@ export class LifeRenderer {
 
   dispose(): void {
     this.props.dispose();
+    this.people.dispose();
     this.kit.group.remove(this.group);
     for (const batch of this.batches) {
       batch.mesh.removeFromParent();

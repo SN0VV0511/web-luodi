@@ -131,7 +131,7 @@ void main() {
   // Billows are darker in their cores; the underside near the fire carries its orange light.
   float shade = mix(0.55, 1.15, billow) * mix(1.0, 0.75, puff);
   vec3 color = mix(uDark, uLight, smoothstep(0.0, 1.0, vAge)) * shade * uAmbient;
-  color += uGlow * pow(1.0 - vAge, 9.0) * uGlowStrength * (0.6 + 0.4 * billow);
+  color += uGlow * pow(1.0 - vAge, 4.0) * uGlowStrength * (0.6 + 0.4 * billow);
   gl_FragColor = vec4(color, alpha);
 }
 `;
@@ -409,7 +409,7 @@ export class CityFireEffect {
     smoke.uniforms.uOrigin.value.copy(frame.origin).addScaledVector(frame.normal, 1.2).add(new THREE.Vector3(0, 2.5, 0));
     smoke.uniforms.uOpacity.value = smoking ? Math.max(0.25, frame.intensity) : 0;
     smoke.uniforms.uAmbient.value = ambient;
-    smoke.uniforms.uGlowStrength.value = frame.intensity * (frame.night ? 1.0 : 0.25);
+    smoke.uniforms.uGlowStrength.value = frame.intensity * (frame.night ? 0.55 : 0.1);
     const steam = this.steam.material as THREE.ShaderMaterial;
     steam.uniforms.uOrigin.value.copy(frame.origin).addScaledVector(frame.normal, 1.6);
     steam.uniforms.uOpacity.value = frame.spraying ? 0.5 : 0;
@@ -435,7 +435,7 @@ export class CityFireEffect {
     this.scorch.visible = frame.progress > 0.02;
 
     const flicker = 0.78 + 0.14 * Math.sin(frame.seconds * 17.3) + 0.08 * Math.sin(frame.seconds * 41.7 + 1.3);
-    this.light.intensity = burning ? frame.intensity * flicker * (frame.night ? 2200 : 600) : 0;
+    this.light.intensity = burning ? frame.intensity * flicker * (frame.night ? 1100 : 600) : 0;
     this.light.position.copy(frame.origin).addScaledVector(frame.normal, 4).add(new THREE.Vector3(0, 1.5, 0));
   }
 
