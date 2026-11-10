@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { CityFireEffect } from "./real-city/effects/fire-fx";
 import { createVehicleShell, createVehicleWheel } from "./city-vehicles";
+import { createFireEngineShell } from "./real-city/vehicles/procedural-heavy";
 import type { CivicKit } from "./city-civic";
 import { sampleCruiseVoyage } from "./city-cruise";
 import type { Locale } from "./site-content";
@@ -953,7 +954,9 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
     return entry;
   };
   // The fire engine uses the panelled truck shell (cab, arches, lamps) instead of two red boxes.
-  const engineShell = createVehicleShell("truck");
+  const truckShell = createVehicleShell("truck");
+  for (const geometry of [truckShell.body, truckShell.glass, truckShell.trim, truckShell.chrome]) geometry.dispose();
+  const engineShell = { ...truckShell, ...createFireEngineShell(truckShell) };
   const engineWheel = createVehicleWheel();
   for (const geometry of [engineShell.body, engineShell.glass, engineShell.trim, engineShell.chrome, engineWheel.tire, engineWheel.rim]) geometries.add(geometry);
   const fireEngine = new THREE.Group();

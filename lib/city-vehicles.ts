@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { createCityMesh, vehicleMeshMetadata } from "./city-mesh-assets";
+import { createBusShell, createVanShell } from "./real-city/vehicles/procedural-heavy";
 
 export type VehicleKind = "sedan" | "hatchback" | "van" | "suv" | "bus" | "truck";
 export type VehicleShell = {
@@ -19,6 +20,10 @@ export type VehicleShell = {
  * 烘焙源保留材质分组；整座城市的同类车辆通过 InstancedMesh 共享这份网格。 */
 export function createVehicleShell(kind: VehicleKind): VehicleShell {
   const metadata = vehicleMeshMetadata(kind);
+  if (kind === "bus" || kind === "van") {
+    const parts = kind === "bus" ? createBusShell(metadata) : createVanShell(metadata);
+    return { ...parts, ...metadata, wheels: metadata.wheels.map(wheel => ({ ...wheel })), lamps: metadata.lamps.map(lamp => ({ ...lamp })) };
+  }
   return {
     body: createCityMesh(`${kind}body`),
     glass: createCityMesh(`${kind}glass`),
