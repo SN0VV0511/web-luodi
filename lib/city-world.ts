@@ -22,6 +22,8 @@ import { createCityTraffic } from "./city-traffic";
 import type { CityLifeSnapshot } from "./real-city/snapshot";
 import { bindWorldScalePbr, createGlassCurtainWallPbr, createAshlarStonePbr, createSidewalkPaverPbr } from "./city-pbr";
 import { applyCitySurface, markCitySurface, type CitySurface } from "./city-surfaces";
+import { TreeField, type TreePlacement } from "./real-city/vegetation/tree-field";
+import { loadTreeModels } from "./real-city/vegetation/tree-models";
 import { createTreeCanopy, createTreeTrunk, createVehicleShell, createVehicleWheel, paintLeafCluster, type VehicleKind, type VehicleShell } from "./city-forms";
 
 export type CityWorld = {
@@ -544,13 +546,12 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
       part(light.tail ? tailRed : lamp, boxGeometry, lx, 0.42 + light.y, lz, 0.32, 0.085, 0.055, undefined, rot);
     }
   };
+  // 树木不进入静态合批：由 TreeField 以实例场绘制，加载模型后切换为两级细节的写实树。
+  const treePlacements: TreePlacement[] = [];
   const tree = (x: number, z: number, size = 1, shade = 0, y = 0) => {
     const variant = THREE.MathUtils.euclideanModulo(Math.floor(shade), 4);
-    const model = trees[variant % trees.length];
-    const yaw = shade * 0.9;
     part(soil, cylinderGeometry, x, y + 0.03, z, 1.05 * size, 0.04, 0.95 * size);
-    part(trunk, model.stem, x, y, z, size, size, size, undefined, yaw);
-    part(canopyMaterials[variant], model.crown, x, y, z, size, size, size, undefined, yaw);
+    treePlacements.push({ x, y, z, size, yaw: shade * 0.9, variant });
   };
   for (const [index, road] of ROAD_SEGMENTS.entries()) {
     const length = Math.hypot(road.x2 - road.x1, road.z2 - road.z1);
@@ -1192,6 +1193,33 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
     group.add(mesh);
   }
 
+  const treeField = new TreeField(group, treePlacements, trees, trunk, canopyMaterials);
+  group.userData.treeCount = treeField.treeCount;
+  const barkTexture = new THREE.Texture();
+  barkTexture.wrapS = barkTexture.wrapT = THREE.RepeatWrapping;
+  barkTexture.colorSpace = THREE.SRGBColorSpace;
+  const leafAtlas = new THREE.Texture();
+  leafAtlas.colorSpace = THREE.SRGBColorSpace;
+  leafAtlas.anisotropy = 4;
+  const treeBark = new THREE.MeshStandardMaterial({ name: "Tree bark", color: "#d9cfc4", map: barkTexture, vertexColors: true, roughness: 0.92 });
+  const treeLeaves = new THREE.MeshStandardMaterial({ name: "Tree leaves", color: "#ffffff", map: leafAtlas, vertexColors: true, roughness: 0.78, alphaTest: 0.42, side: THREE.DoubleSide });
+  markCitySurface(treeBark, "bark");
+  markCitySurface(treeLeaves, "foliage");
+  applyCitySurface(treeBark, "bark");
+  applyCitySurface(treeLeaves, "foliage");
+  materials.add(treeBark);
+  materials.add(treeLeaves);
+  if (canLoadCityAssets()) {
+    loadTreeModels().then((assets) => {
+      barkTexture.image = assets.barkImage;
+      barkTexture.needsUpdate = true;
+      leafAtlas.image = assets.leafImage;
+      leafAtlas.needsUpdate = true;
+      for (const model of Object.values(assets.models)) for (const geometry of [...model.bark, ...model.leaves]) geometries.add(geometry);
+      treeField.useModels(assets, treeBark, treeLeaves);
+    }).catch((error: unknown) => console.warn("[city] tree models unavailable, keeping procedural trees", error));
+  }
+
   const carCount = 60;
   const bodyMaterial = carPaint("#ffffff");
   const classify = (index: number) => {
@@ -1609,6 +1637,7 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
     group, billboardSign: sign, anchors, pickables, builtSites: architecture.sites, animate, setNight,
     getLifeSnapshot: life.snapshot,
     dispose: () => {
+      treeField.dispose();
       life.dispose();
       traffic.dispose();
       trafficDetails.dispose();
