@@ -505,7 +505,6 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
     vehicleSurfaces.add(material);
     return material;
   };
-  const parkedPaints = new Map<number, THREE.MeshPhysicalMaterial>();
   // 深色着色玻璃：车窗与车身形成真实的明暗对比，而不是与车漆同亮度的浅蓝色块。
   const vehicleGlass = solid("#1b252c", 0.05, 0.72);
   vehicleGlass.envMap = vehicleEnvironment;
@@ -526,25 +525,13 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
   const { tire: tireGeometry, rim: rimGeometry } = createVehicleWheel();
   geometries.add(tireGeometry);
   geometries.add(rimGeometry);
+  // 停放车辆单独成实例场（不进静态合批）：CC0 车型加载后整体重建为模型车壳 + 新轮位。
+  type ParkedVehicle = { kind: VehicleKind; color: THREE.Color; x: number; z: number; rot: number };
+  const parkedVehicles: ParkedVehicle[] = [];
   const placeVehicle = (shell: VehicleShell, material: THREE.Material, px: number, pz: number, rot: number) => {
-    const color = material instanceof THREE.MeshStandardMaterial ? material.color.getHex() : 0xffffff;
-    let paint = parkedPaints.get(color);
-    if (!paint) { paint = carPaint(color); parkedPaints.set(color, paint); }
-    part(paint, shell.body, px, 0.42, pz, 1, 1, 1, undefined, rot);
-    part(vehicleGlass, shell.glass, px, 0.42, pz, 1, 1, 1, undefined, rot);
-    part(vehicleTrim, shell.trim, px, 0.42, pz, 1, 1, 1, undefined, rot);
-    part(railMetal, shell.chrome, px, 0.42, pz, 1, 1, 1, undefined, rot);
-    for (const wheel of shell.wheels) {
-      const wx = px + Math.sin(rot) * wheel.z + Math.cos(rot) * wheel.x;
-      const wz = pz + Math.cos(rot) * wheel.z - Math.sin(rot) * wheel.x;
-      part(vehicleTrim, tireGeometry, wx, 0.42 + shell.wheelR, wz, shell.wheelR, shell.wheelR, shell.wheelR, undefined, rot, Math.PI / 2);
-      part(railMetal, rimGeometry, wx, 0.42 + shell.wheelR, wz, shell.wheelR, shell.wheelR, shell.wheelR, undefined, rot, Math.PI / 2);
-    }
-    for (const light of shell.lamps) {
-      const lx = px + Math.sin(rot) * light.z + Math.cos(rot) * light.x;
-      const lz = pz + Math.cos(rot) * light.z - Math.sin(rot) * light.x;
-      part(light.tail ? tailRed : lamp, boxGeometry, lx, 0.42 + light.y, lz, 0.32, 0.085, 0.055, undefined, rot);
-    }
+    const kind = (Object.keys(shells) as VehicleKind[]).find((key) => shells[key] === shell) ?? "sedan";
+    const color = material instanceof THREE.MeshStandardMaterial ? material.color.clone() : new THREE.Color(0xffffff);
+    parkedVehicles.push({ kind, color, x: px, z: pz, rot });
   };
   // 树木不进入静态合批：由 TreeField 以实例场绘制，加载模型后切换为两级细节的写实树。
   const treePlacements: TreePlacement[] = [];
@@ -1193,6 +1180,76 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
     group.add(mesh);
   }
 
+  const parkedPaint = carPaint("#ffffff");
+  const parkedGroup = new THREE.Group();
+  parkedGroup.name = "Parked vehicles";
+  group.add(parkedGroup);
+  const parkedMatrix = new THREE.Matrix4();
+  const parkedPosition = new THREE.Vector3();
+  const parkedRotation = new THREE.Quaternion();
+  const parkedScale = new THREE.Vector3();
+  const parkedEuler = new THREE.Euler();
+  const buildParkedFleet = () => {
+    for (const child of [...parkedGroup.children]) { (child as THREE.InstancedMesh).dispose(); parkedGroup.remove(child); }
+    const add = (geometry: THREE.BufferGeometry, material: THREE.Material, count: number) => {
+      const mesh = new THREE.InstancedMesh(geometry, material, Math.max(1, count));
+      mesh.count = 0;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      parkedGroup.add(mesh);
+      return mesh;
+    };
+    const put = (mesh: THREE.InstancedMesh, x: number, y: number, z: number, sx: number, sy: number, sz: number, rotY: number, rotZ = 0, color?: THREE.Color) => {
+      parkedEuler.set(0, rotY, rotZ);
+      parkedRotation.setFromEuler(parkedEuler);
+      parkedMatrix.compose(parkedPosition.set(x, y, z), parkedRotation, parkedScale.set(sx, sy, sz));
+      mesh.setMatrixAt(mesh.count, parkedMatrix);
+      if (color) mesh.setColorAt(mesh.count, color);
+      mesh.count++;
+    };
+    const wheelCount = parkedVehicles.reduce((total, car) => total + shells[car.kind].wheels.length, 0);
+    const lampCount = parkedVehicles.reduce((total, car) => total + shells[car.kind].lamps.length, 0);
+    const tires = add(tireGeometry, vehicleTrim, wheelCount);
+    const rims = add(rimGeometry, railMetal, wheelCount);
+    const heads = add(boxGeometry, lamp, lampCount);
+    const tails = add(boxGeometry, tailRed, lampCount);
+    for (const kind of Object.keys(shells) as VehicleKind[]) {
+      const cars = parkedVehicles.filter((car) => car.kind === kind);
+      if (!cars.length) continue;
+      const shell = shells[kind];
+      const body = add(shellParts[kind].body, parkedPaint, cars.length);
+      body.name = `Parked · ${kind}`;
+      const glass = add(shellParts[kind].glass, vehicleGlass, cars.length);
+      const trimMesh = add(shellParts[kind].trim, vehicleTrim, cars.length);
+      const chrome = add(shellParts[kind].chrome, railMetal, cars.length);
+      for (const car of cars) {
+        put(body, car.x, 0.42, car.z, 1, 1, 1, car.rot, 0, car.color);
+        for (const mesh of [glass, trimMesh, chrome]) put(mesh, car.x, 0.42, car.z, 1, 1, 1, car.rot);
+        const sin = Math.sin(car.rot), cos = Math.cos(car.rot);
+        for (const wheel of shell.wheels) {
+          const wx = car.x + sin * wheel.z + cos * wheel.x, wz = car.z + cos * wheel.z - sin * wheel.x;
+          put(tires, wx, 0.42 + shell.wheelR, wz, shell.wheelR, shell.wheelR, shell.wheelR, car.rot, Math.PI / 2);
+          put(rims, wx, 0.42 + shell.wheelR, wz, shell.wheelR, shell.wheelR, shell.wheelR, car.rot, Math.PI / 2);
+        }
+        for (const light of shell.lamps) {
+          const lx = car.x + sin * light.z + cos * light.x, lz = car.z + cos * light.z - sin * light.x;
+          put(light.tail ? tails : heads, lx, 0.42 + light.y, lz, 0.32, 0.085, 0.055, car.rot);
+        }
+      }
+    }
+    for (const child of parkedGroup.children) {
+      const mesh = child as THREE.InstancedMesh;
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      mesh.computeBoundingSphere();
+    }
+  };
+  const shellParts = Object.fromEntries((Object.keys(shells) as VehicleKind[]).map((kind) => [kind, {
+    body: shells[kind].body, glass: shells[kind].glass, trim: shells[kind].trim, chrome: shells[kind].chrome,
+  }])) as Record<VehicleKind, { body: THREE.BufferGeometry; glass: THREE.BufferGeometry; trim: THREE.BufferGeometry; chrome: THREE.BufferGeometry }>;
+  buildParkedFleet();
+  group.userData.parkedVehicleCount = parkedVehicles.length;
+
   const treeField = new TreeField(group, treePlacements, trees, trunk, canopyMaterials);
   group.userData.treeCount = treeField.treeCount;
   const barkTexture = new THREE.Texture();
@@ -1259,7 +1316,9 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
         shell.wheelR = model.wheelR;
         shell.wheels.splice(0, shell.wheels.length, ...model.wheels);
         shell.lamps.splice(0, shell.lamps.length, ...model.lamps);
+        shellParts[kind] = { body: model.body, glass: model.glass, trim: model.trim, chrome: model.chrome };
       }
+      buildParkedFleet();
     }).catch((error: unknown) => console.warn("[city] car models unavailable, keeping procedural shells", error));
   }
   const lights = new THREE.InstancedMesh(boxGeometry, lamp, carCount * 2);

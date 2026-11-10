@@ -14,29 +14,52 @@ import { join } from "node:path";
 import { writeContainer } from "./meshopt-container.mjs";
 
 const source = process.argv[2];
-if (!source) throw new Error("usage: build-vehicle-assets.mjs <OBJ directory>");
+const truckObjDir = process.argv[3];
+if (!source || !truckObjDir) throw new Error("usage: build-vehicle-assets.mjs <Realistic Car Pack OBJ dir> <dir with Truck.obj from glb-atlas-to-obj.py>");
 const outDir = join(process.cwd(), "public/models/vehicles");
 mkdirSync(outDir, { recursive: true });
 
-const MODELS = { sedan: "NormalCar1", hatchback: "NormalCar2", suv: "SUV" };
-const GROUP = (material) => material === "Windows" ? "glass" : material === "Black" ? "trim" : material === "Grey" || material === "Material.007" ? "chrome"
+// dir、对象内长轴（x 或 z）、目标尺寸（米，null = 保持原尺寸）与材质分组。
+const CAR_GROUP = (material) => material === "Windows" ? "glass" : material === "Black" ? "trim" : material === "Grey" || material === "Material.007" ? "chrome"
   : material === "Headlights" ? "head" : material === "TailLights" ? "tail" : "body";
+// Quaternius Public Transport「Bus」：车身三段 + 车窗 + 保险杠/细节；车灯是一个材质，按前后拆为前灯/尾灯。
+const BUS_GROUP = (material) => material === "Windows" ? "glass" : material === "Bumper" || material === "Details" ? "trim" : material === "Lights" ? "lamp" : "body";
+const MODELS = {
+  sedan: { dir: source, name: "NormalCar1", group: CAR_GROUP },
+  hatchback: { dir: source, name: "NormalCar2", group: CAR_GROUP },
+  suv: { dir: source, name: "SUV", group: CAR_GROUP },
+  // Quaternius Public Transport「Bus」(CC0, 2017) 试过：面数过低（~700 面）、车窗与车身共面，效果不如现有程序化公交，
+  // 因此公交仍用程序化车壳；保留 BUS_GROUP / alongX / size 以便替换为更好的 CC0 公交模型。
+  truck: { dir: truckObjDir, name: "Truck", group: CAR_GROUP, uniform: 1.06 },
+};
 
 const streams = {};
 const manifest = {};
-for (const [kind, name] of Object.entries(MODELS)) {
-  const text = readFileSync(join(source, `${name}.obj`), "utf8").split("\n");
+for (const [kind, spec] of Object.entries(MODELS)) {
+  const { name, group: GROUP } = spec;
+  const text = readFileSync(join(spec.dir, `${name}.obj`), "utf8").split("\n");
   const v = [], vn = [];
   const faces = []; // { object, material, corners: [[vi, ni]] }
   let object = "", material = "";
   for (const line of text) {
     const parts = line.trim().split(/\s+/);
-    if (parts[0] === "v") v.push(parts.slice(1, 4).map(Number));
-    else if (parts[0] === "vn") vn.push(parts.slice(1, 4).map(Number));
+    if (parts[0] === "v") { const p = parts.slice(1, 4).map(Number); v.push(spec.alongX ? [p[2], p[1], p[0]] : p); }
+    else if (parts[0] === "vn") { const n = parts.slice(1, 4).map(Number); vn.push(spec.alongX ? [n[2], n[1], n[0]] : n); }
     else if (parts[0] === "o") object = parts[1];
     else if (parts[0] === "usemtl") material = parts[1];
     else if (parts[0] === "f") faces.push({ object, material, corners: parts.slice(1).map((c) => { const [a, , b] = c.split("/"); return [Number(a) - 1, Number(b) - 1]; }) });
   }
+  // 尺寸：非等比缩放到目标长宽高（法线按逆转置缩放），或整体等比缩放。
+  {
+    let mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+    for (const p of v) for (let i = 0; i < 3; i++) { mn[i] = Math.min(mn[i], p[i]); mx[i] = Math.max(mx[i], p[i]); }
+    const k = spec.size ? [spec.size.width / (mx[0] - mn[0]), spec.size.height / (mx[1] - mn[1]), spec.size.length / (mx[2] - mn[2])] : [spec.uniform ?? 1, spec.uniform ?? 1, spec.uniform ?? 1];
+    const centre = [(mn[0] + mx[0]) / 2, 0, (mn[2] + mx[2]) / 2];
+    for (const p of v) for (let i = 0; i < 3; i++) p[i] = (p[i] - centre[i]) * k[i];
+    for (const n of vn) { for (let i = 0; i < 3; i++) n[i] /= k[i]; const l = Math.hypot(...n) || 1; for (let i = 0; i < 3; i++) n[i] /= l; }
+  }
+  // 单一车灯材质：前半部为前灯，后半部为尾灯（车头 +z）。
+  for (const f of faces) if (GROUP(f.material) === "lamp") f.material = f.corners.reduce((s, [a]) => s + v[a][2], 0) > 0 ? "Headlights" : "TailLights";
   // 车头朝向：前灯质心应在 +z。
   const centroid = (filter) => { let s = [0, 0, 0], n = 0; for (const f of faces) if (filter(f)) for (const [a] of f.corners) { s = s.map((x, i) => x + v[a][i]); n++; } return s.map((x) => x / Math.max(1, n)); };
   const flip = centroid((f) => f.material === "Headlights")[2] < 0;
@@ -61,7 +84,7 @@ for (const [kind, name] of Object.entries(MODELS)) {
   const lampPoints = { head: [], tail: [] };
   for (const f of faces) {
     if (/Wheel/i.test(f.object)) continue;
-    const g = GROUP(f.material);
+    const g = f.material === "Headlights" ? "head" : f.material === "TailLights" ? "tail" : GROUP(f.material);
     if (g === "head" || g === "tail") {
       for (const [a] of f.corners) lampPoints[g].push(P(v[a]));
       groups.chrome.push(f); // 灯罩本体作为镀铬/透明件，夜间发光由灯块实例负责

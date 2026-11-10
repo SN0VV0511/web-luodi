@@ -5,7 +5,7 @@ import { fetchMeshoptContainer } from "../assets/meshopt-container";
  * Quaternius「Realistic Car Pack」(CC0) 车型：由 scripts/build-vehicle-assets.mjs 烘焙为 meshopt 压缩的 cars.bin，
  * 场景就绪后懒加载，替换车流中轿车 / 两厢车 / SUV 的程序化车壳（车漆仍按实例着色，车轮仍为可转动的程序化轮胎）。
  */
-export type CarModelKind = "sedan" | "hatchback" | "suv";
+export type CarModelKind = "sedan" | "hatchback" | "suv" | "truck";
 
 export interface CarModel {
   body: THREE.BufferGeometry;

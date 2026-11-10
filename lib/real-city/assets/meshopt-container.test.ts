@@ -40,4 +40,14 @@ describe("CC0 model containers", () => {
       for (const group of ["body", "glass", "trim", "chrome"]) expect(streams.get(`${kind}.${group}.index`)!.byteLength).toBeGreaterThan(0);
     }
   });
+
+  it("ships a CC0 box truck shell for traffic and parked fleets", async () => {
+    const { meta } = await decodeMeshoptContainer<Record<string, { wheels: unknown[]; lamps: { tail: boolean }[]; length: number; width: number }>>(load("public/models/vehicles/cars.bin"));
+    expect(meta.truck.length).toBeGreaterThan(5);
+    for (const kind of ["truck"]) {
+      expect(meta[kind].wheels.length).toBeGreaterThanOrEqual(4);
+      expect(meta[kind].width).toBeLessThan(3);
+      expect(meta[kind].lamps.some((lamp) => lamp.tail)).toBe(true);
+    }
+  });
 });
