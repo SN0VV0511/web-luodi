@@ -458,6 +458,8 @@ export class SkinnedPeople {
     mesh.frustumCulled = false;
     mesh.matrixAutoUpdate = false;
     mesh.onBeforeRender = (_renderer, _scene, camera) => {
+      // 阴影（正交）与反射立方体相机不改变 LOD 观察点。
+      if (!(camera as THREE.PerspectiveCamera).isPerspectiveCamera || camera.parent?.type === "CubeCamera") return;
       this.viewer.setFromMatrixPosition(camera.matrixWorld);
     };
     this.parent.add(mesh);

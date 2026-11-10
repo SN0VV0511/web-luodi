@@ -75,7 +75,6 @@ export class TreeField {
   private ready = false;
   private assets: TreeAssets | null = null;
   private impostorState: "none" | "scheduled" | "done" = "none";
-  private nearRecompiled = false;
   private readonly impostorTargets: THREE.WebGLRenderTarget[] = [];
   private readonly impostorMaterials: THREE.Material[] = [];
   private readonly impostorGeometries: THREE.BufferGeometry[] = [];
@@ -147,10 +146,11 @@ export class TreeField {
           mesh.name = `Street trees · ${form} · LOD${level}`;
           this.group.add(mesh);
         }
-        // 只有主视角（透视相机）驱动 LOD 分配；阴影相机为正交相机，不参与。
+        // 只有主视角（透视相机）驱动 LOD 分配；阴影相机（正交）与反射立方体相机不参与。
         leafMesh.onBeforeRender = (renderer, _scene, camera) => {
           treeWind.time.value = performance.now() / 1000;
-          if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera) this.update(camera);
+          // 局部反射的立方体相机（6 个透视子相机）也会渲染树：只按主视角分配，否则每帧在探针与主相机间来回切换，近景叶冠闪烁。
+          if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera && camera.parent?.type !== "CubeCamera") this.update(camera);
           if (this.impostorState === "none" && typeof requestAnimationFrame === "function") {
             this.impostorState = "scheduled";
             // 不能在渲染调用内部切换渲染目标：下一帧开始前烘焙。
@@ -298,19 +298,6 @@ export class TreeField {
         }
         if (target.leaves.instanceColor) target.leaves.instanceColor.needsUpdate = true;
       });
-      // 实测（SwiftShader 与桌面 Chrome 均复现）：近景 LOD0 叶卡与远景共用同一材质程序时整片不显示；
-      // 第一次出现近景实例时为所有近景叶冠换上同补丁链的独立克隆材质（共享天气 / 风场 uniform）即可恢复。
-      if (counts[0] > 0 && !this.nearRecompiled) {
-        this.nearRecompiled = true;
-        const source = layer.lod[0].leaves.material as THREE.Material;
-        const near = source.clone();
-        near.name = `${source.name} · near`;
-        near.onBeforeCompile = source.onBeforeCompile;
-        const key = source.customProgramCacheKey();
-        near.customProgramCacheKey = () => `${key}|tree-near`;
-        this.impostorMaterials.push(near);
-        for (const other of this.layers) if (other.lod[0]) other.lod[0].leaves.material = near;
-      }
       if (impostor) {
         impostor.count = far;
         impostor.visible = far > 0;

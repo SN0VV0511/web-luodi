@@ -16,6 +16,8 @@ uniform mat4 viewToWorld;
 uniform vec3 upView;
 uniform float groundMax;
 uniform float strength;
+uniform vec3 envHorizon;
+uniform vec3 envZenith;
 
 vec2 project(vec3 p) {
   vec4 clip = projection * vec4(p, 1.0);
@@ -69,13 +71,22 @@ void main() {
     t *= 1.16;
     t += 0.12;
   }
-  if (hitUv.x < 0.0) { gl_FragColor = vec4(0.0); return; }
-  vec2 edge = smoothstep(vec2(0.0), vec2(0.08), hitUv) * smoothstep(vec2(0.0), vec2(0.08), 1.0 - hitUv);
-  float fade = edge.x * edge.y * (1.0 - smoothstep(30.0, 90.0, travelled));
   float cosine = clamp(dot(-V, upView), 0.0, 1.0);
   float fresnel = 0.05 + 0.95 * pow(1.0 - cosine, 5.0);
-  float weight = strength * mask * fade * mix(0.35, 1.0, fresnel);
-  vec3 reflected = texture2D(tColor, hitUv).rgb;
+  float base_weight = strength * mask * mix(0.35, 1.0, fresnel);
+  // 屏幕外 / 未命中的回退：按世界空间反射方向取天空 + 雾色渐变（近似环境探针），
+  // 避免射线一离开画面边缘反射就硬切成黑。
+  vec3 Rw = normalize((viewToWorld * vec4(R, 0.0)).xyz);
+  vec3 envColor = mix(envHorizon, envZenith, smoothstep(0.02, 0.55, Rw.y));
+  float hitFade = 0.0;
+  vec3 hitColor = envColor;
+  if (hitUv.x >= 0.0) {
+    vec2 edge = smoothstep(vec2(0.0), vec2(0.08), hitUv) * smoothstep(vec2(0.0), vec2(0.08), 1.0 - hitUv);
+    hitFade = edge.x * edge.y * (1.0 - smoothstep(30.0, 90.0, travelled));
+    hitColor = texture2D(tColor, hitUv).rgb;
+  }
+  vec3 reflected = mix(envColor, hitColor, hitFade);
+  float weight = base_weight * mix(0.55, 1.0, hitFade);
   gl_FragColor = vec4(reflected * weight, weight);
 }
 `;
@@ -118,6 +129,8 @@ export class WetReflectionPass {
       upView: { value: this.upView },
       groundMax: { value: 0.62 },
       strength: { value: 0 },
+      envHorizon: { value: new THREE.Color("#2a3446") },
+      envZenith: { value: new THREE.Color("#0b1020") },
     });
     this.streak = screenMaterial("City wet reflection streaks", streakFragment, {
       tReflection: { value: this.raw.texture },
@@ -133,8 +146,12 @@ export class WetReflectionPass {
     this.streak.uniforms.texel.value.set(1 / w, 1 / h);
   }
 
-  render(renderer: THREE.WebGLRenderer, screen: FullscreenRenderer, color: THREE.Texture, depth: THREE.DepthTexture, camera: THREE.PerspectiveCamera, strength: number): void {
+  render(renderer: THREE.WebGLRenderer, screen: FullscreenRenderer, color: THREE.Texture, depth: THREE.DepthTexture, camera: THREE.PerspectiveCamera, strength: number, horizon?: THREE.Color): void {
     const u = this.material.uniforms;
+    if (horizon) {
+      u.envHorizon.value.copy(horizon);
+      u.envZenith.value.copy(horizon).multiplyScalar(0.3);
+    }
     u.tDepth.value = depth;
     u.tColor.value = color;
     u.inverseProjection.value.copy(camera.projectionMatrixInverse);

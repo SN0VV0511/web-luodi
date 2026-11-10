@@ -177,7 +177,8 @@ export class CityRenderPipeline {
       this.output.uniforms.occlusionEnabled.value = quality.contactShadows ? 1 : 0;
       const wet = night && quality.bloom && this.wet;
       if (wet && this.wet) {
-        this.wet.render(renderer, this.screen, this.color.texture, this.color.depthTexture!, camera, 0.9);
+        this.wet.render(renderer, this.screen, this.color.texture, this.color.depthTexture!, camera, 0.9,
+          scene.fog?.color ?? (scene.background instanceof THREE.Color ? scene.background : undefined));
         this.output.uniforms.tReflection.value = this.wet.texture;
       }
       this.output.uniforms.reflectionEnabled.value = wet ? 1 : 0;
