@@ -583,7 +583,14 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
   let buildingCount = 0;
   // 街层商铺：帆布遮阳篷、店招灯箱与橱窗，颜色取自真实街景的低饱和色。
   const awnings = ["#7a3b33", "#2f4b5c", "#5d6b3a", "#8a6a3a", "#3d3f44"].map((tone) => solid(tone, 0.9, 0.02));
-  const signBoards = ["#e9e3d3", "#2d3338", "#b8402f", "#1f4f46"].map((tone) => solid(tone, 0.55, 0.08));
+  // 店招灯箱：白天是低饱和面板，夜间点亮为霓虹色（对应夜景概念图的街面霓虹）。
+  const signNeon = ["#ffd9a0", "#38d9ff", "#ff4f8b", "#6dffb0"];
+  const signBoards = ["#e9e3d3", "#2d3338", "#b8402f", "#1f4f46"].map((tone, index) => {
+    const material = solid(tone, 0.55, 0.08);
+    material.emissive.set(signNeon[index]);
+    nightMaterials.push({ material, day: 0, night: index === 0 ? 0.9 : 1.7 });
+    return material;
+  });
   const shopfront = (x: number, z: number, frontage: number, seed: number, id?: PlaceId) => {
     const awning = awnings[seed % awnings.length];
     const sign = signBoards[(seed >> 1) % signBoards.length];
