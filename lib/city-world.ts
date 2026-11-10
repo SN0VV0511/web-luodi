@@ -1539,7 +1539,7 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
     utilities.animate(seconds);
     cruise.animate(seconds);
     events.animate(seconds);
-    v3Scenes.animate(seconds, night);
+    v3Scenes.animate(seconds, night, state.precipitation);
     waterMaterial.uniforms.uTime.value = seconds;
     lakeMaterial.uniforms.uTime.value = seconds;
 

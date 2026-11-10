@@ -9,7 +9,7 @@ import type { CarModel } from "../../vehicles/car-models";
  * 大梁 / 轮拱 / 双后轮位正确，后门卷帘可开）、市政工程车。
  * 坐标约定与既有车壳一致：车头 +z，地面 y = 0。
  */
-export type ServiceKind = "police" | "taxi" | "ambulance" | "boxtruck" | "utility";
+export type ServiceKind = "police" | "taxi" | "ambulance" | "boxtruck" | "utility" | "civilian" | "foodtruck";
 
 export type ServiceShell = {
   kind: ServiceKind;
@@ -219,7 +219,7 @@ function ambulanceShell(): ServiceShell {
 }
 
 /** 警车 / 出租车：轿车车身（CC0 可替换）+ 车顶灯具。roofY / roofZ 为车顶中心。 */
-function sedanService(kind: "police" | "taxi", base: { body: THREE.BufferGeometry; glass: THREE.BufferGeometry; trim: THREE.BufferGeometry; chrome: THREE.BufferGeometry; length: number; width: number; height: number; wheelR: number; wheels: { x: number; z: number }[]; lamps: ServiceShell["lamps"] }, roofZ = -0.05): ServiceShell {
+function sedanService(kind: "police" | "taxi" | "civilian", base: { body: THREE.BufferGeometry; glass: THREE.BufferGeometry; trim: THREE.BufferGeometry; chrome: THREE.BufferGeometry; length: number; width: number; height: number; wheelR: number; wheels: { x: number; z: number }[]; lamps: ServiceShell["lamps"] }, roofZ = -0.05): ServiceShell {
   const b = new PartBuilder();
   b.add("body", base.body); b.add("glass", base.glass); b.add("trim", base.trim); b.add("chrome", base.chrome);
   const y = base.height, z = base.length * roofZ;
@@ -232,6 +232,9 @@ function sedanService(kind: "police" | "taxi", base: { body: THREE.BufferGeometr
     // 推杆护栏
     for (const by of [0.42, 0.66]) b.box("trim", base.width * 0.46, 0.05, 0.05, 0, by, base.length / 2 + 0.05);
     for (const s of [-1, 1]) b.box("trim", 0.05, 0.34, 0.05, s * base.width * 0.21, 0.55, base.length / 2 + 0.05);
+  } else if (kind === "civilian") {
+    b.box("lensA", 0.002, 0.002, 0.002, 0, y - 0.3, z);
+    b.box("lensB", 0.002, 0.002, 0.002, 0, y - 0.3, z);
   } else {
     b.box("trim", 0.62, 0.05, 0.3, 0, y + 0.03, z);
     b.box("lensA", 0.58, 0.2, 0.26, 0, y + 0.15, z);
@@ -244,7 +247,7 @@ function sedanService(kind: "police" | "taxi", base: { body: THREE.BufferGeometr
 }
 
 export function createServiceShell(kind: ServiceKind, model?: CarModel): ServiceShell {
-  if (kind === "boxtruck" || kind === "utility") return boxTruckShell(kind === "utility");
+  if (kind === "boxtruck" || kind === "utility" || kind === "foodtruck") return { ...boxTruckShell(kind === "utility"), kind };
   if (kind === "ambulance") return ambulanceShell();
   const base = model ?? createVehicleShell("sedan");
   const shell = sedanService(kind, base);
@@ -253,7 +256,7 @@ export function createServiceShell(kind: ServiceKind, model?: CarModel): Service
 }
 
 // ---------- 涂装着色器 ----------
-const LIVERY_KIND: Record<ServiceKind, number> = { police: 0, taxi: 1, ambulance: 2, boxtruck: 3, utility: 4 };
+const LIVERY_KIND: Record<ServiceKind, number> = { police: 0, taxi: 1, ambulance: 2, boxtruck: 3, utility: 4, civilian: 5, foodtruck: 6 };
 /** 侧面字样区域（车长 / 车高比例）：z0, z1, y0, y1 与图集行号。 */
 const DECALS: Record<ServiceKind, [number, number, number, number, number]> = {
   police: [-0.2, 0.18, 0.36, 0.5, 0],
@@ -261,8 +264,10 @@ const DECALS: Record<ServiceKind, [number, number, number, number, number]> = {
   ambulance: [-0.45, 0.1, 0.55, 0.72, 2],
   boxtruck: [-0.45, 0.18, 0.48, 0.82, 3],
   utility: [-0.45, 0.18, 0.5, 0.8, 4],
+  civilian: [2, 2.0001, 2, 2.0001, 0],
+  foodtruck: [-0.45, 0.18, 0.5, 0.82, 5],
 };
-const DECAL_ROWS = 5;
+const DECAL_ROWS = 6;
 
 let decalTexture: THREE.Texture | null | undefined;
 function liveryDecals(): THREE.Texture | null {
@@ -297,6 +302,10 @@ function liveryDecals(): THREE.Texture | null {
   row(4, (y) => {
     c.fillStyle = "#1f1f1f"; c.font = "800 60px 'Noto Sans SC','PingFang SC',sans-serif"; c.textAlign = "left"; c.fillText("市政抢修  CITY WORKS", 40, y + 58);
     c.fillStyle = "#1f1f1f"; for (let i = 0; i < 20; i++) { c.beginPath(); c.moveTo(i * 52, y + 128); c.lineTo(i * 52 + 26, y + 100); c.lineTo(i * 52 + 52, y + 100); c.lineTo(i * 52 + 26, y + 128); c.fill(); }
+  });
+  row(5, (y) => {
+    c.fillStyle = "#7a2e12"; c.font = "900 70px 'Noto Sans SC','PingFang SC',Arial,sans-serif"; c.textAlign = "left"; c.fillText("街角煎饼  CRÊPES", 40, y + 60);
+    c.fillStyle = "#e8a33c"; for (let i = 0; i < 16; i++) { c.beginPath(); c.arc(32 + i * 64, y + 118, 24, Math.PI, 0); c.fill(); }
   });
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -359,6 +368,10 @@ ${decal ? "uniform sampler2D uLiveryDecal;" : ""}`)
   col = vec3(0.92, 0.62, 0.1);
   float hz = step(0.5, fract((p.z + p.y) * 1.4));
   col = mix(col, mix(vec3(0.95, 0.95, 0.9), vec3(0.8, 0.1, 0.08), hz), step(0.36, yt) * step(yt, 0.42) * step(zt, 0.2) * side);` : ""}
+  ${LIVERY_KIND[kind] === 6 ? `
+  // 餐车：奶油色车身 + 薄荷绿下沿
+  col = mix(vec3(0.95, 0.9, 0.78), vec3(0.42, 0.72, 0.62), step(yt, 0.36) * side);
+  col = mix(col, tint, step(0.21, zt));` : ""}
   ${decal ? `
   if (abs(n.x) > 0.6) {
     float u = (zt - uLiveryRect.x) / (uLiveryRect.y - uLiveryRect.x);
@@ -383,7 +396,7 @@ const sharedMaterials = {
   chrome: new THREE.MeshStandardMaterial({ name: "v3 service chrome", color: "#c9cfd2", roughness: 0.22, metalness: 0.9 }),
   tire: new THREE.MeshStandardMaterial({ name: "v3 service tire", color: "#151719", roughness: 0.9 }),
 };
-const LENS_COLORS: Record<ServiceKind, [string, string]> = { police: ["#ff2a1f", "#1f6dff"], taxi: ["#ffe07a", "#ffe07a"], ambulance: ["#ff2a1f", "#1f6dff"], boxtruck: ["#ffb020", "#ffb020"], utility: ["#ffb020", "#ffb020"] };
+const LENS_COLORS: Record<ServiceKind, [string, string]> = { civilian: ["#222222", "#222222"], foodtruck: ["#ffb020", "#ffb020"], police: ["#ff2a1f", "#1f6dff"], taxi: ["#ffe07a", "#ffe07a"], ambulance: ["#ff2a1f", "#1f6dff"], boxtruck: ["#ffb020", "#ffb020"], utility: ["#ffb020", "#ffb020"] };
 
 export class ServiceVehicle {
   readonly group = new THREE.Group();
@@ -454,7 +467,7 @@ export class ServiceVehicle {
 
   /** CC0 轿车模型就绪后替换警车 / 出租车车身。 */
   upgrade(model: CarModel): void {
-    if (this.kind !== "police" && this.kind !== "taxi") return;
+    if (this.kind !== "police" && this.kind !== "taxi" && this.kind !== "civilian") return;
     const next = createServiceShell(this.kind, model);
     for (const key of ["body", "glass", "trim", "chrome", "lensA", "lensB"] as const) {
       this.meshes[key].geometry.dispose();

@@ -8,7 +8,7 @@ import { SHOPS } from "./palette";
 
 type Face = "S" | "N" | "E" | "W";
 type Slot = { type: Archetype; x: number; z: number; w: number; d: number; face: Face };
-export type BlockLayout = "suburban4" | "suburban6" | "rows" | "rowsMixed" | "mainStreet" | "cafeRow" | "mixedBlock" | "downtown" | "downtown2" | "offices" | "industrial" | "church" | "gas" | "apartments";
+export type BlockLayout = "suburban4" | "suburban6" | "rows" | "rowsMixed" | "mainStreet" | "cafeRow" | "mixedBlock" | "downtown" | "downtown2" | "offices" | "industrial" | "church" | "gas" | "apartments" | "construction";
 
 const H = 14.3;
 const FULL = H * 2;
@@ -51,6 +51,8 @@ export const BLOCK_LAYOUTS: Record<BlockLayout, Slot[]> = {
     { type: "cafe", x: H / 2, z: H / 2, w: H, d: H, face: "S" }, { type: "lowrise", x: H / 2, z: -H / 2, w: H, d: H, face: "N" },
   ],
   apartments: [{ type: "lowrise", x: 0, z: H / 2, w: FULL, d: H, face: "S" }, { type: "midrise", x: 0, z: -H / 2, w: FULL, d: H, face: "N" }],
+  /** 北半块留给在建工地（塔吊与框架由 v3 场景层绘制）。 */
+  construction: [{ type: "mixed", x: 0, z: H / 2, w: FULL, d: H, face: "S" }],
 };
 
 /** 21 个空余街区的布局：西城以住宅、教堂、加油站为主，东城为商务塔楼与物流，北城学院区混合。 */
@@ -58,7 +60,7 @@ export const BLOCK_ASSIGNMENT: Record<string, BlockLayout> = {
   "-187.5,-137.5": "suburban4", "-142.5,-137.5": "rows", "-142.5,-92.5": "church", "-97.5,-92.5": "mainStreet",
   "-187.5,-47.5": "suburban6", "-97.5,-47.5": "mixedBlock", "-142.5,-2.5": "rowsMixed", "-142.5,42.5": "gas",
   "97.5,-92.5": "offices", "187.5,-92.5": "industrial", "142.5,-47.5": "downtown", "97.5,-2.5": "cafeRow",
-  "142.5,-2.5": "downtown2", "187.5,42.5": "mixedBlock",
+  "142.5,-2.5": "downtown2", "187.5,42.5": "construction",
   "-52.5,-182.5": "suburban4", "127.5,-182.5": "rows", "172.5,-182.5": "industrial", "-52.5,-137.5": "rowsMixed",
   "-7.5,-137.5": "mainStreet", "82.5,-137.5": "apartments", "172.5,-137.5": "suburban6",
 };
