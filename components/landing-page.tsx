@@ -37,6 +37,8 @@ import {
   Search,
   Sparkles,
   Sun,
+  Sunset,
+  Aperture,
   X,
 } from "lucide-react";
 import { cityBuildings, safeAppUrl, type PlaceId } from "@/lib/city-content";
@@ -72,6 +74,9 @@ type Filter = "all" | "occupied" | "vacant";
 export function LandingPage(): ReactNode {
   const [locale, setLocale] = useState<Locale>("zh");
   const [night, setNight] = useState(false);
+  const [golden, setGolden] = useState(false);
+  const [tiltShift, setTiltShift] = useState(false);
+  const timeOfDay = night ? "night" : golden ? "golden" : "day";
   const [seasonMode, setSeasonMode] = useState<SeasonMode>("auto");
   const [paused, setPaused] = useState(false);
   const [touring, setTouring] = useState(false);
@@ -278,6 +283,8 @@ export function LandingPage(): ReactNode {
           selectionKey={selectionKey}
           onSelect={selectPlace}
           night={night}
+          timeOfDay={timeOfDay}
+          tiltShift={tiltShift}
           seasonMode={seasonMode}
           paused={paused}
           resetKey={resetKey}
@@ -1268,10 +1275,35 @@ export function LandingPage(): ReactNode {
                 : t("切换到夜景", "Switch to night")
             }
             aria-pressed={night}
-            onClick={() => setNight((value) => !value)}
+            onClick={() => {
+              // Leaving the night returns to the warm evening light the button promises.
+              if (night) setGolden(true);
+              setNight((value) => !value);
+            }}
           >
             {night ? <Moon size={18} /> : <Sun size={19} />}
-            <span>{night ? t("夜景", "Night") : t("黄昏", "Sunset")}</span>
+            <span>{night ? t("夜景", "Night") : golden ? t("黄昏", "Sunset") : t("白天", "Day")}</span>
+          </button>
+          <button
+            type="button"
+            aria-label={golden && !night ? t("切换到白天", "Switch to daylight") : t("切换到黄金时刻", "Switch to golden hour")}
+            aria-pressed={golden && !night}
+            onClick={() => {
+              setGolden(night ? true : (value) => !value);
+              setNight(false);
+            }}
+          >
+            <Sunset size={18} />
+            <span>{t("光线", "Light")}</span>
+          </button>
+          <button
+            type="button"
+            aria-label={t("移轴微缩镜头", "Tilt-shift lens")}
+            aria-pressed={tiltShift}
+            onClick={() => setTiltShift((value) => !value)}
+          >
+            <Aperture size={18} />
+            <span>{t("移轴", "Tilt")}</span>
           </button>
           <button
             type="button"

@@ -6,6 +6,10 @@ import { cityOutputFragment } from "./output-shader";
 import type { RenderQuality } from "./quality";
 import { CityAntialiasPass } from "./antialias";
 import { CityEyeAdaptation } from "./exposure";
+import { CityTiltShiftPass } from "./tilt-shift";
+import { TIME_OF_DAY_GRADES, type CityGrade } from "./time-of-day";
+
+export type CityLook = { grade: CityGrade; tiltShift: boolean };
 
 export type RenderStatistics = {
   calls: number;
@@ -26,6 +30,7 @@ export class CityRenderPipeline {
   private readonly output: THREE.ShaderMaterial | null;
   private readonly antialias: CityAntialiasPass | null;
   private readonly adaptation: CityEyeAdaptation | null;
+  private readonly tilt: CityTiltShiftPass | null;
   private readonly white: THREE.DataTexture;
   private readonly black: THREE.DataTexture;
   private readonly viewport = new THREE.Vector4();
@@ -56,6 +61,7 @@ export class CityRenderPipeline {
       this.output = null;
       this.antialias = null;
       this.adaptation = null;
+      this.tilt = null;
       return;
     }
     this.color = screenTarget("City HDR scene", 1, 1, true);
@@ -70,6 +76,7 @@ export class CityRenderPipeline {
     this.bloom = new CityBloomPass();
     this.antialias = new CityAntialiasPass(compact);
     this.adaptation = new CityEyeAdaptation();
+    this.tilt = new CityTiltShiftPass();
     this.output = screenMaterial("City photographic output", cityOutputFragment, {
       tColor: { value: this.color.texture },
       tOcclusion: { value: this.white },
@@ -81,6 +88,22 @@ export class CityRenderPipeline {
       ditherStrength: { value: 0.8 },
       resolution: { value: new THREE.Vector2(1, 1) },
       tExposure: { value: this.white },
+      tDepth: { value: this.color.depthTexture },
+      tBlur: { value: this.black },
+      cameraNear: { value: 0.8 },
+      cameraFar: { value: 4000 },
+      hazeColor: { value: new THREE.Color() },
+      hazeDensity: { value: 0 },
+      hazeStart: { value: 140 },
+      hazeMax: { value: 0.7 },
+      saturation: { value: 1 },
+      contrast: { value: 1 },
+      shadowTint: { value: new THREE.Color(0.5, 0.5, 0.5) },
+      highlightTint: { value: new THREE.Color(1, 1, 1) },
+      vignette: { value: 0 },
+      tiltShift: { value: 0 },
+      focusDistance: { value: 100 },
+      focusY: { value: 0.45 },
     });
   }
 
@@ -95,12 +118,13 @@ export class CityRenderPipeline {
     this.contact?.resize(width, height);
     this.bloom?.resize(width, height);
     this.antialias?.resize(width, height);
+    this.tilt?.resize(width, height);
     this.output?.uniforms.resolution.value.set(width, height);
     this.statistics.width = width;
     this.statistics.height = height;
   }
 
-  render(scene: THREE.Scene, camera: THREE.PerspectiveCamera, quality: RenderQuality, night: boolean): void {
+  render(scene: THREE.Scene, camera: THREE.PerspectiveCamera, quality: RenderQuality, night: boolean, look?: CityLook): void {
     if (this.disposed) return;
     const renderer = this.renderer;
     const previousAutoReset = renderer.info.autoReset;
@@ -144,7 +168,26 @@ export class CityRenderPipeline {
         this.output.uniforms.tBloomFar.value = this.black;
       }
       this.output.uniforms.occlusionEnabled.value = quality.contactShadows ? 1 : 0;
-      this.output.uniforms.bloomStrength.value = quality.bloom ? (night ? 0.14 : 0.045) : 0;
+      const grade = look?.grade ?? TIME_OF_DAY_GRADES[night ? "night" : "day"];
+      const uniforms = this.output.uniforms;
+      uniforms.bloomStrength.value = quality.bloom ? (night ? 0.14 : 0.06) * grade.bloom : 0;
+      uniforms.cameraNear.value = camera.near;
+      uniforms.cameraFar.value = camera.far;
+      uniforms.hazeColor.value.copy(grade.hazeColor);
+      uniforms.hazeDensity.value = grade.hazeDensity;
+      uniforms.hazeMax.value = grade.hazeMax;
+      uniforms.saturation.value = grade.saturation;
+      uniforms.contrast.value = grade.contrast;
+      uniforms.shadowTint.value.copy(grade.shadowTint);
+      uniforms.highlightTint.value.copy(grade.highlightTint);
+      uniforms.vignette.value = grade.vignette;
+      const tilting = Boolean(look?.tiltShift && this.tilt);
+      uniforms.tiltShift.value = tilting ? 1 : 0;
+      if (tilting && this.tilt) {
+        this.tilt.render(renderer, this.screen, this.color.texture);
+        uniforms.tBlur.value = this.tilt.texture;
+        uniforms.focusDistance.value = this.focusDistance(camera);
+      }
       this.output.uniforms.exposure.value = renderer.toneMappingExposure;
       this.screen.render(renderer, this.output, this.antialias?.input ?? previousTarget);
       this.antialias?.render(renderer, this.screen, this.color.depthTexture!, camera, previousTarget);
@@ -176,8 +219,17 @@ export class CityRenderPipeline {
     this.output?.dispose();
     this.antialias?.dispose();
     this.adaptation?.dispose();
+    this.tilt?.dispose();
     this.white.dispose();
     this.black.dispose();
+  }
+
+  /** Focus on the orbit target plane: the camera looks at it, so its distance is the lens focus. */
+  focusTarget: THREE.Vector3 | null = null;
+
+  private focusDistance(camera: THREE.PerspectiveCamera): number {
+    if (this.focusTarget) return camera.position.distanceTo(this.focusTarget);
+    return 120;
   }
 
   private captureStatistics(): void {

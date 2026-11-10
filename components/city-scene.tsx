@@ -22,9 +22,11 @@ import { CityPickingIndex } from "@/lib/real-city/render/picking";
 import { CityCameraSafety } from "@/lib/real-city/render/camera-safety";
 import { CityLocalReflections } from "@/lib/real-city/render/local-reflections";
 import { CityGlassOptics } from "@/lib/real-city/render/glass-optics";
+import { CityNightWindows } from "@/lib/real-city/render/night-windows";
 import { configureCityMaterialSampling } from "@/lib/real-city/render/material-sampling";
 import { CityGpuTimer } from "@/lib/real-city/render/gpu-timer";
 import { CityModelVisibility } from "@/lib/real-city/render/model-batches";
+import { TIME_OF_DAY_GRADES, goldenHourLighting, type TimeOfDay } from "@/lib/real-city/render/time-of-day";
 
 type CityView = "aerial" | "district" | "street";
 type CitySceneProps = {
@@ -32,6 +34,10 @@ type CitySceneProps = {
   selectionKey: number;
   onSelect: (id: PlaceId) => void;
   night: boolean;
+  /** Lighting preset; night is still driven by the night flag for every animated subsystem. */
+  timeOfDay?: TimeOfDay;
+  /** Optional miniature-lens depth of field. */
+  tiltShift?: boolean;
   seasonMode?: SeasonMode;
   paused: boolean;
   resetKey: number;
@@ -314,6 +320,8 @@ export default function CityScene(props: CitySceneProps) {
     const cameraSafety = new CityCameraSafety(world.builtSites);
     const localReflections = new CityLocalReflections(renderer, scene, world.builtSites, compactDisplay);
     const glassOptics = new CityGlassOptics(scene);
+    const nightWindows = new CityNightWindows(scene);
+    container.dataset.nightWindows = String(nightWindows.count);
     const materialSampling = configureCityMaterialSampling(scene, renderer, compactDisplay);
     container.dataset.filteredTextures = String(materialSampling.textures);
     const gpuTimer = new CityGpuTimer(renderer);
@@ -513,36 +521,60 @@ export default function CityScene(props: CitySceneProps) {
       flyTo(position, target);
     }
 
+    function timeOfDay(): TimeOfDay {
+      if (current.current.night) return "night";
+      return current.current.timeOfDay === "golden" ? "golden" : "day";
+    }
+
     function applySeasonLighting() {
       const night = current.current.night;
+      const mode = timeOfDay();
       const state = sampleSeasonState(worldTime, current.current.seasonMode ?? "auto");
       hemisphere.color.set(night ? "#6889be" : "#d8ecff");
       hemisphere.groundColor.set(night ? "#1b2838" : "#647a5e");
-      hemisphere.intensity = night ? 0.65 : 0.78;
+      hemisphere.intensity = night ? 0.72 : 0.78;
       sun.color.copy(state.sunColor);
-      if (night) sun.color.set("#9cb8e4");
+      if (night) sun.color.set("#8fb0e6");
       seasonSunOffset.copy(state.sunPosition);
-      sun.position.copy(seasonSunOffset).add(sun.target.position);
-      sun.intensity = night ? 0.48 : state.sunIntensity;
-      fill.intensity = night ? 0.24 : 0.3;
-      renderer.toneMappingExposure = night ? 0.94 : 1.04;
-      scene.environmentIntensity = night ? 0.25 : 0.62;
+      sun.intensity = night ? 0.32 : state.sunIntensity;
+      fill.intensity = night ? 0.16 : 0.3;
+      renderer.toneMappingExposure = night ? 1.08 : 1.04;
+      scene.environmentIntensity = night ? 0.3 : 0.62;
       fog.color.copy(state.fogDayColor);
       if (night) fog.color.set("#0e1d34");
-      fog.density = night ? 0.00095 : state.fogDensity;
+      fog.density = night ? 0.0011 : state.fogDensity;
       skyUniforms.zenith.value.copy(state.skyZenith);
       skyUniforms.horizon.value.copy(state.skyHorizon);
+      skyUniforms.ground.value.set(night ? "#112238" : "#9fb2c0");
+      if (mode === "golden") {
+        const golden = goldenHourLighting();
+        seasonSunOffset.copy(golden.sunDirection).multiplyScalar(state.sunPosition.length());
+        sun.color.copy(golden.sunColor);
+        sun.intensity = golden.sunIntensity;
+        hemisphere.color.copy(golden.hemisphereSky);
+        hemisphere.groundColor.copy(golden.hemisphereGround);
+        hemisphere.intensity = golden.hemisphereIntensity;
+        fill.intensity = golden.fillIntensity;
+        renderer.toneMappingExposure = golden.exposure;
+        scene.environmentIntensity = golden.environmentIntensity;
+        fog.color.copy(golden.fogColor);
+        fog.density = golden.fogDensity;
+        skyUniforms.zenith.value.copy(golden.skyZenith);
+        skyUniforms.horizon.value.copy(golden.skyHorizon);
+        skyUniforms.ground.value.copy(golden.skyGround);
+      }
+      sun.position.copy(seasonSunOffset).add(sun.target.position);
       skyUniforms.sunDirection.value.copy(seasonSunOffset).normalize();
       skyUniforms.sunColor.value.copy(sun.color);
-      skyUniforms.ground.value.set(night ? "#112238" : "#9fb2c0");
       skyUniforms.night.value = night ? 1 : 0;
-      environment.update(scene, state, night, worldTime);
+      environment.update(scene, state, night, worldTime, mode);
       return state;
     }
 
     function applyLighting() {
       const night = current.current.night;
       applySeasonLighting();
+      nightWindows.update(night, worldTime);
       lastAnimatedTime = -1;
       world.setNight(night);
       if (reducedMotion.matches && flight) {
@@ -683,6 +715,7 @@ export default function CityScene(props: CitySceneProps) {
         }
         world.animate(worldTime, current.current.night, current.current.seasonMode, season);
         glassOptics.update(worldTime, season);
+        nightWindows.update(current.current.night, worldTime);
         if (container) {
           container.dataset.season = season.season;
           container.dataset.weather = season.weather.en;
@@ -710,12 +743,13 @@ export default function CityScene(props: CitySceneProps) {
       if (shadow.needsUpdate) renderer.shadowMap.needsUpdate = true;
       if (!cameraInteracting) {
         localReflections.update(camera, controls.target, now,
-          `${current.current.night}:${container?.dataset.season}:${container?.dataset.weather}`,
+          `${timeOfDay()}:${container?.dataset.season}:${container?.dataset.weather}`,
           renderQuality.state.bloom);
       }
       gpuTimer.begin();
       try {
-        renderPipeline.render(scene, camera, renderQuality.state, current.current.night);
+        renderPipeline.focusTarget = controls.target;
+        renderPipeline.render(scene, camera, renderQuality.state, current.current.night, { grade: TIME_OF_DAY_GRADES[timeOfDay()], tiltShift: Boolean(current.current.tiltShift) });
       } finally {
         gpuTimer.end();
       }
@@ -984,9 +1018,21 @@ export default function CityScene(props: CitySceneProps) {
       },
     };
     // 截图与视觉回归用：仅在 URL 带 ?debugCamera 时暴露相机定位接口。
-    const debugWindow = window as unknown as { __cityCamera?: (position: number[], target: number[]) => void; __cityScene?: THREE.Scene };
+    const debugWindow = window as unknown as {
+      __cityCamera?: (position: number[], target: number[]) => void;
+      __cityScene?: THREE.Scene;
+      __cityPick?: (x: number, y: number) => unknown;
+    };
     if (new URLSearchParams(window.location.search).has("debugCamera")) {
       debugWindow.__cityScene = scene;
+      debugWindow.__cityPick = (x, y) => {
+        const ray = new THREE.Raycaster();
+        ray.setFromCamera(new THREE.Vector2(x * 2 - 1, 1 - y * 2), camera);
+        return ray.intersectObjects(scene.children, true).slice(0, 3).map((hit) => {
+          const material = (Array.isArray((hit.object as THREE.Mesh).material) ? ((hit.object as THREE.Mesh).material as THREE.Material[])[0] : (hit.object as THREE.Mesh).material) as THREE.MeshStandardMaterial;
+          return { name: hit.object.name, type: hit.object.type, material: material?.name, materialType: material?.type, emissiveMap: Boolean(material?.emissiveMap), map: Boolean(material?.map), emissive: material?.emissive?.getHexString?.(), intensity: material?.emissiveIntensity, distance: hit.distance, instance: hit.instanceId, point: hit.point.toArray().map((v) => Math.round(v)) };
+        });
+      };
       debugWindow.__cityCamera = (position, target) => {
         flyTo(new THREE.Vector3(position[0], position[1], position[2]), new THREE.Vector3(target[0], target[1], target[2]), true);
         controls.minDistance = 0.5;
@@ -1075,7 +1121,7 @@ export default function CityScene(props: CitySceneProps) {
     };
   }, []);
 
-  useEffect(() => { sceneRef.current?.update(); }, [props.night, props.paused, props.labelsVisible, props.touring, props.locale, props.seasonMode]);
+  useEffect(() => { sceneRef.current?.update(); }, [props.night, props.timeOfDay, props.tiltShift, props.paused, props.labelsVisible, props.touring, props.locale, props.seasonMode]);
   useEffect(() => { sceneRef.current?.syncFloor(); }, [props.activeFloorIndex]);
   useEffect(() => { sceneRef.current?.inspect(); }, [props.experienceChapter]);
   useEffect(() => { if (props.experienceReplayKey) sceneRef.current?.inspect(true); }, [props.experienceReplayKey]);

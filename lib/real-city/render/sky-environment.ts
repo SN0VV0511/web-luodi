@@ -23,12 +23,12 @@ export class CitySkyEnvironment {
     return this.target.texture;
   }
 
-  update(scene: THREE.Scene, state: SeasonState, night: boolean, seconds: number): boolean {
+  update(scene: THREE.Scene, state: SeasonState, night: boolean, seconds: number, mode = night ? "night" : "day"): boolean {
     if (this.disposed) return false;
     const blendBucket = Math.round(state.blend * 4);
-    const signature = `${night ? 1 : 0}:${state.season}:${state.nextSeason}:${blendBucket}`;
+    const signature = `${night ? 1 : 0}:${mode}:${state.season}:${state.nextSeason}:${blendBucket}`;
     if (signature === this.signature) return false;
-    const nightChanged = this.signature !== "" && this.signature[0] !== (night ? "1" : "0");
+    const nightChanged = this.signature !== "" && this.signature.split(":").slice(0, 2).join(":") !== `${night ? 1 : 0}:${mode}`;
     if (!nightChanged && seconds >= this.lastUpdate && seconds - this.lastUpdate < 2) return false;
     const replacement = this.generate();
     const previous = this.target;

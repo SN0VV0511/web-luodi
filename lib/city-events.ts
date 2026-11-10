@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { CityFireEffect } from "./real-city/effects/fire-fx";
+import { createVehicleShell, createVehicleWheel } from "./city-vehicles";
 import type { CivicKit } from "./city-civic";
 import { sampleCruiseVoyage } from "./city-cruise";
 import type { Locale } from "./site-content";
@@ -842,6 +844,61 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
   lootAndProps.setColorAt(2, tmpColor.set("#e0382d"));
   [3, 4, 5].forEach((i) => lootAndProps.setColorAt(i, tmpColor.set("#eb6a24")));
 
+  // GPU fire replaces the cone flames, sphere smoke and droplet water of the first version.
+  for (const legacy of [flameOuterMesh, flameCoreMesh, fireSmokeMesh, fireSteamMesh]) legacy.visible = false;
+  const fireFx = new CityFireEffect();
+  fireFx.register(materials, geometries);
+  group.add(fireFx.group);
+  const facadeCache = new Map<string, { origin: THREE.Vector3; normal: THREE.Vector3 }>();
+  const facadeRay = new THREE.Raycaster();
+  const facadeFor = (site: FireSiteSpec) => {
+    const cached = facadeCache.get(site.id);
+    if (cached) return cached;
+    // Find the real wall behind the authored fire point so flames come out of windows, not mid-air.
+    const towardStreet = new THREE.Vector3(site.truckParkX - site.fireX, 0, site.truckParkZ - site.fireZ);
+    const normal = Math.abs(towardStreet.x) > Math.abs(towardStreet.z)
+      ? new THREE.Vector3(Math.sign(towardStreet.x), 0, 0) : new THREE.Vector3(0, 0, Math.sign(towardStreet.z) || 1);
+    const origin = new THREE.Vector3(site.fireX, site.fireY, site.fireZ);
+    facadeRay.set(origin.clone().addScaledVector(normal, 14), normal.clone().negate());
+    facadeRay.far = 26;
+    const hits = facadeRay.intersectObjects(group.children.filter((child) => child !== fireFx.group), true);
+    const wall = hits.find((hit) => {
+      const material = (hit.object as THREE.Mesh).material as THREE.Material;
+      if (!hit.face || Array.isArray(material) || material.transparent || /tree|canopy|leaf|crown|life|traffic|event/i.test(hit.object.name)) return false;
+      const worldNormal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
+      return worldNormal.dot(normal) > 0.7;
+    });
+    if (wall) origin.copy(wall.point).setY(site.fireY);
+    const entry = { origin, normal };
+    facadeCache.set(site.id, entry);
+    return entry;
+  };
+  // The fire engine uses the panelled truck shell (cab, arches, lamps) instead of two red boxes.
+  const engineShell = createVehicleShell("truck");
+  const engineWheel = createVehicleWheel();
+  for (const geometry of [engineShell.body, engineShell.glass, engineShell.trim, engineShell.chrome, engineWheel.tire, engineWheel.rim]) geometries.add(geometry);
+  const fireEngine = new THREE.Group();
+  fireEngine.name = "Events · fire engine";
+  for (const [geometry, material] of [[engineShell.body, fireTruckRed], [engineShell.glass, windshieldMat], [engineShell.trim, tireDark], [engineShell.chrome, ladderSilver]] as const) {
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    fireEngine.add(mesh);
+  }
+  for (const wheel of engineShell.wheels) {
+    for (const [geometry, material] of [[engineWheel.tire, tireDark], [engineWheel.rim, ladderSilver]] as const) {
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(wheel.x, engineShell.wheelR, wheel.z);
+      mesh.rotation.set(0, 0, Math.PI / 2);
+      mesh.scale.setScalar(engineShell.wheelR);
+      fireEngine.add(mesh);
+    }
+  }
+  fireEngine.scale.setScalar(1.08);
+  group.add(fireEngine);
+  const fireNozzle = new THREE.Vector3();
+  const fireHose = new THREE.Vector3();
+
   const allMeshes = [
     flameOuterMesh, flameCoreMesh, fireSmokeMesh, fireSteamMesh, waterJetMesh,
     fireEngineBody, fireEngineLadder, policeCruiserBody, ambulanceBody, utilityVanBody,
@@ -1010,12 +1067,12 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
     dummy.rotation.set(0, fSite.truckHeading, 0);
     dummy.scale.set(2.35, 2.25, 2.2);
     dummy.updateMatrix();
-    fireEngineBody.setMatrixAt(0, dummy.matrix);
+    hideInstance(fireEngineBody, 0);
     // 水罐车体
     dummy.position.set(fire.truckX - fSin * 1.15, 1.72, fire.truckZ - fCos * 1.15);
     dummy.scale.set(2.42, 2.35, 4.6);
     dummy.updateMatrix();
-    fireEngineBody.setMatrixAt(1, dummy.matrix);
+    hideInstance(fireEngineBody, 1);
     hideInstance(fireEngineBody, 2);
 
     // 消防车前风挡
@@ -1023,7 +1080,7 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
     dummy.rotation.set(0, fSite.truckHeading, 0);
     dummy.scale.set(2.05, 0.88, 0.08);
     dummy.updateMatrix();
-    emergencyGlass.setMatrixAt(0, dummy.matrix);
+    hideInstance(emergencyGlass, 0);
 
     // 消防云梯（到场后自动仰起瞄准着火点！）
     const aimAngle = Math.atan2(fSite.fireX - fire.truckX, fSite.fireZ - fire.truckZ);
@@ -1043,11 +1100,13 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
     dummy.rotation.set(0, fSite.truckHeading, 0);
     dummy.scale.set(2.48, 1.15, 3.6);
     dummy.updateMatrix();
-    fireEngineLadder.setMatrixAt(1, dummy.matrix);
+    hideInstance(fireEngineLadder, 1);
     hideInstance(fireEngineLadder, 2);
     hideInstance(fireEngineLadder, 3);
 
-    placeWheelQuad(0, fire.truckX, fire.truckZ, fSite.truckHeading, 1.15, 2.25, 0.46);
+    for (let wheel = 0; wheel < 4; wheel++) hideInstance(emergencyWheels, wheel);
+    fireEngine.position.set(fire.truckX + fSin * 0.7, 0.42, fire.truckZ + fCos * 0.7);
+    fireEngine.rotation.set(0, fSite.truckHeading, 0);
 
     // 消防车红灯爆闪
     dummy.position.set(fire.truckX + fSin * 3.1, flashA ? 2.92 : -20, fire.truckZ + fCos * 3.1);
@@ -1070,30 +1129,15 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
     }
 
     // 24 颗抛物线消防高压水炮水柱 + 10 团灭火白色水蒸气
-    const nozzleX = fire.truckX + Math.sin(aimAngle) * 5.2;
-    const nozzleY = 6.4;
-    const nozzleZ = fire.truckZ + Math.cos(aimAngle) * 5.2;
-    for (let w = 0; w < 24; w++) {
-      if (!spraying) {
-        hideInstance(waterJetMesh, w);
-        continue;
-      }
-      const stream = w < 14 ? 0 : 1; // 0=云梯主水炮，1=地面消防员水枪
-      const t = THREE.MathUtils.euclideanModulo(seconds * 1.85 + (w % 14) / 14, 1);
-      const startX = stream === 0 ? nozzleX : fSite.crewBaseX;
-      const startY = stream === 0 ? nozzleY : 1.55;
-      const startZ = stream === 0 ? nozzleZ : fSite.crewBaseZ;
-      const arcLift = Math.sin(t * Math.PI) * (stream === 0 ? 3.4 : 4.2);
-      const wx = THREE.MathUtils.lerp(startX, fSite.fireX + (stream ? 1.1 : -0.6), t);
-      const wy = THREE.MathUtils.lerp(startY, fSite.fireY + 0.8, t) + arcLift;
-      const wz = THREE.MathUtils.lerp(startZ, fSite.fireZ, t);
-      const dropScale = (0.16 + t * 0.26) * (stream === 0 ? 1.15 : 0.85);
-      dummy.position.set(wx, wy, wz);
-      dummy.rotation.set(0, aimAngle, 0);
-      dummy.scale.set(dropScale, dropScale, dropScale * 2.4);
-      dummy.updateMatrix();
-      waterJetMesh.setMatrixAt(w, dummy.matrix);
-    }
+    const facade = facadeFor(fSite);
+    fireNozzle.set(fire.truckX + Math.sin(aimAngle) * 5.2, 6.4, fire.truckZ + Math.cos(aimAngle) * 5.2);
+    fireHose.set(fSite.crewBaseX, 1.55, fSite.crewBaseZ);
+    fireFx.update({
+      seconds, origin: facade.origin, normal: facade.normal, intensity: fireIntensity, progress: fire.progress,
+      spraying, nozzle: fireNozzle, hose: fireHose, night: flameOuterMat.emissiveIntensity > 3,
+    });
+    // The GPU hose streams in fireFx replace the 24 droplet instances.
+    for (let w = 0; w < 24; w++) hideInstance(waterJetMesh, w);
 
     for (let st = 0; st < STEAM_COUNT; st++) {
       if (!spraying) {

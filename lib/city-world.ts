@@ -451,7 +451,9 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
       box(darkRoof, node.x + 2.8, 5.38, node.z + 6.4, 1.25, 0.36, 0.32);
     }
   }
+  const lampSpots: { x: number; y: number; z: number }[] = [];
   const streetLamp = (x: number, z: number, turn = 1, y = 0) => {
+    lampSpots.push({ x: x + turn * 1.4, y, z });
     box(metal, x, 0.52 + y, z, 0.34, 0.45, 0.34);
     box(metal, x, 3.5 + y, z, 0.17, 7, 0.17);
     box(metal, x + turn * 0.75, 7 + y, z, 1.7, 0.16, 0.2);
@@ -1210,7 +1212,46 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
   const mirrors = new THREE.InstancedMesh(boxGeometry, bodyMaterial, carCount * 2);
   const wheels = new THREE.InstancedMesh(tireGeometry, vehicleTrim, carCount * 4);
   const rims = new THREE.InstancedMesh(rimGeometry, railMetal, carCount * 4);
-  const vehicleMeshes = [...Object.values(shellBodies), ...Object.values(shellGlass), ...Object.values(shellTrim), ...Object.values(shellChrome), lights, taillights, roofUnits, mirrors, wheels, rims];
+  // Night light pools: soft additive decals under every street lamp and in front of / behind each car.
+  const glowTexture = canvasTexture(128, 128, (ctx) => {
+    const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gradient.addColorStop(0, "rgba(255,255,255,1)");
+    gradient.addColorStop(0.35, "rgba(255,255,255,0.55)");
+    gradient.addColorStop(0.7, "rgba(255,255,255,0.14)");
+    gradient.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 128, 128);
+  });
+  glowTexture.wrapS = glowTexture.wrapT = THREE.ClampToEdgeWrapping;
+  const poolGeometry = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  geometries.add(poolGeometry);
+  const poolMaterial = (hex: string, strength: number) => {
+    const material = new THREE.MeshBasicMaterial({
+      map: glowTexture, color: new THREE.Color(hex).multiplyScalar(strength), transparent: true,
+      blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2,
+    });
+    materials.add(material);
+    return material;
+  };
+  const lampPools = new THREE.InstancedMesh(poolGeometry, poolMaterial("#ffc98a", 0.55), Math.max(1, lampSpots.length));
+  lampSpots.forEach((spot, index) => {
+    transform.position.set(spot.x, 0.66 + spot.y, spot.z);
+    transform.rotation.set(0, 0, 0);
+    transform.scale.set(13, 1, 13);
+    transform.updateMatrix();
+    lampPools.setMatrixAt(index, transform.matrix);
+  });
+  const headPools = new THREE.InstancedMesh(poolGeometry, poolMaterial("#fff0d2", 1.1), carCount);
+  const tailPools = new THREE.InstancedMesh(poolGeometry, poolMaterial("#ff3a24", 0.7), carCount);
+  const nightPools = [lampPools, headPools, tailPools];
+  nightPools.forEach((mesh) => {
+    mesh.name = "Night light pools";
+    mesh.visible = false;
+    mesh.renderOrder = 2;
+    mesh.frustumCulled = false;
+    group.add(mesh);
+  });
+  const vehicleMeshes = [...Object.values(shellBodies), ...Object.values(shellGlass), ...Object.values(shellTrim), ...Object.values(shellChrome), lights, taillights, roofUnits, mirrors, wheels, rims, headPools, tailPools];
   vehicleMeshes.forEach((mesh) => {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -1340,6 +1381,7 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
   const wheelAxis = new THREE.Vector3(0, 1, 0);
   const localPart = new THREE.Vector3();
   let lastNight: boolean | undefined;
+  const yAxis = new THREE.Vector3(0, 1, 0);
   const setNight = (night: boolean) => {
     if (lastNight === night) return;
     lastNight = night;
@@ -1347,6 +1389,7 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
     vehicleSurfaces.forEach((material) => { material.envMapIntensity = night ? 0.14 : 0.85; });
     waterMaterial.uniforms.uNight.value = night ? 1 : 0;
     lakeMaterial.uniforms.uNight.value = night ? 1 : 0;
+    nightPools.forEach((mesh) => { mesh.visible = night; });
   };
   const animate = (seconds: number, night: boolean, seasonMode: SeasonMode = "auto", seasonState?: SeasonState) => {
     const state = seasonState ?? sampleSeasonState(seconds, seasonMode);
@@ -1493,6 +1536,18 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
         transform.updateMatrix();
         const lane = lamp.x > 0 ? 1 : 0;
         (lamp.tail ? taillights : lights).setMatrixAt(index * 2 + lane, transform.matrix);
+      }
+      if (lastNight) {
+        placeLocal(0, 0.06, shell.length / 2 + 4.6);
+        transform.quaternion.setFromAxisAngle(yAxis, angle);
+        transform.scale.set(3.6, 1, 9);
+        transform.updateMatrix();
+        headPools.setMatrixAt(index, transform.matrix);
+        placeLocal(0, 0.06, -shell.length / 2 - 1.1);
+        transform.quaternion.setFromAxisAngle(yAxis, angle);
+        transform.scale.set(2.6, 1, 2.6);
+        transform.updateMatrix();
+        tailPools.setMatrixAt(index, transform.matrix);
       }
       shell.wheels.forEach((wheel, wheelIndex) => {
         const contactIndex = (wheel.z > 0 ? 0 : 2) + (wheel.x > 0 ? 1 : 0);
