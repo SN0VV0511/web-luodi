@@ -12,6 +12,7 @@ import { buildCityLandmarks, landmarkCamera } from "@/lib/city-landmarks";
 import { getBuildingExperience } from "@/lib/building-experience";
 import { parseSnapshot } from "@/lib/quant-board";
 import { createAssetBoard, parseAssetSnapshot } from "@/lib/asset-board";
+import { createLedMaterial } from "@/lib/real-city/v3/landmarks/led-screen";
 import type { Locale } from "@/lib/site-content";
 import type { CityLifeSnapshot } from "@/lib/real-city/snapshot";
 import { CityRenderPipeline } from "@/lib/real-city/render/pipeline";
@@ -330,7 +331,10 @@ export default function CityScene(props: CitySceneProps) {
 
     // 左牌(billboardSign)动态轮播: 品牌帧/数据帧10秒切换, 数据60秒拉取。
     const assetBoard = createAssetBoard();
-    world.billboardSign.material = new THREE.MeshBasicMaterial({ map: assetBoard.texture, toneMapped: false });
+    // v3：LED 像素点阵屏（RGB 子像素、模组拼缝、远距离自动平滑、刷新扫描）。
+    const ledMaterial = createLedMaterial(assetBoard.texture, 488, 168, { modules: [16, 6], brightness: 1.3 });
+    world.billboardSign.material = ledMaterial;
+    world.billboardSign.onBeforeRender = () => { ledMaterial.uniforms.uTime.value = performance.now() / 1000; };
 
     let width = 1;
     let height = 1;
@@ -1109,6 +1113,7 @@ export default function CityScene(props: CitySceneProps) {
       boardAbort.abort();
       window.clearInterval(boardTimer);
       assetBoard.dispose();
+      ledMaterial.dispose();
       archiveTower?.dispose();
       pickingIndex.dispose();
       localReflections.dispose();

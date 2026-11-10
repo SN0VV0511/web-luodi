@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { canLoadCityAssets, loadCarModelsOnce, type CarModelKind } from "./real-city/vehicles/car-models";
 import { buildV3Scenes } from "./real-city/v3/scenes";
+import { buildBillboardStructure, buildNewsTower, buildPostOffice } from "./real-city/v3/landmarks/landmarks";
 import { cityLots, ROAD_SEGMENTS, cityBlocks, districts, civicLots, type CityLot } from "./city-map";
 import type { PlaceId } from "./city-content";
 import { getBuildingExperience } from "./building-experience";
@@ -887,54 +888,19 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
     box(concrete, x, 0.6, 110.6, 2.4, 1.2, 2.4, "about");
   }
   anchors.set("about", new THREE.Vector3(-25, 36, 111.4));
+  const billboardStructure = buildBillboardStructure(-25, 22, 111.5, 61, 21);
+  group.add(billboardStructure.group);
 
-  const publicBuilding = (id: "news" | "guestbook", x: number, title: string) => {
-    // 滨海文化驿站：石质台基、古典壁柱、分格暖光橱窗与铜金压顶招牌
-    box(concrete, x, 0.42, 105.4, 17.6, 0.35, 9.6, id);
-    box(lightStone, x, 3.35, 105, 16, 5.8, 8, id);
-    box(glass, x, 2.85, 109.08, 13.4, 4.5, 0.22, id);
-    box(lamp, x, 4.65, 108.9, 12.2, 0.22, 0.25, id);
-    for (const px of [-6.8, -3.4, 0, 3.4, 6.8]) {
-      box(lightStone, x + px, 3.15, 109.12, 0.42, 5.4, 0.38, id);
-    }
-    box(darkRoof, x, 6.45, 105, 18, 0.5, 9.5, id);
-    box(billboardCopper, x, 6.82, 105, 18.3, 0.22, 9.8, id);
-    box(orange, x, 5.7, 109.32, 15.2, 0.82, 0.36, id);
-    box(billboardMetal, x, 8.1, 106.82, 13.1, 2.75, 0.28, id);
-    box(billboardCopper, x, 8.1, 106.92, 12.85, 2.55, 0.14, id);
-    for (const lx of [-4.2, 4.2]) {
-      box(lamp, x + lx, 9.55, 107.18, 0.9, 0.14, 0.26, id);
-      box(concrete, x + lx * 1.75, 0.78, 109.7, 1.1, 0.55, 1.1, id);
-      box(leaves[1], x + lx * 1.75, 1.18, 109.7, 0.88, 0.45, 0.88, id);
-    }
-    const texture = canvasTexture(1024, 192, (ctx) => {
-      const bg = ctx.createLinearGradient(0, 0, 1024, 192);
-      bg.addColorStop(0, "#233134");
-      bg.addColorStop(0.5, "#152024");
-      bg.addColorStop(1, "#202d30");
-      ctx.fillStyle = bg; ctx.fillRect(0, 0, 1024, 192);
-      ctx.strokeStyle = "#b8936d"; ctx.lineWidth = 3;
-      ctx.strokeRect(18, 18, 988, 156);
-      ctx.strokeStyle = "rgba(245, 227, 199, 0.28)"; ctx.lineWidth = 1;
-      ctx.strokeRect(26, 26, 972, 140);
-      ctx.fillStyle = "#d6b490"; ctx.font = "600 20px monospace";
-      ctx.textAlign = "left"; ctx.fillText(id === "news" ? "SEASIDE EDITION" : "COASTAL POST", 48, 56);
-      ctx.textAlign = "right"; ctx.fillText(id === "news" ? "NO. 02" : "NO. 03", 976, 56);
-      ctx.fillStyle = "#f5e8d0"; ctx.font = "bold 74px Georgia, Arial, sans-serif";
-      ctx.textAlign = "center"; ctx.fillText(title, 512, 134);
-    });
-    const material = new THREE.MeshBasicMaterial({ map: texture });
-    materials.add(material);
-    const geometry = new THREE.PlaneGeometry(12.5, 2.35);
-    geometries.add(geometry);
-    const panel = new THREE.Mesh(geometry, material);
-    panel.position.set(x, 8.1, 107.02); panel.userData.place = id;
-    group.add(panel); pickables.push(panel);
-    anchors.set(id, new THREE.Vector3(x, 11, 104.5));
-    buildingCount++;
-  };
-  publicBuilding("news", -95, "THE CITY PRESS");
-  publicBuilding("guestbook", 95, "LETTERS TO SN0VV");
+  // v3 地标：新闻传媒塔（滚动字幕 / 直播大屏 / 天线）与 SN0VV 邮局（钟楼 / 邮筒 / 纸飞机来信）。
+  const v3Landmarks = [buildNewsTower(-95, 105, canvasTexture), buildPostOffice(95, 105, canvasTexture)];
+  v3Landmarks.push(billboardStructure);
+  for (const landmark of v3Landmarks) {
+    group.add(landmark.group);
+    pickables.push(...landmark.pickables);
+  }
+  anchors.set("news", new THREE.Vector3(-96.8, 36, 104.5));
+  anchors.set("guestbook", new THREE.Vector3(95, 19, 104.5));
+  buildingCount += 2;
 
   // 写实多层次海洋着色器：近岸翡翠浅滩、深海蔚蓝渐变、浪峰白沫与阳光碎金反射
   const waterMaterial = new THREE.ShaderMaterial({
@@ -1540,6 +1506,7 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
     cruise.animate(seconds);
     events.animate(seconds);
     v3Scenes.animate(seconds, night, state.precipitation);
+    for (const landmark of v3Landmarks) landmark.animate(seconds, night);
     waterMaterial.uniforms.uTime.value = seconds;
     lakeMaterial.uniforms.uTime.value = seconds;
 
@@ -1707,6 +1674,7 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
     dispose: () => {
       treeField.dispose();
       v3Scenes.dispose();
+      for (const landmark of v3Landmarks) landmark.dispose();
       life.dispose();
       traffic.dispose();
       trafficDetails.dispose();
