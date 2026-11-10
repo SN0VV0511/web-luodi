@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { CityFireEffect } from "./real-city/effects/fire-fx";
 import { createVehicleShell, createVehicleWheel } from "./city-vehicles";
 import type { CivicKit } from "./city-civic";
@@ -803,7 +804,8 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
 
   // 2. 四类特种应急车辆批次（重型消防云梯车、巡逻抓捕警车、120急救救护车、市政工程抢修车）
   const fireEngineBody = makeBatch("Events · fire engine body", boxGeo, fireTruckRed, 3);
-  const fireEngineLadder = makeBatch("Events · fire ladder", boxGeo, ladderSilver, 4);
+  const ladderGeometry = regGeo(createAerialLadder());
+  const fireEngineLadder = makeBatch("Events · fire ladder", ladderGeometry, ladderSilver, 4);
   const policeCruiserBody = makeBatch("Events · police cruiser", boxGeo, policeNavy, 2);
   const ambulanceBody = makeBatch("Events · ambulance", boxGeo, ambulanceWhite, 3);
   const utilityVanBody = makeBatch("Events · utility truck", boxGeo, utilityAmber, 3);
@@ -1186,7 +1188,8 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
       fire.truckZ + Math.cos(aimAngle) * (fireArrived ? 2.6 : 0),
     );
     dummy.rotation.set(ladderPitch, fireArrived ? aimAngle : fSite.truckHeading, 0);
-    dummy.scale.set(0.75, 0.28, ladderLen);
+    // 云梯几何按 9 m 建模：展开时伸长，收起时各节套叠（沿长度压缩）。
+    dummy.scale.set(1, 1, ladderLen / LADDER_LENGTH);
     dummy.updateMatrix();
     fireEngineLadder.setMatrixAt(0, dummy.matrix);
     // 车侧白色铝合金卷帘器材门条纹
@@ -1493,4 +1496,53 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
 
   animate(0);
   return { animate };
+}
+
+const LADDER_LENGTH = 9;
+
+/** 消防车云梯：两节套叠梯身（底梁 + 扶手桁架 + 立柱 + 斜撑 + 踏棍），以中心为原点、+z 为梯头，单位米。 */
+function createAerialLadder(): THREE.BufferGeometry {
+  const parts: THREE.BufferGeometry[] = [];
+  const box = (w: number, h: number, d: number, x: number, y: number, z: number, rx = 0) => {
+    const g = new THREE.BoxGeometry(w, h, d);
+    if (rx) g.rotateX(rx);
+    g.translate(x, y, z);
+    parts.push(g);
+  };
+  const half = LADDER_LENGTH / 2;
+  for (const [width, lift, length, offset] of [[0.72, 0, LADDER_LENGTH, 0], [0.56, 0.07, LADDER_LENGTH * 0.88, 0.4]] as const) {
+    const x = width / 2;
+    for (const side of [-1, 1]) {
+      box(0.07, 0.12, length, side * x, -0.16 + lift, offset);
+      box(0.045, 0.045, length, side * x, 0.17 + lift, offset);
+      const posts = Math.round(length / 0.9);
+      for (let i = 0; i <= posts; i++) {
+        const z = offset - length / 2 + (i / posts) * length;
+        box(0.03, 0.33, 0.03, side * x, 0.005 + lift, z);
+        if (i < posts) {
+          const span = length / posts;
+          const diagonal = Math.hypot(span, 0.33);
+          box(0.022, 0.022, diagonal, side * x, 0.005 + lift, z + span / 2, Math.atan2(0.33, span) * (i % 2 ? 1 : -1));
+        }
+      }
+    }
+    if (lift === 0) {
+      const rungs = Math.round(length / 0.32);
+      for (let i = 0; i <= rungs; i++) {
+        const rung = new THREE.CylinderGeometry(0.02, 0.02, width, 6);
+        rung.rotateZ(Math.PI / 2);
+        rung.translate(0, -0.15, -half + (i / rungs) * length);
+        parts.push(rung);
+      }
+    }
+  }
+  // 梯根转台与举升油缸
+  const turret = new THREE.CylinderGeometry(0.42, 0.48, 0.28, 16);
+  turret.translate(0, -0.34, -half + 0.4);
+  parts.push(turret);
+  box(0.16, 0.16, 2.4, 0, -0.34, -half + 1.6, 0.12);
+  const merged = mergeGeometries(parts.map((part) => part.index ? part.toNonIndexed() : part), false)!;
+  parts.forEach((part) => part.dispose());
+  merged.computeVertexNormals();
+  return merged;
 }
