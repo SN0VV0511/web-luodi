@@ -531,15 +531,16 @@ export default function CityScene(props: CitySceneProps) {
       const mode = timeOfDay();
       const state = sampleSeasonState(worldTime, current.current.seasonMode ?? "auto");
       hemisphere.color.set(night ? "#6889be" : "#d8ecff");
-      hemisphere.groundColor.set(night ? "#1b2838" : "#647a5e");
-      hemisphere.intensity = night ? 0.72 : 0.78;
+      hemisphere.groundColor.set(night ? "#2c3d52" : "#647a5e");
+      // 夜景补光：月光天空光提高，远离路灯的街区仍能看清轮廓与材质（不提亮窗灯与灯池的对比）。
+      hemisphere.intensity = night ? 1.08 : 0.78;
       sun.color.copy(state.sunColor);
       if (night) sun.color.set("#8fb0e6");
       seasonSunOffset.copy(state.sunPosition);
-      sun.intensity = night ? 0.32 : state.sunIntensity;
-      fill.intensity = night ? 0.16 : 0.3;
-      renderer.toneMappingExposure = night ? 1.08 : 1.04;
-      scene.environmentIntensity = night ? 0.3 : 0.62;
+      sun.intensity = night ? 0.46 : state.sunIntensity;
+      fill.intensity = night ? 0.3 : 0.3;
+      renderer.toneMappingExposure = night ? 1.14 : 1.04;
+      scene.environmentIntensity = night ? 0.42 : 0.62;
       fog.color.copy(state.fogDayColor);
       if (night) fog.color.set("#0e1d34");
       fog.density = night ? 0.0011 : state.fogDensity;

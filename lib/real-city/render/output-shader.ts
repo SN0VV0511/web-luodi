@@ -7,6 +7,8 @@ uniform sampler2D tBloomFar;
 uniform sampler2D tExposure;
 uniform sampler2D tDepth;
 uniform sampler2D tBlur;
+uniform sampler2D tReflection;
+uniform float reflectionEnabled;
 uniform float occlusionEnabled;
 uniform float bloomStrength;
 uniform float exposure;
@@ -63,6 +65,8 @@ void main() {
   bool sky = depth >= 0.99999;
   float distance = viewDistance(depth);
   vec3 color = texture2D(tColor, vUv).rgb;
+  // 湿路面倒影（已按菲涅耳与遮罩预乘权重，半分辨率 + 竖向拖影模糊）。
+  if (reflectionEnabled > 0.5 && !sky) color += texture2D(tReflection, vUv).rgb;
 
   // Tilt-shift: blur grows away from the focus band and with depth separation from the focus plane.
   if (tiltShift > 0.5) {

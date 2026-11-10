@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { CityBloomPass } from "./bloom";
 import { ContactShadowPass } from "./contact-shadows";
+import { WetReflectionPass } from "./wet-reflections";
 import { FullscreenRenderer, screenMaterial, screenTarget } from "./fullscreen";
 import { cityOutputFragment } from "./output-shader";
 import type { RenderQuality } from "./quality";
@@ -31,6 +32,7 @@ export class CityRenderPipeline {
   private readonly antialias: CityAntialiasPass | null;
   private readonly adaptation: CityEyeAdaptation | null;
   private readonly tilt: CityTiltShiftPass | null;
+  private readonly wet: WetReflectionPass | null;
   private readonly white: THREE.DataTexture;
   private readonly black: THREE.DataTexture;
   private readonly viewport = new THREE.Vector4();
@@ -62,6 +64,7 @@ export class CityRenderPipeline {
       this.antialias = null;
       this.adaptation = null;
       this.tilt = null;
+      this.wet = null;
       return;
     }
     this.color = screenTarget("City HDR scene", 1, 1, true);
@@ -77,6 +80,7 @@ export class CityRenderPipeline {
     this.antialias = new CityAntialiasPass(compact);
     this.adaptation = new CityEyeAdaptation();
     this.tilt = new CityTiltShiftPass();
+    this.wet = compact ? null : new WetReflectionPass();
     this.output = screenMaterial("City photographic output", cityOutputFragment, {
       tColor: { value: this.color.texture },
       tOcclusion: { value: this.white },
@@ -90,6 +94,8 @@ export class CityRenderPipeline {
       tExposure: { value: this.white },
       tDepth: { value: this.color.depthTexture },
       tBlur: { value: this.black },
+      tReflection: { value: this.black },
+      reflectionEnabled: { value: 0 },
       cameraNear: { value: 0.8 },
       cameraFar: { value: 4000 },
       hazeColor: { value: new THREE.Color() },
@@ -119,6 +125,7 @@ export class CityRenderPipeline {
     this.bloom?.resize(width, height);
     this.antialias?.resize(width, height);
     this.tilt?.resize(width, height);
+    this.wet?.resize(width, height);
     this.output?.uniforms.resolution.value.set(width, height);
     this.statistics.width = width;
     this.statistics.height = height;
@@ -168,6 +175,12 @@ export class CityRenderPipeline {
         this.output.uniforms.tBloomFar.value = this.black;
       }
       this.output.uniforms.occlusionEnabled.value = quality.contactShadows ? 1 : 0;
+      const wet = night && quality.bloom && this.wet;
+      if (wet && this.wet) {
+        this.wet.render(renderer, this.screen, this.color.texture, this.color.depthTexture!, camera, 0.9);
+        this.output.uniforms.tReflection.value = this.wet.texture;
+      }
+      this.output.uniforms.reflectionEnabled.value = wet ? 1 : 0;
       const grade = look?.grade ?? TIME_OF_DAY_GRADES[night ? "night" : "day"];
       const uniforms = this.output.uniforms;
       uniforms.bloomStrength.value = quality.bloom ? (night ? 0.14 : 0.06) * grade.bloom : 0;
@@ -220,6 +233,7 @@ export class CityRenderPipeline {
     this.antialias?.dispose();
     this.adaptation?.dispose();
     this.tilt?.dispose();
+    this.wet?.dispose();
     this.white.dispose();
     this.black.dispose();
   }
