@@ -66,7 +66,25 @@ export function createWaveNormalTexture(size = 256, seed = 7): THREE.DataTexture
   return texture;
 }
 
-export function createLakeWater(shape: LakeShape): LakeWater {
+export type WaterOptions = {
+  /** GLSL：由 vLakeWorld 计算 q（0 = 深水，1 = 岸线）与 a（沿岸角度参数，用于白沫变化）。 */
+  profile?: string;
+  /** 波纹尺度倍数（海面 > 1）。 */
+  waveScale?: number;
+  /** 是否绘制远岸树影倒影。 */
+  treeLine?: boolean;
+  deep?: string;
+  shallow?: string;
+};
+const glslColour = (hex: string) => { const c = new THREE.Color(hex); return `vec3(${c.r.toFixed(3)}, ${c.g.toFixed(3)}, ${c.b.toFixed(3)})`; };
+
+export function createLakeWater(shape: LakeShape, options: WaterOptions = {}): LakeWater {
+  const profile = options.profile ?? `
+  vec2 rel = vLakeWorld.xz - vec2(${shape.cx.toFixed(2)}, ${shape.cz.toFixed(2)});
+  float a = atan(rel.y, rel.x);
+  float r = 1.0 + sin(a * 3.0) * 0.08 + cos(a * 5.0) * 0.035;
+  float q = length(vec2(rel.x / ${shape.rx.toFixed(2)}, rel.y / ${shape.rz.toFixed(2)})) / r;`;
+  const ws = options.waveScale ?? 1;
   const normalMap = createWaveNormalTexture();
   const uniforms = {
     uTime: { value: 0 },
@@ -104,15 +122,12 @@ vec3 lakeWorldNormal;
 vec3 waveSample(vec2 uv) { return texture2D(uWaveMap, uv).xyz * 2.0 - 1.0; }`)
       .replace("#include <color_fragment>", `#include <color_fragment>
 {
-  vec2 rel = vLakeWorld.xz - vec2(${shape.cx.toFixed(2)}, ${shape.cz.toFixed(2)});
-  float a = atan(rel.y, rel.x);
-  float r = 1.0 + sin(a * 3.0) * 0.08 + cos(a * 5.0) * 0.035;
-  float q = length(vec2(rel.x / ${shape.rx.toFixed(2)}, rel.y / ${shape.rz.toFixed(2)})) / r;
+  ${profile}
   lakeShore = clamp(q, 0.0, 1.0);
   float depth = smoothstep(1.0, 0.55, q);
-  vec3 shallow = vec3(0.16, 0.30, 0.25);
+  vec3 shallow = ${options.shallow ? glslColour(options.shallow) : "vec3(0.16, 0.30, 0.25)"};
   vec3 sandy = vec3(0.42, 0.40, 0.30);
-  vec3 deep = vec3(0.015, 0.075, 0.095);
+  vec3 deep = ${options.deep ? glslColour(options.deep) : "vec3(0.015, 0.075, 0.095)"};
   vec3 water = mix(mix(sandy, shallow, smoothstep(0.995, 0.93, q)), deep, depth);
   // 岸线白沫：随时间推拉的破碎带
   float t = uTime;
@@ -133,10 +148,10 @@ roughnessFactor = mix(roughnessFactor, 0.6, lakeFoam);`)
   float t = uTime;
   float dist = length(vViewPosition);
   float fade = 1.0 - smoothstep(60.0, 260.0, dist) * 0.65;
-  vec3 n1 = waveSample(p / 9.0 + vec2(t * 0.021, t * 0.013));
-  vec3 n2 = waveSample(p / 3.7 + vec2(-t * 0.031, t * 0.026));
-  vec3 n3 = waveSample(p / 23.0 + vec2(t * 0.008, -t * 0.011));
-  vec3 n4 = waveSample(p / 1.3 + vec2(t * 0.05, t * 0.043));
+  vec3 n1 = waveSample(p / (9.0 * ${ws.toFixed(2)}) + vec2(t * 0.021, t * 0.013));
+  vec3 n2 = waveSample(p / (3.7 * ${ws.toFixed(2)}) + vec2(-t * 0.031, t * 0.026));
+  vec3 n3 = waveSample(p / (23.0 * ${ws.toFixed(2)}) + vec2(t * 0.008, -t * 0.011));
+  vec3 n4 = waveSample(p / (1.3 * ${ws.toFixed(2)}) + vec2(t * 0.05, t * 0.043));
   vec2 slope = (n1.xy * 0.9 + n2.xy * 0.75 + n3.xy * 0.6 + n4.xy * 0.35 * (1.0 - smoothstep(10.0, 40.0, dist))) * fade;
   // 同心涟漪（浮漂、船桨、跃鱼）
   for (int i = 0; i < ${LAKE_RINGS}; i++) {
@@ -166,13 +181,14 @@ roughnessFactor = mix(roughnessFactor, 0.6, lakeFoam);`)
   vec3 viewDir = normalize(cameraPosition - vLakeWorld);
   vec3 refl = reflect(-viewDir, lakeWorldNormal);
   float fres = 0.02 + 0.98 * pow(1.0 - clamp(dot(viewDir, lakeWorldNormal), 0.0, 1.0), 5.0);
-  float treeLine = (1.0 - smoothstep(0.02, 0.2, refl.y)) * smoothstep(0.25, 0.9, lakeShore);
+  float treeLine = ${options.treeLine === false ? "0.0" : "(1.0 - smoothstep(0.02, 0.2, refl.y)) * smoothstep(0.25, 0.9, lakeShore)"};
   vec3 treeColour = mix(vec3(0.07, 0.12, 0.07), vec3(0.015, 0.02, 0.03), uNight);
   outgoingLight = mix(outgoingLight, treeColour, treeLine * fres * 0.85 * (1.0 - lakeFoam));
 }
 #include <opaque_fragment>`);
   };
-  material.customProgramCacheKey = () => "v3-lake-water-1";
+  const key = `v3-water-2-${ws}-${options.treeLine === false ? 0 : 1}-${profile.length}-${options.deep ?? ""}`;
+  material.customProgramCacheKey = () => key;
   material.addEventListener("dispose", () => normalMap.dispose());
   return {
     material,

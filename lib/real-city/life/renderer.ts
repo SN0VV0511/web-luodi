@@ -110,7 +110,7 @@ export class LifeRenderer {
     const hair = kit.solid("#ffffff", 0.96, 0);
     const rubber = kit.solid("#292d2d", 0.88, 0.01);
     const eye = kit.solid("#252729", 0.35, 0.05);
-    const glass = kit.solid("#1e2a31", 0.06, 0.7);
+    const glass = kit.solid("#46606f", 0.06, 0.28);
     const metal = kit.solid("#9b9b94", 0.35, 0.6);
     const vehicle = kit.solid("#ffffff", 0.38, 0.24);
     const light = kit.solid("#f7e5bd", 0.3, 0.15);

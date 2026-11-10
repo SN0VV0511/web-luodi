@@ -63,7 +63,7 @@ function appearance(random: RandomStream, occupation: Occupation, age: AgeGroup)
     shoes: random.choice(["#2a2826", "#4a3a2c", "#d9d6cf", "#3b3f45", "#6b4c35"]),
     hairStyle: random.integer(0, 4),
     hat: isUniform || random.probability(0.12),
-    glasses: age === "elder" || random.probability(0.24),
+    glasses: age === "elder" || random.probability(0.07),
     coatLength: occupation === "office" ? 0.66 : 0.56,
     sleeveLength: random.between(0.64, 1),
     winterCoat: false,

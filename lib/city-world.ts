@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { canLoadCityAssets, loadCarModelsOnce, type CarModelKind } from "./real-city/vehicles/car-models";
 import { buildV3Scenes } from "./real-city/v3/scenes";
+import { createLakeWater } from "./real-city/v3/water/lake-water";
 import { buildBillboardStructure, buildNewsTower, buildPostOffice } from "./real-city/v3/landmarks/landmarks";
 import { cityLots, ROAD_SEGMENTS, cityBlocks, districts, civicLots, type CityLot } from "./city-map";
 import type { PlaceId } from "./city-content";
@@ -508,7 +509,8 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
     return material;
   };
   // 深色着色玻璃：车窗与车身形成真实的明暗对比，而不是与车漆同亮度的浅蓝色块。
-  const vehicleGlass = solid("#1b252c", 0.05, 0.72);
+  // v3：浅色有色玻璃（低金属度 + 环境反射），避免公交 / 货车车窗在弱环境光下发黑。
+  const vehicleGlass = solid("#4a6475", 0.05, 0.28);
   vehicleGlass.envMap = vehicleEnvironment;
   vehicleGlass.envMapIntensity = 1.15;
   vehicleSurfaces.add(vehicleGlass);
@@ -903,49 +905,28 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
   buildingCount += 2;
 
   // 写实多层次海洋着色器：近岸翡翠浅滩、深海蔚蓝渐变、浪峰白沫与阳光碎金反射
-  const waterMaterial = new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uNight: { value: 0 } },
-    vertexShader: `varying vec3 vWorld; varying vec3 vView;
-      #include <fog_pars_vertex>
-      void main() { vec4 world = modelMatrix * vec4(position, 1.0); vWorld = world.xyz;
-        vView = cameraPosition - world.xyz; vec4 mvPosition = viewMatrix * world;
-        gl_Position = projectionMatrix * mvPosition;
-        #include <fog_vertex>
-      }`,
-    fragmentShader: `uniform float uTime; uniform float uNight; varying vec3 vWorld; varying vec3 vView;
-      #include <fog_pars_fragment>
-      void main() {
-        float waveA = sin(vWorld.x * 0.14 + vWorld.z * 0.38 + sin(vWorld.x * 0.025) * 2.2 + uTime * 1.05);
-        float waveB = sin(vWorld.x * 0.21 + vWorld.z * 0.58 + sin(vWorld.z * 0.021 + vWorld.x * 0.034) * 3.1 + uTime * 1.3);
-        float waveC = sin(vWorld.x * 0.032 + vWorld.z * 0.075 + waveA * 0.35 + uTime * 0.45);
-        vec3 normal = normalize(vec3(waveA * 0.018 + waveC * 0.008, 1.0, waveB * 0.026));
-        vec3 view = normalize(vView);
-        float fresnel = pow(1.0 - max(dot(normal, view), 0.0), 2.8);
-        float shallows = 1.0 - smoothstep(110.0, 290.0, vWorld.z);
-        float shoreFoam = smoothstep(0.68, 0.96, waveA * 0.5 + waveB * 0.5) * (1.0 - smoothstep(110.0, 175.0, vWorld.z));
-        vec3 deepWater = vec3(0.022, 0.19, 0.34);
-        vec3 shallowWater = vec3(0.065, 0.43, 0.48);
-        vec3 day = mix(deepWater, shallowWater, shallows);
-        day = mix(day, vec3(0.44, 0.67, 0.80), fresnel * 0.82);
-        day += (waveA * 0.005 + waveB * 0.004 + waveC * 0.006);
-        day = mix(day, vec3(0.92, 0.96, 0.95), shoreFoam * 0.38);
-        vec3 lightDir = normalize(vec3(-0.48, 0.38, 0.68));
-        float sunlight = pow(max(dot(reflect(-lightDir, normal), view), 0.0), 110.0);
-        day += vec3(1.0, 0.78, 0.46) * sunlight * 1.15;
-        vec3 nightColor = mix(vec3(0.010, 0.035, 0.085), vec3(0.09, 0.20, 0.34), fresnel) + waveA * 0.005;
-        nightColor += vec3(0.45, 0.62, 0.88) * sunlight * 0.35;
-        gl_FragColor = vec4(mix(day, nightColor, uNight), 1.0);
-        #include <tonemapping_fragment>
-        #include <colorspace_fragment>
-        #include <fog_fragment>
-      }`,
-    fog: true,
+  // v3 海面：与中央湖共用物理水面着色（环境反射 + 菲涅尔 + 多层法线波纹 + 太阳高光），
+  // 岸线剖面取沙滩曲线：近岸翡翠浅滩、浪花白沫，离岸 60 m 过渡到深海蓝。
+  const seaWater = createLakeWater({ cx: 0, cz: 0, rx: 1, rz: 1 }, {
+    waveScale: 2.6, treeLine: false, deep: "#06263f", shallow: "#1f6e6e",
+    profile: `
+  float sx = vLakeWorld.x;
+  float sp = clamp((-77.0 - sx) / 151.0, 0.0, 1.0);
+  float beach = step(-228.0, sx) * step(sx, -77.0);
+  float zs = mix(108.0, 112.0 + sin(sp * 3.14159) * 47.0 + sin(sp * 9.42477) * 3.0, beach);
+  float q = 1.0 - clamp((vLakeWorld.z - zs) / 60.0, 0.0, 1.0);
+  q = mix(q * 0.9, q, beach);
+  float a = sx * 0.05;`,
   });
-  waterMaterial.uniforms = THREE.UniformsUtils.merge([THREE.UniformsLib.fog, waterMaterial.uniforms]);
-  materials.add(waterMaterial);
+  seaWater.material.transparent = false;
+  seaWater.material.depthWrite = true;
+  seaWater.material.name = "v3 sea water";
+  const waterMaterial = seaWater;
+  materials.add(seaWater.material);
   const waterGeometry = new THREE.PlaneGeometry(1350, 880);
   geometries.add(waterGeometry);
-  const water = new THREE.Mesh(waterGeometry, waterMaterial);
+  const water = new THREE.Mesh(waterGeometry, seaWater.material);
+  water.receiveShadow = true;
   water.rotation.x = -Math.PI / 2; water.position.set(20, -0.65, 540); group.add(water);
 
   // 丘陵与林带共享米制高度场，树根和农田实际落在坡面上。
