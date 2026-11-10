@@ -51,7 +51,7 @@ export class QueueManager {
       venueId,
       front: { ...front },
       heading,
-      spacing: 0.82,
+      spacing: 0.9,
       columns: 1,
       maximumLength,
       entries: [],
@@ -108,7 +108,7 @@ export class QueueManager {
   private positionFor(queue: CityQueue, index: number, target: Point2): Point2 {
     const row = Math.floor(index / queue.columns);
     const column = index % queue.columns;
-    const lateral = queue.columns > 1 ? (column - (queue.columns - 1) / 2) * 0.72 : 0;
+    const lateral = queue.columns > 1 ? (column - (queue.columns - 1) / 2) * 0.8 : 0;
     return localPoint(queue.front, queue.heading, lateral, -row * queue.spacing, target);
   }
 

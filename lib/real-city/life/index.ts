@@ -275,6 +275,32 @@ export function buildDetailedCityLife(kit: CivicKit, options: DetailedLifeOption
     }
   }
 
+  const FIXED_MODES = new Set<Actor["mode"]>(["seated", "riding", "boarding", "eating"]);
+  const spaceFrom = { x: 0, z: 0 };
+  const spaceTo = { x: 0, z: 0 };
+  /** 站立/排队/行走的居民保持最小人身距离：重叠时沿连线各让一半（每帧最多 4 cm），不推进墙体。 */
+  function personalSpace(): void {
+    neighbors.forEachPair(0.62, (a, b) => {
+      if (!a.visible || !b.visible || a.interiorId !== b.interiorId || a.vehicleId >= 0 || b.vehicleId >= 0) return;
+      const fixedA = FIXED_MODES.has(a.mode), fixedB = FIXED_MODES.has(b.mode);
+      if (fixedA && fixedB) return;
+      const dx = b.position.x - a.position.x, dz = b.position.z - a.position.z;
+      const d = Math.hypot(dx, dz);
+      const minimum = (a.radius + b.radius) * (a.groupId >= 0 && a.groupId === b.groupId ? 0.9 : 1.08);
+      if (d >= minimum) return;
+      const nx = d > 1e-4 ? dx / d : Math.cos(a.id * 2.399), nz = d > 1e-4 ? dz / d : Math.sin(a.id * 2.399);
+      const push = Math.min(0.04, (minimum - d) * 0.5);
+      const share = fixedA ? 0 : fixedB ? 2 : 1;
+      for (const [actor, sign, weight] of [[a, -1, share], [b, 1, 2 - share]] as const) {
+        if (weight === 0) continue;
+        spaceFrom.x = actor.position.x; spaceFrom.z = actor.position.z;
+        spaceTo.x = actor.position.x + nx * sign * push * weight;
+        spaceTo.z = actor.position.z + nz * sign * push * weight;
+        if (network.walkableSegment(spaceFrom, spaceTo, actor.radius * 0.5)) { actor.position.x = spaceTo.x; actor.position.z = spaceTo.z; }
+      }
+    });
+  }
+
   function tick(): void {
     clock.step();
     network.clearExpiredClosures(context.time.seconds);
@@ -293,6 +319,7 @@ export function buildDetailedCityLife(kit: CivicKit, options: DetailedLifeOption
     routes.tick(context);
     courtesy.tick(context);
     movement.tick(context);
+    personalSpace();
     possessions.prepare(context);
     poses.tick(context);
     attention.tick(context);

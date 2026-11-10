@@ -146,6 +146,7 @@ async function bake(name, file) {
   const vertexCount = positions.length / 3;
 
   // 骨段绑定框架。
+  const headBox = (() => { let mn = [9, 9, 9], mx = [-9, -9, -9]; for (let v = 0; v < vertexCount; v++) if (kinds[v] === "body" && segW[v][SEG.head] > 0.9) for (let c = 0; c < 3; c++) { mn[c] = Math.min(mn[c], positions[v * 3 + c]); mx[c] = Math.max(mx[c], positions[v * 3 + c]); } return { mn, mx }; })();
   const head = (() => { let mn = [9, 9, 9], mx = [-9, -9, -9]; for (let v = 0; v < vertexCount; v++) if (kinds[v] === "body" && segW[v][SEG.head] > 0.9) for (let c = 0; c < 3; c++) { mn[c] = Math.min(mn[c], positions[v * 3 + c]); mx[c] = Math.max(mx[c], positions[v * 3 + c]); } return [(mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2 + 0.0, (mn[2] + mx[2]) / 2]; })();
   const F = [0, 0, 1], U = [0, 1, 0], S = [1, 0, 0];
   const wrist = (s) => jp(`hand_${s}`);
@@ -181,6 +182,20 @@ async function bake(name, file) {
     for (let v = 0; v < vertexCount; v++) if (kinds[v] === "eye" && Math.sign(positions[v * 3]) === sign) { c = [c[0] + positions[v * 3], c[1] + positions[v * 3 + 1], c[2] + positions[v * 3 + 2]]; n++; }
     eyeCenters[sign] = scale(c, 1 / Math.max(1, n));
   }
+  let browY = 0, browN = 0;
+  for (let v = 0; v < vertexCount; v++) if (kinds[v] === "brow") { browY += positions[v * 3 + 1]; browN++; }
+  browY /= Math.max(1, browN);
+  if (process.env.PROBE) console.log(name, { headBox, head, eyeCenters, browY, neck: jp("neck_01") });
+  // 发际线：前额（眉上 4 cm）→ 鬓角（耳上）→ 后颈。头部顶点写入「高出发际线」的连续参数，
+  // 运行时按发型阈值把头皮着色为头发并沿法线鼓出发量，发型与头部网格严丝合缝，不再穿插。
+  const eyeY = eyeCenters[1][1];
+  const frontH = browY + 0.042, sideH = eyeY + 0.014, backH = head[1] - 0.05;
+  const scalp = (p) => {
+    const dx = p[0] - head[0], dz = p[2] - head[2];
+    const f = dz / Math.max(1e-4, Math.hypot(dx, dz));
+    const h = f > 0.3 ? sideH + (frontH - sideH) * smooth(0.3, 0.8, f) : backH + (sideH - backH) * smooth(-0.75, 0.15, f);
+    return Math.min(1, Math.max(0, 0.5 + (p[1] - h) / 0.08));
+  };
   const ARM = new Set([SEG.upperR, SEG.upperL, SEG.foreR, SEG.foreL, SEG.handR, SEG.handL]);
   const cloth = new Uint8Array(vertexCount * 4);
   for (let v = 0; v < vertexCount; v++) {
@@ -194,7 +209,10 @@ async function bake(name, file) {
       zone = ZONE.eye;
       const d = norm(sub(p, eyeCenters[Math.sign(p[0]) || 1]));
       t0 = Math.round(Math.max(0, d[2]) * 255);
-    } else if (dominant === SEG.head) zone = ZONE.head;
+    } else if (dominant === SEG.head) {
+      zone = ZONE.head;
+      t0 = Math.round(scalp(p) * 255);
+    }
     else if (ARM.has(dominant)) {
       zone = ZONE.arm;
       t0 = Math.round((armParam(Math.abs(p[0])) / 3) * 255);

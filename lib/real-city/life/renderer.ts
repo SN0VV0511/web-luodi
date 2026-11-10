@@ -385,10 +385,14 @@ export class LifeRenderer {
     w.rightFootPitch = p.rightFootPitch;
     w.scale = this.activeScale;
     if (!this.people.add(w, a)) return false;
-    this.headPoint(p, 0, 0.03, -0.008);
+    // 短发直接由头部网格的头皮分区着色并鼓出发量；只有长发/发髻/马尾补挂下垂发束，
+    // 发束自带的发帽略小于鼓出的头皮，藏在头发里面，帽子与头发不再互相穿插。
     const style = a.hat ? 0 : a.hairStyle;
-    const hairBatch = style === 2 ? this.hairLong : style === 3 ? this.hairBun : style === 4 ? this.hairPonytail : this.hair;
-    this.part(hairBatch, this.local, 0.178, style === 1 ? 0.19 : 0.2, style === 1 ? 0.19 : 0.2, a.hair, p.headPitch, p.headYaw);
+    if (style >= 2) {
+      const hairBatch = style === 2 ? this.hairLong : style === 3 ? this.hairBun : this.hairPonytail;
+      this.headPoint(p, 0, 0.026, -0.012);
+      this.part(hairBatch, this.local, 0.17, 0.19, 0.19, a.hair, p.headPitch, p.headYaw);
+    }
     if (a.skirt) {
       this.local.x = p.hips.x;
       this.local.y = p.hips.y - 0.17;
@@ -408,10 +412,11 @@ export class LifeRenderer {
       }
     }
     if (a.hat) {
-      this.headPoint(p, 0, 0.085, 0);
-      this.part(this.hats, this.local, 0.1, 0.09, 0.106, a.coat, p.headPitch, p.headYaw);
-      this.headPoint(p, 0, 0.081, 0.012);
-      this.part(this.brims, this.local, 0.13, 0.012, 0.14, a.coat, p.headPitch, p.headYaw);
+      // 帽冠包住头顶（比头部宽 1 cm），帽檐落在额头上方。
+      this.headPoint(p, 0, 0.032, -0.004);
+      this.part(this.hats, this.local, 0.102, 0.088, 0.122, a.coat, p.headPitch, p.headYaw);
+      this.headPoint(p, 0, 0.034, 0.014);
+      this.part(this.brims, this.local, 0.135, 0.01, 0.15, a.coat, p.headPitch, p.headYaw);
     }
     return true;
   }

@@ -71,6 +71,7 @@ interface DrawGroup {
   shoes: THREE.InstancedBufferAttribute;
   hair: THREE.InstancedBufferAttribute;
   style: THREE.InstancedBufferAttribute;
+  cut: THREE.InstancedBufferAttribute;
   used: number;
 }
 
@@ -89,6 +90,7 @@ attribute vec3 iPants;
 attribute vec3 iShoes;
 attribute vec3 iHair;
 attribute vec4 iStyle;
+attribute vec2 iCut;
 mat4 peopleBone(float bone) {
   int x = int(bone + 0.5) * 4;
   int y = int(iSlot + 0.5);
@@ -97,6 +99,7 @@ mat4 peopleBone(float bone) {
 float peopleInflate(vec4 cloth, vec4 style) {
   float zone = floor(cloth.x * 255.0 + 0.5);
   float winter = style.w;
+  if (zone == 0.0) return cloth.y >= iCut.x ? iCut.y * smoothstep(iCut.x, iCut.x + 0.16, cloth.y) : 0.0;
   if (zone == 2.0) return cloth.y * 3.0 < style.x ? 0.01 + winter * 0.016 : 0.0;
   if (zone != 1.0) return 0.0;
   float L = cloth.z * 6.0;
@@ -116,8 +119,8 @@ void main() {
 
 function patchVertex(shader: { vertexShader: string; uniforms: Record<string, THREE.IUniform> }, uniforms: Record<string, THREE.IUniform>, withColors: boolean): void {
   Object.assign(shader.uniforms, uniforms);
-  let vs = shader.vertexShader.replace("#include <common>", `#include <common>\n${PARS_VERTEX}\n${withColors ? "varying vec4 vPeopleCloth;\nflat varying float vPeopleZone;\nflat varying vec3 vPeopleSkin;\nflat varying vec3 vPeopleCoat;\nflat varying vec3 vPeopleShirt;\nflat varying vec3 vPeoplePants;\nflat varying vec3 vPeopleShoes;\nflat varying vec3 vPeopleHair;\nflat varying vec4 vPeopleStyle;" : ""}`);
-  vs = vs.replace("void main() {", SKIN_MAIN + (withColors ? "  vPeopleCloth = aCloth; vPeopleZone = floor(aCloth.x * 255.0 + 0.5); vPeopleSkin = iSkin; vPeopleCoat = iCoat; vPeopleShirt = iShirt; vPeoplePants = iPants; vPeopleShoes = iShoes; vPeopleHair = iHair; vPeopleStyle = iStyle;\n" : ""));
+  let vs = shader.vertexShader.replace("#include <common>", `#include <common>\n${PARS_VERTEX}\n${withColors ? "varying vec4 vPeopleCloth;\nflat varying float vPeopleZone;\nflat varying vec3 vPeopleSkin;\nflat varying vec3 vPeopleCoat;\nflat varying vec3 vPeopleShirt;\nflat varying vec3 vPeoplePants;\nflat varying vec3 vPeopleShoes;\nflat varying vec3 vPeopleHair;\nflat varying vec4 vPeopleStyle;\nflat varying vec2 vPeopleCut;" : ""}`);
+  vs = vs.replace("void main() {", SKIN_MAIN + (withColors ? "  vPeopleCloth = aCloth; vPeopleZone = floor(aCloth.x * 255.0 + 0.5); vPeopleSkin = iSkin; vPeopleCoat = iCoat; vPeopleShirt = iShirt; vPeoplePants = iPants; vPeopleShoes = iShoes; vPeopleHair = iHair; vPeopleStyle = iStyle; vPeopleCut = iCut;\n" : ""));
   vs = vs.replace("#include <beginnormal_vertex>", "vec3 objectNormal = normalize(mat3(peopleSkin) * normal);");
   vs = vs.replace("#include <begin_vertex>", "vec3 transformed = (peopleSkin * vec4(peopleBind, 1.0)).xyz;");
   shader.vertexShader = vs;
@@ -133,6 +136,7 @@ flat varying vec3 vPeoplePants;
 flat varying vec3 vPeopleShoes;
 flat varying vec3 vPeopleHair;
 flat varying vec4 vPeopleStyle;
+flat varying vec2 vPeopleCut;
 uniform vec3 peopleSkinRef;
 float peopleRough = 0.85;
 `;
@@ -146,7 +150,16 @@ const FRAGMENT_MAP = /* glsl */ `
   float weave = 0.95 + 0.05 * sin(vMapUv.x * 1400.0) * sin(vMapUv.y * 1400.0);
   vec3 col = skin;
   peopleRough = 0.6;
-  if (zone == 1.0) {
+  if (zone == 0.0) {
+    // 头发：发际线处用细噪声打散边缘，发丝方向的条纹 + 低频深浅，避免「刷漆头盔」感。
+    float edge = vPeopleCut.x + (fract(sin(dot(floor(vMapUv * 900.0), vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * 0.05;
+    if (vPeopleCloth.y >= edge) {
+      float strand = 0.78 + 0.22 * sin(vMapUv.x * 2600.0 + sin(vMapUv.y * 300.0) * 3.0);
+      float clump = 0.88 + 0.12 * sin(vMapUv.x * 210.0) * sin(vMapUv.y * 170.0);
+      col = vPeopleHair * strand * clump;
+      peopleRough = 0.55;
+    }
+  } else if (zone == 1.0) {
     float L = vPeopleCloth.z * 6.0;
     if (L < 1.25) { col = vPeopleShoes; peopleRough = 0.45; }
     else if (L < vPeopleStyle.y) { col = mix(skin, vec3(0.04, 0.036, 0.035), 0.7); peopleRough = 0.45; }
@@ -288,7 +301,7 @@ export class SkinnedPeople {
     };
     const group: DrawGroup = {
       mesh: undefined as unknown as THREE.Mesh, geometry,
-      slot: add("iSlot", 1), skin: add("iSkin", 3), coat: add("iCoat", 3), shirt: add("iShirt", 3), pants: add("iPants", 3), shoes: add("iShoes", 3), hair: add("iHair", 3), style: add("iStyle", 4),
+      slot: add("iSlot", 1), skin: add("iSkin", 3), coat: add("iCoat", 3), shirt: add("iShirt", 3), pants: add("iPants", 3), shoes: add("iShoes", 3), hair: add("iHair", 3), style: add("iStyle", 4), cut: add("iCut", 2),
       used: 0,
     };
     geometry.instanceCount = 0;
@@ -304,13 +317,13 @@ export class SkinnedPeople {
       patchVertex(shader, uniforms, true);
       patchFragment(shader);
     };
-    material.customProgramCacheKey = () => "skinned-people-v3";
+    material.customProgramCacheKey = () => "skinned-people-v4";
     const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
     depth.onBeforeCompile = (shader) => patchVertex(shader, uniforms, false);
-    depth.customProgramCacheKey = () => "skinned-people-depth-v1";
+    depth.customProgramCacheKey = () => "skinned-people-depth-v2";
     const distance = new THREE.MeshDistanceMaterial();
     distance.onBeforeCompile = (shader) => patchVertex(shader, uniforms, false);
-    distance.customProgramCacheKey = () => "skinned-people-distance-v1";
+    distance.customProgramCacheKey = () => "skinned-people-distance-v2";
     this.materials.push(material, depth, distance);
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = "Neighborhood · realistic residents";
@@ -359,6 +372,11 @@ export class SkinnedPeople {
     const bareTop = appearance.skirt ? 2.15 : 1.25;
     const coatBottom = appearance.winterCoat || appearance.coatLength > 0.62 ? Math.max(2.15, 3.2 - appearance.coatLength * 1.1) : 3.62;
     group.style.setXYZW(i, sleeve, bareTop, coatBottom, appearance.winterCoat ? 1 : 0);
+    // 发型阈值（越小发际越低）与发量；戴帽时只留帽下鬓角，不鼓出以免顶穿帽子。
+    const hs = appearance.hairStyle;
+    const cut = appearance.hat ? 0.5 : hs === 1 ? 0.56 : hs >= 2 ? 0.42 : 0.48;
+    const volume = appearance.hat ? 0.002 : hs === 1 ? 0.005 : hs >= 2 ? 0.013 : 0.011;
+    group.cut.setXY(i, cut, volume);
     return true;
   }
 
@@ -367,7 +385,7 @@ export class SkinnedPeople {
       group.geometry.instanceCount = group.used;
       group.mesh.visible = group.used > 0;
       if (group.used === 0) continue;
-      for (const attribute of [group.slot, group.skin, group.coat, group.shirt, group.pants, group.shoes, group.hair, group.style]) {
+      for (const attribute of [group.slot, group.skin, group.coat, group.shirt, group.pants, group.shoes, group.hair, group.style, group.cut]) {
         attribute.clearUpdateRanges();
         attribute.addUpdateRange(0, group.used * attribute.itemSize);
         attribute.needsUpdate = true;
