@@ -57,7 +57,16 @@ interface BodyAsset {
   min: THREE.Vector3;
   ext: THREE.Vector3;
   texture: THREE.Texture;
+  normal: THREE.Texture;
   skinRef: THREE.Color;
+}
+
+interface HairGroup {
+  mesh: THREE.Mesh;
+  geometry: THREE.InstancedBufferGeometry;
+  slot: THREE.InstancedBufferAttribute;
+  hair: THREE.InstancedBufferAttribute;
+  used: number;
 }
 
 interface DrawGroup {
@@ -139,6 +148,8 @@ flat varying vec4 vPeopleStyle;
 flat varying vec2 vPeopleCut;
 uniform vec3 peopleSkinRef;
 float peopleRough = 0.85;
+float peopleSkinMask = 1.0;
+vec2 peopleFold = vec2(0.0);
 `;
 
 const FRAGMENT_MAP = /* glsl */ `
@@ -151,21 +162,25 @@ const FRAGMENT_MAP = /* glsl */ `
   vec3 col = skin;
   peopleRough = 0.6;
   if (zone == 0.0) {
-    // 头发：发际线处用细噪声打散边缘，发丝方向的条纹 + 低频深浅，避免「刷漆头盔」感。
-    float edge = vPeopleCut.x + (fract(sin(dot(floor(vMapUv * 900.0), vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * 0.05;
-    if (vPeopleCloth.y >= edge) {
-      float strand = 0.78 + 0.22 * sin(vMapUv.x * 2600.0 + sin(vMapUv.y * 300.0) * 3.0);
-      float clump = 0.88 + 0.12 * sin(vMapUv.x * 210.0) * sin(vMapUv.y * 170.0);
-      col = vPeopleHair * strand * clump;
-      peopleRough = 0.55;
-    }
+    // 发壳下的头皮底色：平滑过渡（无逐像素硬边），体积与发丝由独立发型网格提供。
+    float edge = smoothstep(vPeopleCut.x - 0.05, vPeopleCut.x + 0.08, vPeopleCloth.y);
+    col = mix(col, vPeopleHair * 0.7, edge * 0.92);
+    peopleRough = mix(peopleRough, 0.6, edge);
   } else if (zone == 1.0) {
     float L = vPeopleCloth.z * 6.0;
-    if (L < 1.25) { col = vPeopleShoes; peopleRough = 0.45; }
+    if (L < 1.25) { col = vPeopleShoes; peopleRough = 0.45; peopleSkinMask = 0.0; }
     else if (L < vPeopleStyle.y) { col = mix(skin, vec3(0.04, 0.036, 0.035), 0.7); peopleRough = 0.45; }
-    else if (L < vPeopleStyle.z) { col = vPeoplePants * weave; peopleRough = 0.88; }
+    else if (L < vPeopleStyle.z) {
+      col = vPeoplePants * weave; peopleRough = 0.88; peopleSkinMask = 0.0;
+      // 裤子褶皱：膝窝与脚踝堆褶（横向），裤管纵向垂褶。
+      float k = exp(-pow((L - 2.0) / 0.35, 2.0)) + exp(-pow((L - 1.35) / 0.2, 2.0));
+      peopleFold = vec2(sin(vMapUv.x * 90.0) * 0.18, sin(L * 34.0 + sin(vMapUv.x * 55.0) * 2.5) * (0.12 + 0.5 * k));
+    }
     else if (L < 5.0) {
-      col = vPeopleCoat * weave; peopleRough = 0.86;
+      col = vPeopleCoat * weave; peopleRough = 0.86; peopleSkinMask = 0.0;
+      // 上衣褶皱：腰间与腋下的横向挤压褶 + 前襟的纵向垂坠。
+      float waist = exp(-pow((L - 3.9) / 0.3, 2.0)) + 0.6 * exp(-pow((L - 4.6) / 0.15, 2.0));
+      peopleFold = vec2(sin(vMapUv.x * 70.0 + L * 3.0) * 0.16, sin(L * 30.0 + sin(vMapUv.x * 48.0) * 2.0) * (0.1 + 0.45 * waist));
       if (L > 4.8 && front > 0.55) col = vPeopleShirt;
       // 腰带
       if (vPeopleStyle.z > 3.0 && L > vPeopleStyle.z && L < vPeopleStyle.z + 0.05) col *= 0.55;
@@ -173,15 +188,18 @@ const FRAGMENT_MAP = /* glsl */ `
   } else if (zone == 2.0) {
     float A = vPeopleCloth.y * 3.0;
     if (A < vPeopleStyle.x) {
-      col = vPeopleCoat * weave; peopleRough = 0.86;
+      col = vPeopleCoat * weave; peopleRough = 0.86; peopleSkinMask = 0.0;
+      // 袖子：肘弯处的环状堆褶。
+      float elbow = exp(-pow((A - 1.0) / 0.18, 2.0)) + 0.5 * exp(-pow((A - vPeopleStyle.x + 0.1) / 0.1, 2.0));
+      peopleFold = vec2(0.06 * sin(vMapUv.y * 80.0), sin(A * 42.0 + sin(vMapUv.y * 60.0) * 2.0) * (0.08 + 0.5 * elbow));
       if (vPeopleStyle.x > 1.5 && A > vPeopleStyle.x - 0.07) col = vPeopleShirt;
     }
   } else if (zone == 7.0) {
-    col = vPeopleHair; peopleRough = 0.9;
+    col = vPeopleHair; peopleRough = 0.9; peopleSkinMask = 0.0;
   } else if (zone == 8.0) {
     float along = vPeopleCloth.y;
     col = along > 0.93 ? vec3(0.012, 0.01, 0.009) : along > 0.84 ? vec3(0.09, 0.05, 0.03) : vec3(0.62, 0.6, 0.56);
-    peopleRough = 0.2;
+    peopleRough = 0.2; peopleSkinMask = 0.0;
   }
   diffuseColor.rgb *= col;
 }
@@ -191,16 +209,27 @@ function patchFragment(shader: { fragmentShader: string; uniforms: Record<string
   let fs = shader.fragmentShader.replace("#include <common>", `#include <common>\n${FRAGMENT_PARS}`);
   fs = fs.replace("#include <map_fragment>", FRAGMENT_MAP);
   fs = fs.replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\nroughnessFactor = peopleRough;");
+  // 皮肤用 UBC 法线贴图（面部五官、锁骨、手指关节）；衣物改用程序化褶皱法线，避免布料下透出肌肉。
+  fs = fs.replace("#include <normal_fragment_maps>", `
+#ifdef USE_NORMALMAP_TANGENTSPACE
+  vec3 mapN = texture2D(normalMap, vNormalMapUv).xyz * 2.0 - 1.0;
+  mapN.xy *= normalScale * peopleSkinMask;
+  mapN.xy += peopleFold;
+  normal = normalize(tbn * mapN);
+#endif`);
   shader.fragmentShader = fs;
 }
 
 interface BodyMeta { bones: number; min: number[]; ext: number[]; frames: number[][] }
 
 async function loadBody(url: string, textureUrl: string, skinRef: THREE.Color): Promise<BodyAsset> {
-  const [container, texture] = await Promise.all([
+  const [container, texture, normal] = await Promise.all([
     fetchMeshoptContainer<BodyMeta>(url),
     new THREE.TextureLoader().loadAsync(textureUrl),
+    new THREE.TextureLoader().loadAsync(textureUrl.replace(/\.webp$/, "-normal.webp")),
   ]);
+  normal.flipY = false;
+  normal.anisotropy = 4;
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.flipY = false;
   texture.anisotropy = 4;
@@ -229,7 +258,93 @@ async function loadBody(url: string, textureUrl: string, skinRef: THREE.Color): 
   geometry.setAttribute("aJoints", new THREE.BufferAttribute(stream("joints"), 4, false));
   geometry.setAttribute("aWeights", new THREE.BufferAttribute(stream("weights"), 4, true));
   geometry.setAttribute("aCloth", new THREE.BufferAttribute(stream("cloth"), 4, true));
-  return { geometry, lod0: new THREE.BufferAttribute(lod0, 1), lod1: new THREE.BufferAttribute(lod1, 1), inverseBind, min, ext, texture, skinRef };
+  return { geometry, lod0: new THREE.BufferAttribute(lod0, 1), lod1: new THREE.BufferAttribute(lod1, 1), inverseBind, min, ext, texture, normal, skinRef };
+}
+
+export const HAIR_STYLE_NAMES = ["short", "crop", "long", "bun", "ponytail"] as const;
+type HairMeta = { styles: Record<string, { min: number[]; ext: number[] }> };
+type HairAsset = { geometry: THREE.BufferGeometry; lod0: THREE.BufferAttribute; lod1: THREE.BufferAttribute; min: THREE.Vector3; ext: THREE.Vector3 };
+
+async function loadHair(url: string): Promise<HairAsset[]> {
+  const { meta, streams } = await fetchMeshoptContainer<HairMeta>(url);
+  const stream = (name: string) => {
+    const data = streams.get(name);
+    if (!data) throw new Error(`hair asset missing ${name}`);
+    return data;
+  };
+  return HAIR_STYLE_NAMES.map((style) => {
+    const pos = stream(`${style}.position`), nor = stream(`${style}.normal`), flow = stream(`${style}.flow`);
+    const i0 = stream(`${style}.lod0`), i1 = stream(`${style}.lod1`);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.InterleavedBufferAttribute(new THREE.InterleavedBuffer(new Uint16Array(pos.buffer as ArrayBuffer, pos.byteOffset, pos.byteLength / 2), 4), 3, 0, true));
+    const normals = new THREE.InterleavedBuffer(new Int8Array(nor.buffer as ArrayBuffer, nor.byteOffset, nor.byteLength), 4);
+    geometry.setAttribute("normal", new THREE.InterleavedBufferAttribute(normals, 3, 0, true));
+    geometry.setAttribute("aLayer", new THREE.InterleavedBufferAttribute(normals, 1, 3, false));
+    geometry.setAttribute("uv", new THREE.BufferAttribute(new Uint16Array(flow.buffer as ArrayBuffer, flow.byteOffset, flow.byteLength / 2), 2, true));
+    const index = (data: Uint8Array) => new THREE.BufferAttribute(new Uint16Array(data.buffer as ArrayBuffer, data.byteOffset, data.byteLength / 2), 1);
+    return { geometry, lod0: index(i0), lod1: index(i1), min: new THREE.Vector3().fromArray(meta.styles[style].min), ext: new THREE.Vector3().fromArray(meta.styles[style].ext) };
+  });
+}
+
+const HAIR_PARS_VERTEX = /* glsl */ `
+uniform highp sampler2D peopleBones;
+uniform vec3 hairMin;
+uniform vec3 hairExt;
+attribute float iSlot;
+attribute vec3 iHair;
+attribute float aLayer;
+varying vec2 vHairFlow;
+varying float vHairLayer;
+varying vec3 vHairColor;
+mat4 hairHeadBone() {
+  int y = int(iSlot + 0.5);
+  return mat4(texelFetch(peopleBones, ivec2(8, y), 0), texelFetch(peopleBones, ivec2(9, y), 0), texelFetch(peopleBones, ivec2(10, y), 0), texelFetch(peopleBones, ivec2(11, y), 0));
+}
+`;
+
+function patchHairVertex(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: Record<string, THREE.IUniform>, withNormal: boolean): void {
+  Object.assign(shader.uniforms, uniforms);
+  shader.vertexShader = shader.vertexShader
+    .replace("#include <common>", `#include <common>\n${HAIR_PARS_VERTEX}`)
+    .replace("#include <beginnormal_vertex>", withNormal ? `mat4 hairBone = hairHeadBone();\nvec3 objectNormal = normalize(mat3(hairBone) * normal);\n#ifdef USE_TANGENT\nvec3 objectTangent = vec3(1.0, 0.0, 0.0);\n#endif` : "#include <beginnormal_vertex>")
+    .replace("#include <begin_vertex>", `${withNormal ? "" : "mat4 hairBone = hairHeadBone();\n"}vec3 transformed = (hairBone * vec4(hairMin + position * hairExt, 1.0)).xyz;\nvHairFlow = uv;\nvHairLayer = aLayer;\nvHairColor = iHair;`);
+  // 骨骼矩阵已是世界变换；网格本身用单位矩阵。
+}
+
+/** 发丝着色：u 绕头一周的细条纹 + 簇状深浅；发际与发梢以噪声 alpha 软化，外层发壳只保留稀疏发丝形成蓬松轮廓。 */
+const HAIR_FRAGMENT = /* glsl */ `
+float hairHash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+float hairStrands(vec2 f) {
+  float lane = f.x * 700.0;
+  float id = floor(lane);
+  // 发丝小于一个像素时淡出为平均值，避免远处出现摩尔纹 / 木纹条带。
+  float blur = clamp((fwidth(lane) - 0.35) / 0.65, 0.0, 1.0);
+  float r = hairHash(vec2(id, 3.1));
+  float along = f.y * (6.0 + r * 10.0) + r * 7.0;
+  float cut = hairHash(vec2(id, floor(along)));
+  float across = abs(fract(lane) - 0.5) * 2.0;
+  return mix((1.0 - smoothstep(0.35, 1.0, across)) * (0.35 + 0.65 * cut), 0.5, blur);
+}
+`;
+
+function patchHairFragment(shader: THREE.WebGLProgramParametersWithUniforms): void {
+  shader.fragmentShader = shader.fragmentShader
+    .replace("#include <common>", `#include <common>\nvarying vec2 vHairFlow;\nvarying float vHairLayer;\nvarying vec3 vHairColor;\n${HAIR_FRAGMENT}`)
+    .replace("#include <map_fragment>", `
+      float hs = hairStrands(vHairFlow);
+      float clump = 0.8 + 0.2 * sin(vHairFlow.x * 140.0 + sin(vHairFlow.y * 9.0) * 2.0);
+      float layer = floor(vHairLayer + 0.5);
+      float hairAlpha;
+      if (layer < 0.5) hairAlpha = smoothstep(0.0, 0.2, vHairFlow.y + (hs - 0.5) * 0.25);
+      else if (layer < 1.5) hairAlpha = smoothstep(0.42, 0.62, hs) * smoothstep(0.06, 0.3, vHairFlow.y);
+      else if (layer < 2.5) hairAlpha = smoothstep(0.6, 0.78, hs) * smoothstep(0.12, 0.4, vHairFlow.y);
+      else hairAlpha = smoothstep(0.0, 0.16, vHairFlow.y - (1.0 - hs) * 0.14);
+      diffuseColor.rgb = vHairColor * (0.74 + 0.36 * hs) * clump * (0.84 + 0.16 * vHairFlow.y + layer * 0.04);
+      diffuseColor.a = hairAlpha;
+    `)
+    .replace("#include <normal_fragment_maps>", `#include <normal_fragment_maps>
+      // 发丝法线：沿发丝横向的条纹起伏，产生各向异性般的高光带。
+      normal = normalize(normal + (hs - 0.5) * 0.22 * normalize(cross(normal, vec3(0.0, 1.0, 0.0)) + 1e-4));`);
 }
 
 export class SkinnedPeople {
@@ -239,6 +354,9 @@ export class SkinnedPeople {
   private readonly boneTexture: THREE.DataTexture;
   private readonly groups: DrawGroup[] = [];
   private readonly bodies: BodyAsset[] = [];
+  /** [female][style][lod] 发型实例组。 */
+  private readonly hairGroups: HairGroup[][][] = [];
+  private readonly hairs: HairAsset[][] = [];
   private readonly materials: THREE.Material[] = [];
   private readonly viewer = new THREE.Vector3(0, 1e6, 0);
   private slot = 0;
@@ -274,13 +392,19 @@ export class SkinnedPeople {
     Promise.all([
       loadBody(`${baseUrl}body-male.bin`, `${baseUrl}body-male.webp`, new THREE.Color().setRGB(0.703, 0.535, 0.36, THREE.SRGBColorSpace)),
       loadBody(`${baseUrl}body-female.bin`, `${baseUrl}body-female.webp`, new THREE.Color().setRGB(0.708, 0.545, 0.366, THREE.SRGBColorSpace)),
-    ]).then((bodies) => {
+      loadHair(`${baseUrl}hair-male.bin`),
+      loadHair(`${baseUrl}hair-female.bin`),
+    ]).then(([male, female, maleHair, femaleHair]) => {
+      const bodies = [male, female];
       if (this.disposed) {
-        for (const body of bodies) { body.geometry.dispose(); body.texture.dispose(); }
+        for (const body of bodies) { body.geometry.dispose(); body.texture.dispose(); body.normal.dispose(); }
+        for (const hair of [...maleHair, ...femaleHair]) hair.geometry.dispose();
         return;
       }
       this.bodies.push(...bodies);
       for (const body of bodies) for (const lod of [body.lod0, body.lod1]) this.groups.push(this.createGroup(body, lod));
+      this.hairs.push(maleHair, femaleHair);
+      for (const set of this.hairs) this.hairGroups.push(set.map((hair) => [this.createHairGroup(hair, hair.lod0), this.createHairGroup(hair, hair.lod1)]));
       this.ready = true;
     }).catch((error: unknown) => {
       this.failed = true;
@@ -311,13 +435,13 @@ export class SkinnedPeople {
       peoplePosExt: { value: body.ext },
       peopleSkinRef: { value: body.skinRef },
     };
-    const material = new THREE.MeshStandardMaterial({ map: body.texture, roughness: 0.8, metalness: 0 });
+    const material = new THREE.MeshStandardMaterial({ map: body.texture, normalMap: body.normal, normalScale: new THREE.Vector2(1, -1), roughness: 0.8, metalness: 0 });
     material.name = "Realistic resident";
     material.onBeforeCompile = (shader) => {
       patchVertex(shader, uniforms, true);
       patchFragment(shader);
     };
-    material.customProgramCacheKey = () => "skinned-people-v4";
+    material.customProgramCacheKey = () => "skinned-people-v5";
     const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
     depth.onBeforeCompile = (shader) => patchVertex(shader, uniforms, false);
     depth.customProgramCacheKey = () => "skinned-people-depth-v2";
@@ -341,9 +465,43 @@ export class SkinnedPeople {
     return group;
   }
 
+  private createHairGroup(hair: HairAsset, index: THREE.BufferAttribute): HairGroup {
+    const geometry = new THREE.InstancedBufferGeometry();
+    for (const [name, attribute] of Object.entries(hair.geometry.attributes)) geometry.setAttribute(name, attribute);
+    geometry.setIndex(index);
+    const add = (name: string, size: number) => {
+      const attribute = new THREE.InstancedBufferAttribute(new Float32Array(this.capacity * size), size);
+      attribute.setUsage(THREE.DynamicDrawUsage);
+      geometry.setAttribute(name, attribute);
+      return attribute;
+    };
+    const group: HairGroup = { mesh: undefined as unknown as THREE.Mesh, geometry, slot: add("iSlot", 1), hair: add("iHair", 3), used: 0 };
+    geometry.instanceCount = 0;
+    const uniforms = { peopleBones: { value: this.boneTexture }, hairMin: { value: hair.min }, hairExt: { value: hair.ext } };
+    const material = new THREE.MeshStandardMaterial({ roughness: 0.52, metalness: 0, side: THREE.DoubleSide, alphaTest: 0.5, alphaToCoverage: true });
+    material.name = "Resident hair";
+    material.onBeforeCompile = (shader) => { patchHairVertex(shader, uniforms, true); patchHairFragment(shader); };
+    material.customProgramCacheKey = () => "people-hair-v2";
+    const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+    depth.onBeforeCompile = (shader) => patchHairVertex(shader, uniforms, false);
+    depth.customProgramCacheKey = () => "people-hair-depth-v1";
+    this.materials.push(material, depth);
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = "Neighborhood · resident hair";
+    mesh.customDepthMaterial = depth;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.frustumCulled = false;
+    mesh.matrixAutoUpdate = false;
+    this.parent.add(mesh);
+    group.mesh = mesh;
+    return group;
+  }
+
   begin(): void {
     this.slot = 0;
     for (const group of this.groups) group.used = 0;
+    for (const sex of this.hairGroups) for (const style of sex) for (const group of style) group.used = 0;
   }
 
   /** 写入一位居民；返回 false 时调用方应退回程序化人形。 */
@@ -373,14 +531,33 @@ export class SkinnedPeople {
     const coatBottom = appearance.winterCoat || appearance.coatLength > 0.62 ? Math.max(2.15, 3.2 - appearance.coatLength * 1.1) : 3.62;
     group.style.setXYZW(i, sleeve, bareTop, coatBottom, appearance.winterCoat ? 1 : 0);
     // 发型阈值（越小发际越低）与发量；戴帽时只留帽下鬓角，不鼓出以免顶穿帽子。
-    const hs = appearance.hairStyle;
-    const cut = appearance.hat ? 0.5 : hs === 1 ? 0.56 : hs >= 2 ? 0.42 : 0.48;
-    const volume = appearance.hat ? 0.002 : hs === 1 ? 0.005 : hs >= 2 ? 0.013 : 0.011;
-    group.cut.setXY(i, cut, volume);
+    // 头皮着色只作为发壳下的深色底层（不再鼓出）；体积发型由独立的发壳/发帘网格提供，戴帽时省略。
+    const hs = Math.min(4, Math.max(0, appearance.hairStyle | 0));
+    const cut = appearance.hat ? 0.5 : hs === 1 ? 0.58 : hs >= 2 ? 0.45 : 0.51;
+    group.cut.setXY(i, cut, 0);
+    if (!appearance.hat) {
+      const hairGroup = this.hairGroups[female ? 1 : 0]?.[hs]?.[far ? 1 : 0];
+      if (hairGroup) {
+        const h = hairGroup.used++;
+        hairGroup.slot.setX(h, slot);
+        this.color.set(appearance.hair);
+        hairGroup.hair.setXYZ(h, this.color.r, this.color.g, this.color.b);
+      }
+    }
     return true;
   }
 
   end(): void {
+    for (const sex of this.hairGroups) for (const style of sex) for (const group of style) {
+      group.geometry.instanceCount = group.used;
+      group.mesh.visible = group.used > 0;
+      if (group.used === 0) continue;
+      for (const attribute of [group.slot, group.hair]) {
+        attribute.clearUpdateRanges();
+        attribute.addUpdateRange(0, group.used * attribute.itemSize);
+        attribute.needsUpdate = true;
+      }
+    }
     for (const group of this.groups) {
       group.geometry.instanceCount = group.used;
       group.mesh.visible = group.used > 0;
@@ -480,9 +657,13 @@ export class SkinnedPeople {
       group.mesh.removeFromParent();
       group.geometry.dispose();
     }
+    for (const sex of this.hairGroups) for (const style of sex) for (const group of style) { group.mesh.removeFromParent(); group.geometry.dispose(); }
+    for (const set of this.hairs) for (const hair of set) hair.geometry.dispose();
+    this.hairGroups.length = 0;
     for (const body of this.bodies) {
       body.geometry.dispose();
       body.texture.dispose();
+      body.normal.dispose();
     }
     for (const material of this.materials) material.dispose();
     this.boneTexture.dispose();

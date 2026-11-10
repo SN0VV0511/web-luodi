@@ -79,6 +79,7 @@ export class LifeRenderer {
   private hats: BodyBatch;
   private brims: BodyBatch;
   private glasses: BodyBatch;
+  private temples: BodyBatch;
   private dogBodies: BodyBatch;
   private dogHeads: BodyBatch;
   private dogLegs: BodyBatch;
@@ -136,7 +137,8 @@ export class LifeRenderer {
     this.buttons = this.batch("coat fasteners", new THREE.SphereGeometry(1, 6, 4), metal, maximumActors * 3);
     this.hats = this.batch("hat crowns", new THREE.SphereGeometry(1, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), cloth, maximumActors);
     this.brims = this.batch("hat brims", new THREE.CylinderGeometry(1, 1, 1, 16), cloth, maximumActors);
-    this.glasses = this.batch("spectacle frames", new THREE.TorusGeometry(1, 0.12, 5, 10), metal, maximumActors * 2);
+    this.glasses = this.batch("spectacle frames", new THREE.TorusGeometry(1, 0.12, 5, 14), metal, maximumActors * 2);
+    this.temples = this.batch("spectacle temples", new THREE.BoxGeometry(1, 1, 1), metal, maximumActors * 3);
     this.dogBodies = this.batch("dog bodies", new THREE.SphereGeometry(1, 14, 10), cloth, 10);
     this.dogHeads = this.batch("dog heads", new THREE.SphereGeometry(1, 12, 8), cloth, 30);
     this.dogLegs = this.batch("dog legs", new THREE.CapsuleGeometry(0.5, 0.5, 3, 8), cloth, 40);
@@ -385,14 +387,7 @@ export class LifeRenderer {
     w.rightFootPitch = p.rightFootPitch;
     w.scale = this.activeScale;
     if (!this.people.add(w, a)) return false;
-    // 短发直接由头部网格的头皮分区着色并鼓出发量；只有长发/发髻/马尾补挂下垂发束，
-    // 发束自带的发帽略小于鼓出的头皮，藏在头发里面，帽子与头发不再互相穿插。
-    const style = a.hat ? 0 : a.hairStyle;
-    if (style >= 2) {
-      const hairBatch = style === 2 ? this.hairLong : style === 3 ? this.hairBun : this.hairPonytail;
-      this.headPoint(p, 0, 0.026, -0.012);
-      this.part(hairBatch, this.local, 0.17, 0.19, 0.19, a.hair, p.headPitch, p.headYaw);
-    }
+    // 发型（短发/寸头/波波/发髻/马尾）由 SkinnedPeople 的体积发壳网格绘制，这里不再挂发束。
     if (a.skirt) {
       this.local.x = p.hips.x;
       this.local.y = p.hips.y - 0.17;
@@ -406,10 +401,18 @@ export class LifeRenderer {
       this.part(this.backpacks, this.local, 0.3, 0.38, 0.16, shirtTone(a.shoes === "#d9d6cf" ? "#46566b" : "#6b3a32"), p.chestPitch, p.chestYaw);
     }
     if (a.glasses) {
+      // 镜片中心 = 绑定姿态眼球中心（头部中心下方 2–2.8 cm、前方 6.5 cm）× 头部缩放 0.94，再前移 2.4 cm 架在鼻梁上；
+      // 镜腿从镜框外缘水平伸到耳上，鼻梁处一根横梁。
+      const female = a.skirt === true || a.hairStyle >= 2;
+      const eyeY = (female ? -0.0197 : -0.0278) * 0.94;
       for (const side of [-1, 1]) {
-        this.headPoint(p, side * 0.034, 0.02, 0.1);
-        this.part(this.glasses, this.local, 0.026, 0.018, 0.012, "#4f4c47", p.headPitch, p.headYaw);
+        this.headPoint(p, side * 0.0325 * 0.94, eyeY, 0.089 * 0.94);
+        this.part(this.glasses, this.local, 0.021, 0.0155, 0.012, "#3d3a36", p.headPitch, p.headYaw);
+        this.headPoint(p, side * 0.079 * 0.94, eyeY + 0.003, 0.046 * 0.94);
+        this.part(this.temples, this.local, 0.0028, 0.0035, 0.084, "#3d3a36", p.headPitch, p.headYaw);
       }
+      this.headPoint(p, 0, eyeY + 0.004, 0.091 * 0.94);
+      this.part(this.temples, this.local, 0.016, 0.0028, 0.003, "#3d3a36", p.headPitch, p.headYaw);
     }
     if (a.hat) {
       // 帽冠包住头顶（比头部宽 1 cm），帽檐落在额头上方。

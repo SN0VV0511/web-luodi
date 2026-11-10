@@ -221,7 +221,7 @@ async function bake(name, file) {
     cloth[v * 4 + 1] = t0;
     // 颈部皮肤只在中线附近露出；肩顶（锁骨/斜方肌）仍属上衣。
     let L = bodyParam(p[1]);
-    if (zone === ZONE.body && L > 4.9) L = Math.min(L, 4.9 + Math.max(0, 0.085 - Math.abs(p[0])) * 4);
+    if ((zone === ZONE.body || zone === ZONE.arm) && L > 4.9) L = Math.min(L, 4.9 + Math.max(0, 0.085 - Math.abs(p[0])) * 4);
     cloth[v * 4 + 2] = Math.round(Math.min(1, L / 6) * 255);
     cloth[v * 4 + 3] = Math.round(Math.min(1, Math.max(0, (p[2] + 0.15) / 0.3)) * 255);
   }
@@ -282,8 +282,23 @@ async function bake(name, file) {
     oW.set(weights.subarray(v * 4, v * 4 + 4), o * 4);
     oC.set(cloth.subarray(v * 4, v * 4 + 4), o * 4);
   }
-  const i0 = Uint16Array.from(lod0.out, (i) => remap[i]);
-  const i1 = Uint16Array.from(lod1raw, (i) => remap[i]);
+  // flat 分区取三角形最后一个顶点（WebGL provoking vertex）：跨分区的三角形优先用身体 > 手臂 > 头部顶点，
+  // 领口 / 肩头由连续的高度参数决定，不再出现被头部分区「撕开」的皮肤碎片。
+  const rank = (v) => { const z = cloth[v * 4]; return z === ZONE.body ? 3 : z === ZONE.arm ? 2 : z === ZONE.head ? 1 : 4; };
+  const provoke = (list) => {
+    const out = Array.from(list);
+    for (let t = 0; t < out.length; t += 3) {
+      let best = 2;
+      for (let k = 0; k < 2; k++) if (rank(out[t + k]) > rank(out[t + best])) best = k;
+      if (best === 2) continue;
+      const tri = [out[t], out[t + 1], out[t + 2]];
+      const shift = best + 1; // 旋转使 best 成为最后一个，保持绕序
+      for (let k = 0; k < 3; k++) out[t + k] = tri[(k + shift) % 3];
+    }
+    return out;
+  };
+  const i0 = Uint16Array.from(provoke(lod0.out), (i) => remap[i]);
+  const i1 = Uint16Array.from(provoke(lod1raw), (i) => remap[i]);
   const blob = await writeContainer(
     { bones: 15, min, ext, frames: frames.map((f) => f.map((x) => Math.round(x * 1e5) / 1e5)) },
     {
@@ -298,7 +313,166 @@ async function bake(name, file) {
     },
   );
   writeFileSync(join(outDir, `${name}.bin`), blob);
+  await bakeHair(name, { positions, normals, indices, kinds, segW, scalp, head, frames, vertexCount });
   console.log(`${name}: ${vertexCount} -> ${kept} verts, LOD0 ${i0.length / 3} tris (err ${lod0.err.toFixed(4)}), LOD1 ${i1.length / 3} tris, ${(blob.length / 1024).toFixed(1)} KiB`);
+}
+
+/**
+ * 体积发型：沿头皮法线偏移出 3 层发壳（内层不透明、外两层为稀疏发丝，形成毛茸茸的轮廓），
+ * 发际线处发量归零并在着色器里以发丝 alpha 软化；长发 / 发髻 / 马尾再加下垂发帘或发束。
+ * 全部刚性绑定在头部骨段（绑定空间坐标），运行时与身体共享同一张骨骼纹理。
+ * 每顶点：pos f32×3 | normal i8×3 + 层号 | flow u16×2（u 绕头一周，v 从发际 0 → 发梢 / 头顶 1）。
+ */
+const HAIR_STYLES = [
+  { name: "short", cut: 0.47, volume: 0.02, layers: 3 },
+  { name: "crop", cut: 0.55, volume: 0.009, layers: 2 },
+  { name: "long", cut: 0.41, volume: 0.022, layers: 3, curtain: true },
+  { name: "bun", cut: 0.41, volume: 0.015, layers: 3, bun: true },
+  { name: "ponytail", cut: 0.41, volume: 0.015, layers: 3, ponytail: true },
+];
+async function bakeHair(name, { positions, normals, indices, kinds, segW, scalp, head }) {
+  const P = (v) => [positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2]];
+  const N = (v) => [normals[v * 3], normals[v * 3 + 1], normals[v * 3 + 2]];
+  const isHead = (v) => kinds[v] === "body" && segW[v][SEG.head] > 0.6;
+  const streams = {};
+  const meta = { styles: {} };
+  for (const style of HAIR_STYLES) {
+    const pos = [], nor = [], flow = [], layer = [];
+    const lod0 = [], lod1 = [];
+    const push = (p, n, u, v, l) => { pos.push(...p); nor.push(...norm(n)); flow.push(u, v); layer.push(l); return pos.length / 3 - 1; };
+    const edge = style.cut - 0.07;
+    const tris = [];
+    for (let i = 0; i < indices.length; i += 3) {
+      const a = indices[i], b = indices[i + 1], c = indices[i + 2];
+      if (!isHead(a) || !isHead(b) || !isHead(c)) continue;
+      if (Math.max(scalp(P(a)), scalp(P(b)), scalp(P(c))) < edge) continue;
+      tris.push(a, b, c);
+    }
+    const angle = (p) => Math.atan2(p[0] - head[0], p[2] - head[2]) / (2 * Math.PI) + 0.5;
+    for (let l = 0; l < style.layers; l++) {
+      const remap = new Map();
+      const vert = (v) => {
+        let id = remap.get(v);
+        if (id !== undefined) return id;
+        const p = P(v), n = N(v);
+        const sp = scalp(p);
+        const fill = smooth(edge, style.cut + 0.14, sp);
+        // 头顶与后脑更蓬松，鬓角贴头。
+        const shape = 0.5 + 0.35 * Math.max(0, n[1]) + 0.25 * Math.max(0, -n[2]);
+        const off = style.volume * shape * fill * (l === 0 ? 0.72 : l === 1 ? 1.0 : 1.3) + 0.0015;
+        const q = [p[0] + n[0] * off, p[1] + n[1] * off, p[2] + n[2] * off];
+        id = push(q, n, angle(p), Math.min(1, Math.max(0, (sp - edge) / 0.45)), l);
+        remap.set(v, id);
+        return id;
+      };
+      for (let i = 0; i < tris.length; i += 3) {
+        const ids = [vert(tris[i]), vert(tris[i + 1]), vert(tris[i + 2])];
+        lod0.push(...ids);
+        if (l === 0) lod1.push(...ids);
+      }
+    }
+    // 外层发壳的低处顶点：用于挂发帘。
+    const outer = [];
+    for (let v = 0; v < layer.length; v++) if (layer[v] === style.layers - 1) outer.push(v);
+    const tube = (path, radius, sides, l, flowU) => {
+      const rings = [];
+      for (let k = 0; k < path.length; k++) {
+        const c = path[k];
+        const next = path[Math.min(path.length - 1, k + 1)], prev = path[Math.max(0, k - 1)];
+        const t = norm(sub(next, prev));
+        const ref = Math.abs(t[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0];
+        const x = norm(cross(ref, t)), y = cross(t, x);
+        const ring = [];
+        for (let j = 0; j <= sides; j++) {
+          const a = (j / sides) * Math.PI * 2;
+          const n = [x[0] * Math.cos(a) + y[0] * Math.sin(a), x[1] * Math.cos(a) + y[1] * Math.sin(a), x[2] * Math.cos(a) + y[2] * Math.sin(a)];
+          const r = radius(k / (path.length - 1));
+          ring.push(push([c[0] + n[0] * r, c[1] + n[1] * r, c[2] + n[2] * r], n, flowU + j / sides * 0.25, 1 - k / (path.length - 1) * 0.98, l));
+        }
+        rings.push(ring);
+      }
+      for (let k = 0; k < rings.length - 1; k++) for (let j = 0; j < sides; j++) {
+        const q = [rings[k][j], rings[k + 1][j], rings[k + 1][j + 1], rings[k][j + 1]];
+        lod0.push(q[0], q[1], q[2], q[0], q[2], q[3]);
+        lod1.push(q[0], q[1], q[2], q[0], q[2], q[3]);
+      }
+    };
+    if (style.curtain) {
+      // 及下颌的波波长发：绕后脑与两侧（避开面部 ±50°）垂下的发帘，下摆略向外张开。
+      const columns = 30, rows = 6, drop = 0.2;
+      const grid = [];
+      for (let ci = 0; ci <= columns; ci++) {
+        const theta = (-0.36 + (ci / columns) * 0.72); // 圈数：0 = 正后方
+        const target = theta + 0.5 > 1 ? theta - 0.5 : theta + 0.5; // 转换为 angle() 定义（0.5 = 正前方）
+        let best = -1, bestY = Infinity;
+        for (const v of outer) {
+          let d = Math.abs(flow[v * 2] - (target + 1) % 1); d = Math.min(d, 1 - d);
+          if (d > 0.02) continue;
+          if (flow[v * 2 + 1] > 0.12) continue;
+          if (pos[v * 3 + 1] < bestY) { bestY = pos[v * 3 + 1]; best = v; }
+        }
+        if (best < 0) { grid.push(null); continue; }
+        const a = [pos[best * 3], pos[best * 3 + 1] + 0.035, pos[best * 3 + 2]];
+        const radial = norm([a[0] - head[0], 0, a[2] - head[2]]);
+        const col = [];
+        for (let r = 0; r <= rows; r++) {
+          const t = r / rows;
+          const p = [a[0] + radial[0] * (0.004 + 0.03 * t * t), a[1] - drop * t, a[2] + radial[2] * (0.004 + 0.03 * t * t)];
+          col.push(push(p, [radial[0], 0.2, radial[2]], (target + 1) % 1, 1 - t * 0.98, 3));
+        }
+        grid.push(col);
+      }
+      for (let ci = 0; ci < grid.length - 1; ci++) {
+        if (!grid[ci] || !grid[ci + 1]) continue;
+        for (let r = 0; r < rows; r++) {
+          const q = [grid[ci][r], grid[ci][r + 1], grid[ci + 1][r + 1], grid[ci + 1][r]];
+          lod0.push(q[0], q[1], q[2], q[0], q[2], q[3]);
+          lod1.push(q[0], q[1], q[2], q[0], q[2], q[3]);
+        }
+      }
+    }
+    if (style.bun) {
+      const c = [head[0], head[1] + 0.055, head[2] - 0.095];
+      tube([[c[0], c[1] + 0.045, c[2] + 0.01], [c[0], c[1] + 0.03, c[2] - 0.02], [c[0], c[1], c[2] - 0.035], [c[0], c[1] - 0.03, c[2] - 0.02], [c[0], c[1] - 0.045, c[2] + 0.01]],
+        (t) => 0.012 + Math.sin(t * Math.PI) * 0.036, 10, 0, 0.2);
+    }
+    if (style.ponytail) {
+      const path = [];
+      for (let k = 0; k <= 7; k++) { const t = k / 7; path.push([head[0], head[1] + 0.02 - t * 0.24, head[2] - 0.105 - Math.sin(t * 1.6) * 0.05]); }
+      tube(path, (t) => 0.028 * (1 - t * 0.6) + 0.006, 8, 3, 0.3);
+    }
+    // 每层发壳用 meshopt 简化（保持边界），远景只留内层与发束；之后只保留被引用的顶点。
+    const [r0] = MeshoptSimplifier.simplify(new Uint32Array(lod0), new Float32Array(pos), 3, Math.floor(Math.min(lod0.length, 2600 * 3) / 3) * 3, 0.004, ["LockBorder"]);
+    const [r1] = MeshoptSimplifier.simplify(new Uint32Array(lod1), new Float32Array(pos), 3, Math.floor(Math.min(lod1.length, 500 * 3) / 3) * 3, 0.01, ["LockBorder"]);
+    const used = new Map();
+    for (const i of [...r0, ...r1]) if (!used.has(i)) used.set(i, used.size);
+    const count = used.size;
+    const qn = new Int8Array(count * 4), qf = new Uint16Array(count * 2);
+    const cpos = new Float64Array(count * 3);
+    for (const [v, o] of used) {
+      for (let c = 0; c < 3; c++) { qn[o * 4 + c] = Math.round(Math.max(-1, Math.min(1, nor[v * 3 + c])) * 127); cpos[o * 3 + c] = pos[v * 3 + c]; }
+      qn[o * 4 + 3] = layer[v];
+      qf[o * 2] = Math.round(Math.min(1, Math.max(0, flow[v * 2])) * 65535);
+      qf[o * 2 + 1] = Math.round(Math.min(1, Math.max(0, flow[v * 2 + 1])) * 65535);
+    }
+    const s0 = Array.from(r0, (i) => used.get(i)), s1 = Array.from(r1, (i) => used.get(i));
+    pos.length = 0; pos.push(...cpos);
+    const key = style.name;
+    const hmin = [Infinity, Infinity, Infinity], hmax = [-Infinity, -Infinity, -Infinity];
+    for (let v = 0; v < count; v++) for (let c = 0; c < 3; c++) { hmin[c] = Math.min(hmin[c], pos[v * 3 + c]); hmax[c] = Math.max(hmax[c], pos[v * 3 + c]); }
+    const hext = hmax.map((m, c) => Math.max(1e-4, m - hmin[c]));
+    const qp = new Uint16Array(count * 4);
+    for (let v = 0; v < count; v++) for (let c = 0; c < 3; c++) qp[v * 4 + c] = Math.round(((pos[v * 3 + c] - hmin[c]) / hext[c]) * 65535);
+    streams[`${key}.position`] = { kind: "v", data: qp, count, size: 8 };
+    streams[`${key}.normal`] = { kind: "v", data: qn, count, size: 4 };
+    streams[`${key}.flow`] = { kind: "v", data: qf, count, size: 4 };
+    streams[`${key}.lod0`] = { kind: "i", data: Uint16Array.from(s0), count: s0.length, size: 2 };
+    streams[`${key}.lod1`] = { kind: "i", data: Uint16Array.from(s1), count: s1.length, size: 2 };
+    meta.styles[key] = { vertices: count, lod0: s0.length / 3, lod1: s1.length / 3, min: hmin, ext: hext };
+  }
+  const blob = await writeContainer(meta, streams);
+  writeFileSync(join(outDir, `${name.replace("body", "hair")}.bin`), blob);
+  console.log(`${name.replace("body", "hair")}: ${Object.entries(meta.styles).map(([k, v]) => `${k} ${v.lod0}/${v.lod1}`).join(", ")} ${(blob.length / 1024).toFixed(1)} KiB`);
 }
 
 await bake("body-male", "Superhero_Male_FullBody.gltf");
