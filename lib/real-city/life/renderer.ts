@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { createLiveryMaterial, createServiceShell, type ServiceShell } from "../v3/vehicles/service-fleet";
+import { loadCarModelsOnce, canLoadCityAssets } from "../vehicles/car-models";
 import type { CivicKit } from "../../city-civic";
 import { createBackpack, createCalf, createForearm, createHair, createHairBun, createHairLong, createHairPonytail, createHand, createHead, createNeck, createPelvis, createSkirt, createShoe, createThigh, createTorso, createUpperArm } from "../../city-figure";
 import { angleDelta, lerp, point3, type Point3 } from "./math";
@@ -13,6 +15,7 @@ interface BodyBatch {
   capacity: number;
 }
 
+type ServiceFleet = { shape: ServiceShell; body: BodyBatch; glass: BodyBatch; trim: BodyBatch; chrome: BodyBatch; lensA: BodyBatch; lensB: BodyBatch };
 type FleetShell = {
   shape: VehicleShell;
   body: BodyBatch;
@@ -89,6 +92,7 @@ export class LifeRenderer {
   private animalEyes: BodyBatch;
   private leashes: BodyBatch;
   private readonly vehicleShells: Record<"sedan" | "suv" | "bus", FleetShell>;
+  private readonly serviceFleets: Record<"police" | "taxi" | "ambulance", ServiceFleet>;
   private vehicleWheels: BodyBatch;
   private vehicleRims: BodyBatch;
   private vehicleLamps: BodyBatch;
@@ -158,6 +162,48 @@ export class LifeRenderer {
       };
     };
     this.vehicleShells = { sedan: fleetShell("sedan"), suv: fleetShell("suv"), bus: fleetShell("bus") };
+    // v3：警车 / 出租车（CC0 轿车 + 涂装 + 顶灯）与一体式救护车。
+    const lens = kit.solid("#ffffff", 0.2, 0.05);
+    lens.emissive.set("#ffffff");
+    lens.emissiveIntensity = 2.4;
+    // 灯罩自发光按实例色调制：熄灭时为深色灯罩，频闪时为红 / 蓝亮光。
+    lens.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>
+      #if defined(USE_COLOR) || defined(USE_INSTANCING_COLOR)
+        totalEmissiveRadiance *= vColor.rgb * vColor.rgb;
+      #endif`);
+    };
+    lens.customProgramCacheKey = () => "life-lens-instance-emissive";
+    const serviceFleet = (kind: "police" | "taxi" | "ambulance"): ServiceFleet => {
+      const shape = createServiceShell(kind);
+      const livery = createLiveryMaterial(kind, shape);
+      kit.materials.add(livery);
+      return {
+        shape,
+        body: this.batch(`service ${kind} livery`, shape.body, livery, 4),
+        glass: this.batch(`service ${kind} glazing`, shape.glass, glass, 4),
+        trim: this.batch(`service ${kind} seals`, shape.trim, rubber, 4),
+        chrome: this.batch(`service ${kind} metalwork`, shape.chrome, metal, 4),
+        lensA: this.batch(`service ${kind} light bar A`, shape.lensA, lens, 4),
+        lensB: this.batch(`service ${kind} light bar B`, shape.lensB, lens, 4),
+      };
+    };
+    this.serviceFleets = { police: serviceFleet("police"), taxi: serviceFleet("taxi"), ambulance: serviceFleet("ambulance") };
+    if (canLoadCityAssets()) {
+      loadCarModelsOnce().then((models) => {
+        for (const kind of ["police", "taxi"] as const) {
+          const fleet = this.serviceFleets[kind];
+          const next = createServiceShell(kind, kind === "police" ? models.sedan : models.sedan);
+          for (const key of ["body", "glass", "trim", "chrome", "lensA", "lensB"] as const) {
+            this.kit.geometries.add(next[key]);
+            fleet[key].mesh.geometry = next[key];
+          }
+          const material = fleet.body.mesh.material as THREE.Material;
+          (material.userData.liverySize as THREE.Vector3 | undefined)?.set(next.length, next.height, next.width);
+          fleet.shape = next;
+        }
+      }).catch(() => undefined);
+    }
     const fleetWheels = createVehicleWheel();
     this.vehicleWheels = this.batch("service vehicle tires", fleetWheels.tire, rubber, 48);
     this.vehicleRims = this.batch("service vehicle rims", fleetWheels.rim, metal, 48);
@@ -519,10 +565,15 @@ export class LifeRenderer {
       this.activeHeading = vehicle.previousHeading + angleDelta(vehicle.previousHeading, vehicle.heading) * alpha;
       this.activeScale = 1;
       const bus = vehicle.kind === "bus";
-      const fleet = this.vehicleShells[bus ? "bus" : vehicle.kind === "ambulance" ? "suv" : "sedan"];
+      const service = vehicle.kind === "police" || vehicle.kind === "taxi" || vehicle.kind === "ambulance" ? this.serviceFleets[vehicle.kind] : null;
+      if (service) {
+        this.drawServiceVehicle(service, vehicle, context);
+        continue;
+      }
+      const fleet = this.vehicleShells[bus ? "bus" : "sedan"];
       const shape = fleet.shape;
-      const length = bus ? 9.2 : vehicle.kind === "ambulance" ? 5.1 : 4.3;
-      const height = bus ? 2.7 : vehicle.kind === "ambulance" ? 1.82 : 1.45;
+      const length = bus ? 9.2 : 4.3;
+      const height = bus ? 2.7 : 1.45;
       const width = bus ? 2.35 : 1.85;
       const sx = width / shape.width;
       const sy = height / shape.height;
@@ -546,12 +597,29 @@ export class LifeRenderer {
       if (bus) {
         this.part(this.vehicleDoors, { x: width * 0.502, y: height * 0.5, z: 3.1 + vehicle.doors * 0.4 }, 0.04, 1.9, 0.85, "#445a63");
       }
-      if (vehicle.kind === "taxi") this.part(this.vehicleLamps, { x: 0, y: height + 0.18, z: 0 }, 0.55, 0.17, 0.22, vehicle.occupancy.length ? "#797465" : "#d9bf59");
-      if (vehicle.emergency) {
-        const flash = Math.sin(context.time.seconds * 9) > 0;
-        this.part(this.vehicleLamps, { x: -0.28, y: height + 0.2, z: 0.6 }, 0.35, 0.17, 0.25, flash ? "#d44a3f" : "#53443d");
-        this.part(this.vehicleLamps, { x: 0.28, y: height + 0.2, z: 0.6 }, 0.35, 0.17, 0.25, flash ? "#374c63" : "#4b82bd");
-      }
+    }
+  }
+
+  private drawServiceVehicle(fleet: ServiceFleet, vehicle: LifeContext["vehicles"][number], context: LifeContext): void {
+    const shape = fleet.shape;
+    const origin = { x: 0, y: 0, z: 0 };
+    this.part(fleet.body, origin, 1, 1, 1, vehicle.kind === "taxi" ? "#f2c12e" : "#ffffff");
+    this.part(fleet.glass, origin, 1, 1, 1, "#7891a0");
+    this.part(fleet.trim, origin, 1, 1, 1, "#22272a");
+    this.part(fleet.chrome, origin, 1, 1, 1, "#c4cacc");
+    const phase = Math.floor(context.time.seconds * 6) % 4;
+    const red = vehicle.kind === "taxi" ? (vehicle.occupancy.length ? "#5a5440" : "#ffd75a") : vehicle.emergency && (phase === 0 || phase === 2) ? "#ff2a1f" : "#4a1714";
+    const blue = vehicle.kind === "taxi" ? red : vehicle.emergency && (phase === 1 || phase === 3) ? "#2f6dff" : "#14223f";
+    this.part(fleet.lensA, origin, 1, 1, 1, red);
+    this.part(fleet.lensB, origin, 1, 1, 1, blue);
+    const radius = shape.wheelR;
+    for (const wheel of shape.wheels) {
+      const position = { x: wheel.x, y: radius - vehicle.suspension, z: wheel.z };
+      this.drawFleetWheel(position, radius, wheel.z > 0 ? vehicle.steering : 0, vehicle.wheelPhase);
+    }
+    for (const lamp of shape.lamps) {
+      const tint = lamp.tail ? vehicle.brake > 0.2 ? "#c64233" : "#772e28" : "#f3e2b4";
+      this.part(this.vehicleLamps, lamp, 0.24, 0.1, 0.07, tint);
     }
   }
 

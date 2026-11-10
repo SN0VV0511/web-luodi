@@ -54,3 +54,10 @@ export async function loadCarModels(baseUrl = "/models/vehicles/"): Promise<Reco
   }
   return out;
 }
+
+let shared: Promise<Record<CarModelKind, CarModel>> | null = null;
+/** 全城共享的一次性加载：车流、停车场与服务车队共用同一份 CC0 车型几何。 */
+export function loadCarModelsOnce(baseUrl = "/models/vehicles/"): Promise<Record<CarModelKind, CarModel>> {
+  shared ??= loadCarModels(baseUrl).catch((error) => { shared = null; throw error; });
+  return shared;
+}

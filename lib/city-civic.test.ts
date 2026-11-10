@@ -34,8 +34,8 @@ it("公园草坪覆层离开底板，并在远景保留独立深度偏移", () =
   };
   try {
     buildCivicDistrict(kit);
-    expect(kit.vehicle).toHaveBeenCalledTimes(3);
-    expect(kit.vehicle).toHaveBeenCalledWith("sedan", expect.any(THREE.Material), expect.any(Number), expect.any(Number));
+    // 警车与救护车改由 v3 服务车队整车建模，只剩消防车走旧的车壳工厂。
+    expect(kit.vehicle).toHaveBeenCalledTimes(1);
     expect(kit.vehicle).toHaveBeenCalledWith("truck", expect.any(THREE.Material), expect.any(Number), expect.any(Number));
     expect(lawns).toHaveLength(1);
     const lawn = lawns[0];

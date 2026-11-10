@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { canLoadCityAssets, loadCarModels, type CarModelKind } from "./real-city/vehicles/car-models";
+import { canLoadCityAssets, loadCarModelsOnce, type CarModelKind } from "./real-city/vehicles/car-models";
 import { cityLots, ROAD_SEGMENTS, cityBlocks, districts, civicLots, type CityLot } from "./city-map";
 import type { PlaceId } from "./city-content";
 import { getBuildingExperience } from "./building-experience";
@@ -1305,7 +1305,7 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
   });
   // CC0 车型懒加载：就绪后原地替换轿车 / 两厢车 / SUV 的车壳几何与轮位、灯位元数据。
   if (canLoadCityAssets()) {
-    loadCarModels().then((models) => {
+    loadCarModelsOnce().then((models) => {
       for (const kind of Object.keys(models) as CarModelKind[]) {
         const model = models[kind];
         const shell = shells[kind];

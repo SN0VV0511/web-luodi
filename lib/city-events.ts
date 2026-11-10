@@ -10,6 +10,8 @@ import { buildStreetActivities, getStreetActivityIncidents } from "./city-street
 import { createHead, createTorso, createUpperArm } from "./city-figure";
 import { SkinnedPeople, createWorldPose } from "./real-city/life/skinned-people";
 import type { Appearance } from "./real-city/life/types";
+import { ServiceVehicle } from "./real-city/v3/vehicles/service-fleet";
+import { canLoadCityAssets, loadCarModelsOnce } from "./real-city/vehicles/car-models";
 
 export type IncidentKind = "fire" | "burglar" | "medical" | "utility" | "cruise" | "traffic" | "life";
 
@@ -817,6 +819,12 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
   const strobeRed = makeBatch("Events · red strobes", boxGeo, strobeRedMat, 6, false);
   const strobeBlue = makeBatch("Events · blue strobes", boxGeo, strobeBlueMat, 4, false);
   const strobeAmber = makeBatch("Events · amber strobes", boxGeo, strobeAmberMat, 4, false);
+  // v3：整车建模的警车 / 救护车 / 工程箱式货车取代旧的盒体拼装（旧槽位保留但每帧隐藏）。
+  const policeUnit = new ServiceVehicle("police");
+  const ambulanceUnit = new ServiceVehicle("ambulance");
+  const utilityUnit = new ServiceVehicle("utility", "#f1efe6");
+  for (const unit of [policeUnit, ambulanceUnit, utilityUnit]) group.add(unit.track(kit).group);
+  if (canLoadCityAssets()) loadCarModelsOnce().then((models) => policeUnit.upgrade(models.sedan)).catch(() => undefined);
 
   // 3. 事件角色小人批次（3名消防员 + 1名蒙面小偷 + 2名追捕特警 + 2名急救医护 + 1名患者 + 2名抢修工程师 = 11 人）
   const ACTOR_COUNT = 11;
@@ -1280,36 +1288,17 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
     const pSin = Math.sin(burg.site.carHeading);
     const pCos = Math.cos(burg.site.carHeading);
 
-    // 巡逻抓捕警车车体与白色车顶
-    dummy.position.set(burg.carX, 0.98, burg.carZ);
-    dummy.rotation.set(0, burg.site.carHeading, 0);
-    dummy.scale.set(1.92, 0.82, 4.65);
-    dummy.updateMatrix();
-    policeCruiserBody.setMatrixAt(0, dummy.matrix);
-
-    dummy.position.set(burg.carX - pSin * 0.15, 1.56, burg.carZ - pCos * 0.15);
-    dummy.scale.set(1.62, 0.58, 2.25);
-    dummy.updateMatrix();
-    policeCruiserBody.setMatrixAt(1, dummy.matrix);
-
-    dummy.position.set(burg.carX + pSin * 0.98, 1.54, burg.carZ + pCos * 0.98);
-    dummy.scale.set(1.52, 0.48, 0.1);
-    dummy.updateMatrix();
-    emergencyGlass.setMatrixAt(1, dummy.matrix);
-
-    placeWheelQuad(4, burg.carX, burg.carZ, burg.site.carHeading, 0.92, 1.42, 0.35);
-
-    // 警车红蓝爆闪顶灯
-    dummy.position.set(burg.carX - pCos * 0.42, flashA ? 1.94 : -20, burg.carZ + pSin * 0.42);
-    dummy.rotation.set(0, burg.site.carHeading, 0);
-    dummy.scale.set(0.55, 0.16, 0.28);
-    dummy.updateMatrix();
-    strobeRed.setMatrixAt(1, dummy.matrix);
-
-    dummy.position.set(burg.carX + pCos * 0.42, flashB ? 1.94 : -20, burg.carZ - pSin * 0.42);
-    dummy.scale.set(0.55, 0.16, 0.28);
-    dummy.updateMatrix();
-    strobeBlue.setMatrixAt(0, dummy.matrix);
+    // 巡逻抓捕警车：CC0 轿车 + 警用涂装 + 红蓝爆闪灯排
+    const eventNight = strobeRedMat.emissiveIntensity > 2.5;
+    policeUnit.place(burg.carX, 0.42, burg.carZ, burg.site.carHeading);
+    policeUnit.flash(seconds, true, eventNight);
+    hideInstance(policeCruiserBody, 0);
+    hideInstance(policeCruiserBody, 1);
+    hideInstance(emergencyGlass, 1);
+    for (let wheel = 4; wheel < 16; wheel++) hideInstance(emergencyWheels, wheel);
+    hideInstance(strobeRed, 1);
+    hideInstance(strobeBlue, 0);
+    void pSin; void pCos;
 
     // 角色 3：蒙面小偷（狂奔潜逃 -> 被包抄后高举双手投降！）
     poseActor(
@@ -1359,33 +1348,14 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
     const mSin = Math.sin(med.site.ambHeading);
     const mCos = Math.cos(med.site.ambHeading);
 
-    dummy.position.set(med.ambX, 1.55, med.ambZ);
-    dummy.rotation.set(0, med.site.ambHeading, 0);
-    dummy.scale.set(2.22, 2.15, 5.4);
-    dummy.updateMatrix();
-    ambulanceBody.setMatrixAt(0, dummy.matrix);
-    // 救护车车身红色生命彩带
-    dummy.position.set(med.ambX, 1.48, med.ambZ);
-    dummy.scale.set(2.28, 0.28, 5.25);
-    dummy.updateMatrix();
-    strobeRed.setMatrixAt(2, dummy.matrix);
-    hideInstance(ambulanceBody, 1);
-    hideInstance(ambulanceBody, 2);
-
-    dummy.position.set(med.ambX + mSin * 2.72, 1.85, med.ambZ + mCos * 2.72);
-    dummy.rotation.set(0, med.site.ambHeading, 0);
-    dummy.scale.set(1.92, 0.82, 0.08);
-    dummy.updateMatrix();
-    emergencyGlass.setMatrixAt(2, dummy.matrix);
-
-    placeWheelQuad(8, med.ambX, med.ambZ, med.site.ambHeading, 1.05, 1.75, 0.4);
-
-    // 救护车顶红蓝急救灯
-    dummy.position.set(med.ambX + mSin * 2.1, flashB ? 2.74 : -20, med.ambZ + mCos * 2.1);
-    dummy.rotation.set(0, med.site.ambHeading, 0);
-    dummy.scale.set(1.35, 0.2, 0.32);
-    dummy.updateMatrix();
-    strobeBlue.setMatrixAt(1, dummy.matrix);
+    // 120 急救车：一体式厢体 + 红色生命彩带 + 前后灯排
+    ambulanceUnit.place(med.ambX, 0.42, med.ambZ, med.site.ambHeading);
+    ambulanceUnit.flash(seconds, true, eventNight);
+    for (let slot = 0; slot < 3; slot++) hideInstance(ambulanceBody, slot);
+    hideInstance(strobeRed, 2);
+    hideInstance(emergencyGlass, 2);
+    hideInstance(strobeBlue, 1);
+    void mSin; void mCos;
 
     // 角色 8：不适市民，角色 6 & 7：急救医护人员 + 轮式急救担架床
     poseActor(8, med.site.patientX, 0.45, med.site.patientZ, 0.4, seconds, "kneel");
@@ -1417,32 +1387,15 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
     const uSin = Math.sin(util.site.vanHeading);
     const uCos = Math.cos(util.site.vanHeading);
 
-    dummy.position.set(util.vanX, 1.48, util.vanZ);
-    dummy.rotation.set(0, util.site.vanHeading, 0);
-    dummy.scale.set(2.18, 2.05, 5.1);
-    dummy.updateMatrix();
-    utilityVanBody.setMatrixAt(0, dummy.matrix);
-    hideInstance(utilityVanBody, 1);
-    hideInstance(utilityVanBody, 2);
-
-    dummy.position.set(util.vanX + uSin * 2.56, 1.78, util.vanZ + uCos * 2.56);
-    dummy.rotation.set(0, util.site.vanHeading, 0);
-    dummy.scale.set(1.88, 0.78, 0.08);
-    dummy.updateMatrix();
-    emergencyGlass.setMatrixAt(3, dummy.matrix);
-    for (let g = 4; g < 8; g++) hideInstance(emergencyGlass, g);
-
-    placeWheelQuad(12, util.vanX, util.vanZ, util.site.vanHeading, 1.02, 1.68, 0.4);
-
-    // 工程车琥珀色频闪警示灯
-    dummy.position.set(util.vanX, flashA ? 2.64 : -20, util.vanZ);
-    dummy.rotation.set(0, util.site.vanHeading, 0);
-    dummy.scale.set(1.25, 0.22, 0.34);
-    dummy.updateMatrix();
-    strobeAmber.setMatrixAt(0, dummy.matrix);
-    for (let a = 1; a < 4; a++) hideInstance(strobeAmber, a);
+    // 市政抢修箱式货车：平头驾驶室与货厢一体、底盘纵梁、双后轮、琥珀灯排与梯架
+    utilityUnit.place(util.vanX, 0.42, util.vanZ, util.site.vanHeading);
+    utilityUnit.flash(seconds, true, eventNight);
+    for (let slot = 0; slot < 3; slot++) hideInstance(utilityVanBody, slot);
+    for (let g = 3; g < 8; g++) hideInstance(emergencyGlass, g);
+    for (let a = 0; a < 4; a++) hideInstance(strobeAmber, a);
     for (let r = 3; r < 6; r++) hideInstance(strobeRed, r);
     for (let b = 2; b < 4; b++) hideInstance(strobeBlue, b);
+    void uSin; void uCos;
 
     // 爆管冲天高压水柱喷泉 (waterJetMesh 槽位 24..37)
     for (let g = 0; g < 14; g++) {

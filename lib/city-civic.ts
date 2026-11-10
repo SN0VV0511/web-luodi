@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { ServiceVehicle } from "./real-city/v3/vehicles/service-fleet";
+import { canLoadCityAssets, loadCarModelsOnce } from "./real-city/vehicles/car-models";
 import type { PlaceId } from "./city-content";
 import { civicLots } from "./city-map";
 import { markCitySurface } from "./city-surfaces";
@@ -174,26 +176,23 @@ export function buildCivicDistrict(kit: CivicKit): { landmarks: CivicLandmark[];
   }
 
   function vehicle(x: number, z: number, kind: "police" | "ambulance" | "fire") {
-    const fire = kind === "fire";
-    const ambulance = kind === "ambulance";
-    const shell = kit.vehicle(kind === "police" ? "sedan" : "truck", fire ? red : white, x, z);
+    if (kind !== "fire") {
+      // v3：警局 / 医院门前停放整车建模的警车与救护车（灯排熄灭待命）。
+      const unit = new ServiceVehicle(kind);
+      unit.place(x, 0.33, z, 0);
+      unit.flash(0, false);
+      kit.group.add(unit.track(kit).group);
+      if (kind === "police" && canLoadCityAssets()) loadCarModelsOnce().then((models) => unit.upgrade(models.sedan)).catch(() => undefined);
+      return;
+    }
+    const shell = kit.vehicle("truck", red, x, z);
     const roof = shell.height + 0.42;
     for (const side of [-1, 1]) {
       box(side < 0 ? blue : red, x + side * 0.3, roof + 0.13, z + shell.length * 0.23, 0.48, 0.16, 0.22);
-      if (kind === "police") {
-        box(blue, x + side * (shell.width / 2 + 0.012), 1.21, z, 0.025, 0.14, 1.8);
-      }
-      if (ambulance) {
-        box(red, x + side * (shell.width / 2 + 0.012), 1.7, z - 0.9, 0.025, 0.16, 2.7);
-        box(red, x + side * (shell.width / 2 + 0.018), 2.2, z - 0.8, 0.03, 0.65, 0.2);
-        box(red, x + side * (shell.width / 2 + 0.018), 2.2, z - 0.8, 0.03, 0.2, 0.65);
-      }
-      if (fire) {
-        box(concrete, x + side * (shell.width / 2 + 0.018), 1.85, z - 1, 0.035, 0.95, 2.5);
-        box(metal, x + side * 0.55, roof + 0.15, z - 0.4, 0.085, 0.12, 4.5);
-      }
+      box(concrete, x + side * (shell.width / 2 + 0.018), 1.85, z - 1, 0.035, 0.95, 2.5);
+      box(metal, x + side * 0.55, roof + 0.15, z - 0.4, 0.085, 0.12, 4.5);
     }
-    if (fire) for (let rung = 0; rung < 10; rung++) box(concrete, x, roof + 0.15, z - 2.35 + rung * 0.43, 1.12, 0.08, 0.08);
+    for (let rung = 0; rung < 10; rung++) box(concrete, x, roof + 0.15, z - 2.35 + rung * 0.43, 1.12, 0.08, 0.08);
   }
 
   function publicSite(x: number, z: number, name: string, height: number) {
