@@ -11,6 +11,7 @@
  */
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { writeContainer } from "./meshopt-container.mjs";
 
 const source = process.argv[2];
 if (!source) throw new Error("usage: build-vehicle-assets.mjs <OBJ directory>");
@@ -21,17 +22,7 @@ const MODELS = { sedan: "NormalCar1", hatchback: "NormalCar2", suv: "SUV" };
 const GROUP = (material) => material === "Windows" ? "glass" : material === "Black" ? "trim" : material === "Grey" || material === "Material.007" ? "chrome"
   : material === "Headlights" ? "head" : material === "TailLights" ? "tail" : "body";
 
-const chunks = [];
-let byteOffset = 0;
-const push = (typed) => {
-  const buffer = Buffer.from(typed.buffer, typed.byteOffset, typed.byteLength);
-  const pad = (4 - (buffer.length % 4)) % 4;
-  chunks.push(buffer, Buffer.alloc(pad));
-  const at = byteOffset;
-  byteOffset += buffer.length + pad;
-  return at;
-};
-
+const streams = {};
 const manifest = {};
 for (const [kind, name] of Object.entries(MODELS)) {
   const text = readFileSync(join(source, `${name}.obj`), "utf8").split("\n");
@@ -87,7 +78,7 @@ for (const [kind, name] of Object.entries(MODELS)) {
       lamps.push({ x: c[0], y: c[1] + lift, z: c[2] + (tail ? -0.02 : 0.02), tail });
     }
   }
-  const entry = { groups: {} };
+  const entry = {};
   for (const [g, list] of Object.entries(groups)) {
     const map = new Map(), pos = [], nor = [], idx = [];
     for (const f of list) {
@@ -103,7 +94,9 @@ for (const [kind, name] of Object.entries(MODELS)) {
       });
       for (let i = 1; i < ids.length - 1; i++) idx.push(ids[0], ids[i], ids[i + 1]);
     }
-    entry.groups[g] = { position: push(new Float32Array(pos)), normal: push(new Int8Array(nor)), index: push(new Uint16Array(idx)), vertices: pos.length / 3, indices: idx.length };
+    streams[`${kind}.${g}.position`] = { kind: "v", data: new Float32Array(pos), count: pos.length / 3, size: 12 };
+    streams[`${kind}.${g}.normal`] = { kind: "v", data: new Int8Array(nor), count: pos.length / 3, size: 4 };
+    streams[`${kind}.${g}.index`] = { kind: "i", data: new Uint16Array(idx), count: idx.length, size: 2 };
   }
   let min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
   for (const f of faces) for (const [a] of f.corners) { const p = P(v[a]); for (let i = 0; i < 3; i++) { min[i] = Math.min(min[i], p[i]); max[i] = Math.max(max[i], p[i]); } }
@@ -115,8 +108,8 @@ for (const [kind, name] of Object.entries(MODELS)) {
   entry.lamps = lamps;
   entry.source = `${name}.obj`;
   manifest[kind] = entry;
-  console.log(kind, name, Object.fromEntries(Object.entries(entry.groups).map(([k, g]) => [k, g.indices / 3])), "len", entry.length.toFixed(2), "wheels", entry.wheels.length, "lamps", lamps.length, "flip", flip);
+  console.log(kind, name, "len", entry.length.toFixed(2), "wheels", entry.wheels.length, "lamps", lamps.length, "flip", flip);
 }
-writeFileSync(join(outDir, "cars.bin"), Buffer.concat(chunks));
-writeFileSync(join(outDir, "cars.json"), JSON.stringify(manifest));
-console.log("bytes", byteOffset);
+const blob = await writeContainer(manifest, streams);
+writeFileSync(join(outDir, "cars.bin"), blob);
+console.log("bytes", blob.length);

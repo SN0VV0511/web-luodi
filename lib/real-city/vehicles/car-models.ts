@@ -1,7 +1,8 @@
 import * as THREE from "three";
+import { fetchMeshoptContainer } from "../assets/meshopt-container";
 
 /**
- * Quaternius「Realistic Car Pack」(CC0) 车型：由 scripts/build-vehicle-assets.mjs 烘焙为 cars.bin + cars.json，
+ * Quaternius「Realistic Car Pack」(CC0) 车型：由 scripts/build-vehicle-assets.mjs 烘焙为 meshopt 压缩的 cars.bin，
  * 场景就绪后懒加载，替换车流中轿车 / 两厢车 / SUV 的程序化车壳（车漆仍按实例着色，车轮仍为可转动的程序化轮胎）。
  */
 export type CarModelKind = "sedan" | "hatchback" | "suv";
@@ -19,31 +20,35 @@ export interface CarModel {
   lamps: { x: number; y: number; z: number; tail: boolean }[];
 }
 
-interface ManifestGroup { position: number; normal: number; index: number; vertices: number; indices: number }
-type Manifest = Record<CarModelKind, Omit<CarModel, "body" | "glass" | "trim" | "chrome"> & { groups: Record<"body" | "glass" | "trim" | "chrome", ManifestGroup> }>;
+type Manifest = Record<CarModelKind, Omit<CarModel, "body" | "glass" | "trim" | "chrome">>;
 
 export function canLoadCityAssets(): boolean {
   return typeof window !== "undefined" && typeof fetch === "function" && typeof document !== "undefined" && "WebGL2RenderingContext" in window;
 }
 
 export async function loadCarModels(baseUrl = "/models/vehicles/"): Promise<Record<CarModelKind, CarModel>> {
-  const [manifest, buffer] = await Promise.all([
-    fetch(`${baseUrl}cars.json`).then((r) => { if (!r.ok) throw new Error(`cars.json ${r.status}`); return r.json() as Promise<Manifest>; }),
-    fetch(`${baseUrl}cars.bin`).then((r) => { if (!r.ok) throw new Error(`cars.bin ${r.status}`); return r.arrayBuffer(); }),
-  ]);
-  const build = (group: ManifestGroup) => {
+  const { meta, streams } = await fetchMeshoptContainer<Manifest>(`${baseUrl}cars.bin`);
+  const take = (name: string) => {
+    const data = streams.get(name);
+    if (!data) throw new Error(`car asset missing ${name}`);
+    return data;
+  };
+  const build = (kind: CarModelKind, group: string) => {
+    const position = take(`${kind}.${group}.position`);
+    const normal = take(`${kind}.${group}.normal`);
+    const index = take(`${kind}.${group}.index`);
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(buffer, group.position, group.vertices * 3), 3));
-    geometry.setAttribute("normal", new THREE.InterleavedBufferAttribute(new THREE.InterleavedBuffer(new Int8Array(buffer, group.normal, group.vertices * 4), 4), 3, 0, true));
-    geometry.setIndex(new THREE.BufferAttribute(new Uint16Array(buffer, group.index, group.indices), 1));
+    geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(position.buffer as ArrayBuffer, position.byteOffset, position.byteLength / 4), 3));
+    geometry.setAttribute("normal", new THREE.InterleavedBufferAttribute(new THREE.InterleavedBuffer(new Int8Array(normal.buffer as ArrayBuffer, normal.byteOffset, normal.byteLength), 4), 3, 0, true));
+    geometry.setIndex(new THREE.BufferAttribute(new Uint16Array(index.buffer as ArrayBuffer, index.byteOffset, index.byteLength / 2), 1));
     geometry.computeBoundingSphere();
     return geometry;
   };
   const out = {} as Record<CarModelKind, CarModel>;
-  for (const kind of Object.keys(manifest) as CarModelKind[]) {
-    const entry = manifest[kind];
+  for (const kind of Object.keys(meta) as CarModelKind[]) {
+    const entry = meta[kind];
     out[kind] = {
-      body: build(entry.groups.body), glass: build(entry.groups.glass), trim: build(entry.groups.trim), chrome: build(entry.groups.chrome),
+      body: build(kind, "body"), glass: build(kind, "glass"), trim: build(kind, "trim"), chrome: build(kind, "chrome"),
       length: entry.length, width: entry.width, height: entry.height, wheelR: entry.wheelR, wheels: entry.wheels, lamps: entry.lamps,
     };
   }

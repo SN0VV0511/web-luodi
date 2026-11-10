@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { Appearance } from "./types";
+import { fetchMeshoptContainer } from "../assets/meshopt-container";
 
 /**
  * 写实蒙皮居民：Quaternius「Universal Base Characters」(CC0) 人体经 scripts/build-people-assets.mjs
@@ -180,50 +181,41 @@ function patchFragment(shader: { fragmentShader: string; uniforms: Record<string
   shader.fragmentShader = fs;
 }
 
+interface BodyMeta { bones: number; min: number[]; ext: number[]; frames: number[][] }
+
 async function loadBody(url: string, textureUrl: string, skinRef: THREE.Color): Promise<BodyAsset> {
-  const [buffer, texture] = await Promise.all([
-    fetch(url).then((response) => {
-      if (!response.ok) throw new Error(`people asset ${url}: ${response.status}`);
-      return response.arrayBuffer();
-    }),
+  const [container, texture] = await Promise.all([
+    fetchMeshoptContainer<BodyMeta>(url),
     new THREE.TextureLoader().loadAsync(textureUrl),
   ]);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.flipY = false;
   texture.anisotropy = 4;
-  const header = new Uint32Array(buffer, 0, 8);
-  if (header[0] !== 0x4c44504c) throw new Error("bad people asset");
-  const vertices = header[2];
-  const lod0Count = header[3];
-  const lod1Count = header[4];
-  const bones = header[5];
-  let offset = 32;
-  const floats = new Float32Array(buffer, offset, 6 + bones * 16);
-  offset += floats.byteLength;
-  const min = new THREE.Vector3(floats[0], floats[1], floats[2]);
-  const ext = new THREE.Vector3(floats[3], floats[4], floats[5]);
-  const inverseBind: THREE.Matrix4[] = [];
-  for (let bone = 0; bone < bones; bone++) inverseBind.push(new THREE.Matrix4().fromArray(floats, 6 + bone * 16).invert());
-  const take = <T extends ArrayBufferView>(make: (b: ArrayBuffer, o: number, n: number) => T, count: number, bytes: number): T => {
-    const view = make(buffer, offset, count);
-    offset += Math.ceil((count * bytes) / 4) * 4;
-    return view;
+  const { meta, streams } = container;
+  const stream = (name: string) => {
+    const data = streams.get(name);
+    if (!data) throw new Error(`people asset missing ${name}`);
+    return data;
   };
-  const positions = take((b, o, n) => new Uint16Array(b, o, n), vertices * 4, 2);
-  const normals = take((b, o, n) => new Int8Array(b, o, n), vertices * 4, 1);
-  const uvs = take((b, o, n) => new Uint16Array(b, o, n), vertices * 2, 2);
-  const joints = take((b, o, n) => new Uint8Array(b, o, n), vertices * 4, 1);
-  const weights = take((b, o, n) => new Uint8Array(b, o, n), vertices * 4, 1);
-  const cloth = take((b, o, n) => new Uint8Array(b, o, n), vertices * 4, 1);
-  const lod0 = take((b, o, n) => new Uint16Array(b, o, n), lod0Count, 2);
-  const lod1 = take((b, o, n) => new Uint16Array(b, o, n), lod1Count, 2);
+  const view = <T>(name: string, make: (buffer: ArrayBuffer, offset: number, length: number) => T, bytes: number): T => {
+    const data = stream(name);
+    return make(data.buffer as ArrayBuffer, data.byteOffset, data.byteLength / bytes);
+  };
+  const min = new THREE.Vector3().fromArray(meta.min);
+  const ext = new THREE.Vector3().fromArray(meta.ext);
+  const inverseBind = meta.frames.map((frame) => new THREE.Matrix4().fromArray(frame).invert());
+  const positions = view("position", (b, o, n) => new Uint16Array(b, o, n), 2);
+  const normals = view("normal", (b, o, n) => new Int8Array(b, o, n), 1);
+  const uvs = view("uv", (b, o, n) => new Uint16Array(b, o, n), 2);
+  const lod0 = view("lod0", (b, o, n) => new Uint16Array(b, o, n), 2);
+  const lod1 = view("lod1", (b, o, n) => new Uint16Array(b, o, n), 2);
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.InterleavedBufferAttribute(new THREE.InterleavedBuffer(positions, 4), 3, 0, true));
   geometry.setAttribute("normal", new THREE.InterleavedBufferAttribute(new THREE.InterleavedBuffer(normals, 4), 3, 0, true));
   geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2, true));
-  geometry.setAttribute("aJoints", new THREE.BufferAttribute(joints, 4, false));
-  geometry.setAttribute("aWeights", new THREE.BufferAttribute(weights, 4, true));
-  geometry.setAttribute("aCloth", new THREE.BufferAttribute(cloth, 4, true));
+  geometry.setAttribute("aJoints", new THREE.BufferAttribute(stream("joints"), 4, false));
+  geometry.setAttribute("aWeights", new THREE.BufferAttribute(stream("weights"), 4, true));
+  geometry.setAttribute("aCloth", new THREE.BufferAttribute(stream("cloth"), 4, true));
   return { geometry, lod0: new THREE.BufferAttribute(lod0, 1), lod1: new THREE.BufferAttribute(lod1, 1), inverseBind, min, ext, texture, skinRef };
 }
 

@@ -14,6 +14,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { MeshoptSimplifier } from "meshoptimizer";
+import { writeContainer } from "./meshopt-container.mjs";
 
 const source = process.argv[2];
 if (!source) throw new Error("usage: build-people-assets.mjs <UBC Godot - UE directory>");
@@ -265,10 +266,19 @@ async function bake(name, file) {
   }
   const i0 = Uint16Array.from(lod0.out, (i) => remap[i]);
   const i1 = Uint16Array.from(lod1raw, (i) => remap[i]);
-  const header = new Uint32Array([0x4c44504c, 1, kept, i0.length, i1.length, 15, 0, 0]);
-  const floats = new Float32Array([...min, ...ext, ...frames.flat()]);
-  const pad = (b) => { const extra = (4 - (b.byteLength % 4)) % 4; return Buffer.concat([Buffer.from(b.buffer, b.byteOffset, b.byteLength), Buffer.alloc(extra)]); };
-  const blob = Buffer.concat([header, floats, qPos, qNor, qUv, oJ, oW, oC, i0, i1].map(pad));
+  const blob = await writeContainer(
+    { bones: 15, min, ext, frames: frames.map((f) => f.map((x) => Math.round(x * 1e5) / 1e5)) },
+    {
+      position: { kind: "v", data: qPos, count: kept, size: 8 },
+      normal: { kind: "v", data: qNor, count: kept, size: 4 },
+      uv: { kind: "v", data: qUv, count: kept, size: 4 },
+      joints: { kind: "v", data: oJ, count: kept, size: 4 },
+      weights: { kind: "v", data: oW, count: kept, size: 4 },
+      cloth: { kind: "v", data: oC, count: kept, size: 4 },
+      lod0: { kind: "i", data: i0, count: i0.length, size: 2 },
+      lod1: { kind: "i", data: i1, count: i1.length, size: 2 },
+    },
+  );
   writeFileSync(join(outDir, `${name}.bin`), blob);
   console.log(`${name}: ${vertexCount} -> ${kept} verts, LOD0 ${i0.length / 3} tris (err ${lod0.err.toFixed(4)}), LOD1 ${i1.length / 3} tris, ${(blob.length / 1024).toFixed(1)} KiB`);
 }
