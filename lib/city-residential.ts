@@ -67,7 +67,7 @@ export function buildModernResidentialDistrict(
   const turfLush = solid("#6ea15e", 0.86, 0.02);
   const hedgeGreen = solid("#3b6b43", 0.88, 0.02);
   const stonePaver = solid("#c6c1b5", 0.78, 0.03);
-  const asphaltRamp = solid("#2d3439", 0.84, 0.05);
+  const asphaltRamp = solid("#474d51", 0.88, 0.02);
   const teakDeck = solid("#9e6f47", 0.68, 0.04);
   const safetyYellow = solid("#ebb438", 0.52, 0.08);
   const coralFabric = solid("#d96b52", 0.65, 0.04);

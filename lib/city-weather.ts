@@ -85,6 +85,10 @@ export function createCityWeather() {
             roughnessFactor = mix(roughnessFactor, 0.09, puddle * 0.88);
           ` : ""}
           ${kind === "asphalt" ? `
+            // 沥青颗粒与修补块：两级噪声打破大面积纯色。
+            float asphaltGrain = weatherNoise(vWeatherPosition.xz * 9.0) * 0.6 + weatherNoise(vWeatherPosition.xz * 31.0) * 0.4;
+            float asphaltPatch = smoothstep(0.55, 0.8, weatherNoise(vWeatherPosition.xz * 0.11 + 7.0));
+            diffuseColor.rgb *= (0.9 + asphaltGrain * 0.18) * (1.0 - asphaltPatch * 0.16);
             float nightSheen = cityNightWet * weatherUp;
             diffuseColor.rgb *= 1.0 - nightSheen * 0.38;
             roughnessFactor = mix(roughnessFactor, 0.14 + weatherPatch * 0.22, nightSheen);
@@ -94,7 +98,7 @@ export function createCityWeather() {
           roughnessFactor = mix(roughnessFactor, 0.87, snowCover);
           #include <lights_physical_fragment>`);
     };
-    material.customProgramCacheKey = () => `${key}:seasonal-weather-2:${kind}`;
+    material.customProgramCacheKey = () => `${key}:seasonal-weather-3:${kind}`;
     material.needsUpdate = true;
   }
 

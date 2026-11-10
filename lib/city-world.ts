@@ -75,7 +75,7 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
   const paleRoof = solid("#aeb8bd", 0.58, 0.14);
   const pavement = solid("#b2b0a6", 0.8);
   const curb = solid("#dcd6c8", 0.74);
-  const asphalt = solid("#272e33", 0.82, 0.06);
+  const asphalt = solid("#454b4f", 0.88, 0.02);
   const roadLine = solid("#f2efe6", 0.65);
   const roadYellow = solid("#e6b245", 0.65);
   // 低饱和的橄榄绿草坪，与《都市：天际线》式写实色调一致，纹理变化交给表面着色器。

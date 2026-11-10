@@ -64,7 +64,7 @@ export function buildCityUtilities(kit: CivicKit): UtilityDistrictHandle {
   const concretePad = solid("#b5b4aa", 0.84, 0.03);
   const concreteWall = solid("#d2cfc4", 0.78, 0.04);
   const concreteDark = solid("#7a8082", 0.82, 0.06);
-  const asphaltRoad = solid("#2a3136", 0.84, 0.05);
+  const asphaltRoad = solid("#454b4f", 0.88, 0.02);
   const steelFrame = solid("#4a5860", 0.38, 0.62);
   const galvanized = solid("#bcc5ca", 0.3, 0.68);
   const turbineWhite = solid("#f0f2ef", 0.34, 0.18);
