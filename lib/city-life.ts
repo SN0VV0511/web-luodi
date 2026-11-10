@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { centralParkWalks, centralParkBenches, centralParkGatherings } from "./city-civic";
 import {
-  createBackpack, createCalf, createCap, createForearm, createHair, createHand, createHead,
+  createBackpack, createCalf, createCap, createForearm, createHair, createHairLong, createHairPonytail, createHand, createHead,
   createNeck, createPelvis, createShoe, createThigh, createTorso, createUpperArm,
 } from "./city-figure";
 import { LEG_LENGTH, sampleWalkingLeg, type WalkingLeg } from "./city-gait";
@@ -568,6 +568,8 @@ export function buildCityLife({
   const calfGeo = createCalf();
   const shoeGeo = createShoe();
   const hairGeo = createHair();
+  const hairLongGeo = createHairLong();
+  const hairTailGeo = createHairPonytail();
   const capGeo = createCap();
   const cube = new THREE.BoxGeometry(1, 1, 1);
   const sphere = new THREE.SphereGeometry(1, 12, 10);
@@ -577,7 +579,7 @@ export function buildCityLife({
   const wheelGeo = new THREE.TorusGeometry(0.32, 0.045, 6, 16);
   for (const geometry of [
     headGeo, neckGeo, torsoGeo, pelvisGeo, backpackGeo, upperArmGeo, forearmGeo,
-    handGeo, thighGeo, calfGeo, shoeGeo, hairGeo, capGeo, cube, sphere, capsuleGeo, cupGeo, umbrellaCanopyGeo, wheelGeo,
+    handGeo, thighGeo, calfGeo, shoeGeo, hairGeo, hairLongGeo, hairTailGeo, capGeo, cube, sphere, capsuleGeo, cupGeo, umbrellaCanopyGeo, wheelGeo,
   ]) {
     geometries.add(geometry);
   }
@@ -626,6 +628,8 @@ export function buildCityLife({
   materials.add(shoeMaterial);
   const shoes = batch("Residents · shoes", shoeGeo, count * 2, "#ffffff", 0.82, 0, shoeMaterial);
   const hair = batch("Residents · hair", hairGeo, count, "#ffffff", 0.72);
+  const hairLong = batch("Residents · long hair", hairLongGeo, count, "#ffffff", 0.74, 0.02, hair.material as THREE.Material);
+  const hairTail = batch("Residents · ponytails", hairTailGeo, count, "#ffffff", 0.74, 0.02, hair.material as THREE.Material);
   const hats = batch("Residents · caps", capGeo, count, "#ffffff", 0.7);
   const bags = batch("Residents · bags and packs", backpackGeo, count, "#ffffff", 0.9);
   const bikeFrames = batch("Residents · bicycles", cube, Math.max(1, bikeCount * 2), "#ffffff", 0.35, 0.55);
@@ -648,7 +652,7 @@ export function buildCityLife({
 
   const meshes = [
     heads, necks, hands, torsos, pelvis, upperArms, forearms, thighs, calves, shoes,
-    hair, hats, bags, bikeFrames, bikeWheels, dogs, dogLeashes, shoppingCarts, cartGoods,
+    hair, hairLong, hairTail, hats, bags, bikeFrames, bikeWheels, dogs, dogLeashes, shoppingCarts, cartGoods,
     briefcases, coffeeCups, phones, mcBags, umbrellas, volleyBallMesh,
   ];
   const color = new THREE.Color();
@@ -690,6 +694,8 @@ export function buildCityLife({
     calves.setColorAt(index * 2, color);
     calves.setColorAt(index * 2 + 1, color);
     hair.setColorAt(index, color.set(hairs[Math.floor(random() * hairs.length)]));
+    hairLong.setColorAt(index, color);
+    hairTail.setColorAt(index, color);
     hats.setColorAt(index, color.set(res.hatColor ?? (index % 2 ? "#243044" : "#1c1a17")));
     bags.setColorAt(index, color.set(bagColors[Math.floor(random() * bagColors.length)]));
     if (res.activity === "bike") {
@@ -978,12 +984,15 @@ export function buildCityLife({
       place(pelvis, index, 0, 0.94 + hipShift, 0, 0.43 * build, 0.25, 0.32, torsoPitch * 0.25);
       place(necks, index, 0, 1.2 + Math.cos(torsoPitch) * 0.37 + hipShift, Math.sin(torsoPitch) * 0.37, 0.125, 0.15, 0.13, torsoPitch * 0.6);
       place(heads, index, 0, headY, headZ, 0.19, 0.2, 0.2, 0, headYaw);
+      // 发型按居民序号确定：短发、及肩长发、马尾三类轮流出现。
+      const hairStyle = resident.hasHat ? 0 : index % 5 === 1 || index % 7 === 3 ? 1 : index % 5 === 3 ? 2 : 0;
+      const hairMesh = hairStyle === 1 ? hairLong : hairStyle === 2 ? hairTail : hair;
+      for (const mesh of [hair, hairLong, hairTail]) if (mesh !== hairMesh || resident.hasHat) place(mesh, index, 0, -12, 0, 0.001, 0.001, 0.001);
       if (resident.hasHat) {
-        place(hair, index, 0, -12, 0, 0.001, 0.001, 0.001);
         place(hats, index, 0, headY + 0.075, headZ, 0.205, 0.11, 0.215, 0, headYaw);
       } else {
         place(hats, index, 0, -12, 0, 0.001, 0.001, 0.001);
-        place(hair, index, 0, headY + 0.004, headZ, 0.2, 0.205, 0.207, 0, headYaw);
+        place(hairMesh, index, 0, headY + 0.004, headZ, 0.2, 0.205, 0.207, 0, headYaw);
       }
 
       if (resident.hasBag && !seated) {

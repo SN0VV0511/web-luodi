@@ -156,16 +156,19 @@ function createBackpack() {
     ]);
 }
 function createLimb(radiusAt, bulge) {
-    const stacks = 6;
+    // Rounded joint domes at both ends let consecutive segments overlap like elbows and knees instead of
+    // reading as flat-capped tubes; the shaft keeps the authored muscle profile.
+    const stations = [0, 0.025, 0.06, 0.11, 0.22, 0.38, 0.55, 0.72, 0.86, 0.92, 0.96, 0.985, 1];
     const sides = 12;
     const rings = [];
-    for (let s = 0; s <= stacks; s++) {
-        const t = s / stacks;
+    for (const t of stations) {
         const y = -0.5 + t;
+        const edge = Math.min(t, 1 - t);
+        const dome = edge >= 0.11 ? 1 : Math.sqrt(Math.max(0.04, 1 - ((0.11 - edge) / 0.11) ** 2));
         const points = [];
         for (let i = 0; i < sides; i++) {
             const ang = (i / sides) * Math.PI * 2;
-            const radius = Math.max(0.12, radiusAt(t) + bulge(t, ang));
+            const radius = Math.max(0.12, radiusAt(THREE.MathUtils.clamp(t, 0.11, 0.89)) + bulge(t, ang)) * dome;
             points.push(new THREE.Vector3(Math.cos(ang) * radius, y, Math.sin(ang) * radius));
         }
         rings.push(points);
@@ -246,6 +249,77 @@ function createHair() {
     geometry.computeVertexNormals();
     return geometry;
 }
+/** Long hair: the short cap plus a curved back panel that falls to the shoulders with a soft, layered hem. */
+function createHairLong() {
+    const cap = createHair().toNonIndexed();
+    const points = [];
+    for (let i = 0; i <= 8; i++) {
+        const t = i / 8;
+        points.push(new THREE.Vector2(0.47 + Math.sin(t * Math.PI) * 0.05 - t * 0.06, 0.12 - t * 0.98));
+    }
+    const panel = new THREE.LatheGeometry(points, 18, Math.PI * 0.62, Math.PI * 1.76);
+    const position = panel.getAttribute("position");
+    for (let index = 0; index < position.count; index++) {
+        const x = position.getX(index), y = position.getY(index), z = position.getZ(index);
+        const azimuth = Math.atan2(x, z);
+        const ragged = y < -0.6 ? Math.sin(azimuth * 9) * 0.035 : 0;
+        position.setXYZ(index, x, y + ragged, z * 0.92);
+    }
+    panel.computeVertexNormals();
+    const back = panel.toNonIndexed();
+    panel.dispose();
+    const merged = mergeGeometries([cap, back], false);
+    cap.dispose();
+    back.dispose();
+    if (!merged)
+        throw new Error("长发几何合并失败");
+    return merged;
+}
+/** Bun / updo: the short cap with a gathered knot behind the crown. */
+function createHairBun() {
+    const cap = createHair().toNonIndexed();
+    const knot = new THREE.SphereGeometry(0.17, 12, 8);
+    knot.scale(1, 0.86, 0.9);
+    knot.translate(0, 0.3, -0.42);
+    const flatKnot = knot.toNonIndexed();
+    knot.dispose();
+    const merged = mergeGeometries([cap, flatKnot], false);
+    cap.dispose();
+    flatKnot.dispose();
+    if (!merged)
+        throw new Error("发髻几何合并失败");
+    return merged;
+}
+/** Ponytail: short cap plus a tapered tail that hangs from the back of the head. */
+function createHairPonytail() {
+    const cap = createHair().toNonIndexed();
+    const tail = new THREE.LatheGeometry([
+        new THREE.Vector2(0.001, 0.06), new THREE.Vector2(0.1, 0.03), new THREE.Vector2(0.13, -0.15),
+        new THREE.Vector2(0.11, -0.4), new THREE.Vector2(0.06, -0.62), new THREE.Vector2(0.001, -0.7),
+    ], 10);
+    tail.rotateX(-0.28);
+    tail.translate(0, 0.12, -0.5);
+    const flatTail = tail.toNonIndexed();
+    tail.dispose();
+    const merged = mergeGeometries([cap, flatTail], false);
+    cap.dispose();
+    flatTail.dispose();
+    if (!merged)
+        throw new Error("马尾几何合并失败");
+    return merged;
+}
+/** A-line skirt / coat tail in a unit box (+Y waist); pleat folds keep the hem from looking like a cone. */
+function createSkirt() {
+    const rings = [];
+    for (let s = 0; s <= 6; s++) {
+        const t = s / 6;
+        rings.push(ring(0.5 - t, 0.4 + t * 0.12, 0.38 + t * 0.1, 20, (angle, x, z) => {
+            const pleat = 1 + Math.sin(angle * 8) * 0.03 * t;
+            return [x * pleat, z * pleat];
+        }));
+    }
+    return stitch(rings, false);
+}
 /** 创建帽冠与向前伸出的帽檐；临时部件合并后释放，返回独立几何体。 */
 function createCap() {
     const crown = new THREE.SphereGeometry(0.46, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.5);
@@ -274,11 +348,24 @@ function createCap() {
     return merged;
 }
 
-return { createHead, createNeck, createTorso, createPelvis, createBackpack, createUpperArm, createForearm, createThigh, createCalf, createHand, createShoe, createHair, createCap };
+return { createHead, createNeck, createTorso, createPelvis, createBackpack, createUpperArm, createForearm, createThigh, createCalf, createHand, createShoe, createHair, createCap, createHairLong, createHairBun, createHairPonytail, createSkirt };
 })();
 
 const trees = (() => {
 function boughs(form) {
+    if (form === "conifer") {
+        // Whorled conifer: short, slightly drooping tiers that shrink toward a narrow leader.
+        return Array.from({ length: 10 }, (_, index) => {
+            const angle = index * 2.399963;
+            const spread = 1.55 - index * 0.13;
+            const y = 1.7 + index * 0.52;
+            return {
+                base: new THREE.Vector3(0.02, y + 0.12, 0),
+                elbow: new THREE.Vector3(Math.cos(angle) * spread * 0.55, y + 0.02, Math.sin(angle) * spread * 0.55),
+                tip: new THREE.Vector3(Math.cos(angle) * spread, y - 0.18, Math.sin(angle) * spread),
+            };
+        });
+    }
     return Array.from({ length: 7 }, (_, index) => {
         const angle = index * 2.399963;
         const spread = (1.3 + (index % 3) * 0.24) * (form === "upright" ? 0.72 : 1);
@@ -346,7 +433,7 @@ function createTreeTrunk(form = "spreading") {
 function createTreeCanopy(form = "spreading") {
     const cards = [];
     const centers = boughs(form).map((limb) => limb.tip.clone().add(new THREE.Vector3(0, 0.3, 0)));
-    centers.push(new THREE.Vector3(0, 5.7, 0));
+    centers.push(new THREE.Vector3(0, form === "conifer" ? 7.0 : 5.7, 0));
     const orientation = new THREE.Quaternion();
     const front = new THREE.Vector3(0, 0, 1);
     for (const [cluster, center] of centers.entries()) {
@@ -453,6 +540,34 @@ const profiles = {
             { t: 0.85, roof: 0.92, belt: 0.85, width: 0.91, roofWidth: 0.84 },
             { t: 0.96, roof: 0.79, belt: 0.69, width: 0.86, roofWidth: 0.78 },
             { t: 1, roof: 0.65, belt: 0.55, width: 0.78, roofWidth: 0.68 },
+        ],
+    },
+    hatchback: {
+        // Compact five-door: short bonnet, long roof and a near-vertical tailgate.
+        length: 4.05, wheelR: 0.31, axles: [-1.24, 1.28], cabin: [0.06, 0.76], roof: [0.12, 0.58], pillars: [0.46],
+        sections: [
+            { t: 0, roof: 1.05, belt: 0.86, width: 0.84, roofWidth: 0.74 },
+            { t: 0.04, roof: 1.3, belt: 0.93, width: 0.89, roofWidth: 0.74 },
+            { t: 0.1, roof: 1.42, belt: 0.95, width: 0.9, roofWidth: 0.71 },
+            { t: 0.3, roof: 1.47, belt: 0.95, width: 0.9, roofWidth: 0.71 },
+            { t: 0.58, roof: 1.44, belt: 0.94, width: 0.9, roofWidth: 0.7 },
+            { t: 0.76, roof: 1.0, belt: 0.92, width: 0.9, roofWidth: 0.82 },
+            { t: 0.86, roof: 0.94, belt: 0.86, width: 0.89, roofWidth: 0.82 },
+            { t: 0.96, roof: 0.8, belt: 0.7, width: 0.85, roofWidth: 0.76 },
+            { t: 1, roof: 0.66, belt: 0.56, width: 0.77, roofWidth: 0.68 },
+        ],
+    },
+    van: {
+        // Panel/minivan: tall boxy body, steep screen and a stubby bonnet; rear quarter is solid panel.
+        length: 5.1, wheelR: 0.36, axles: [-1.7, 1.55], cabin: [0.55, 0.9], roof: [0.6, 0.84], pillars: [0.7],
+        sections: [
+            { t: 0, roof: 1.92, belt: 1.02, width: 0.95, roofWidth: 0.9 },
+            { t: 0.03, roof: 2.0, belt: 1.05, width: 0.98, roofWidth: 0.93 },
+            { t: 0.5, roof: 2.02, belt: 1.05, width: 0.98, roofWidth: 0.93 },
+            { t: 0.8, roof: 1.98, belt: 1.03, width: 0.98, roofWidth: 0.9 },
+            { t: 0.86, roof: 1.32, belt: 1.0, width: 0.97, roofWidth: 0.88 },
+            { t: 0.95, roof: 1.08, belt: 0.92, width: 0.94, roofWidth: 0.85 },
+            { t: 1, roof: 0.9, belt: 0.76, width: 0.86, roofWidth: 0.78 },
         ],
     },
     suv: {
@@ -620,7 +735,7 @@ function createVehicleShell(kind) {
         detailBox(0.39, 0.11, 0.045, 0, 0.59, -half - 0.012),
     ];
     for (const side of [-1, 1]) {
-        const doorStops = kind === "truck" ? [0.69, 0.91] : kind === "bus" ? [0.17, 0.83] : [0.3, 0.49, 0.7];
+        const doorStops = kind === "truck" ? [0.69, 0.91] : kind === "bus" ? [0.17, 0.83] : kind === "van" ? [0.3, 0.56, 0.84] : kind === "hatchback" ? [0.2, 0.47, 0.72] : [0.3, 0.49, 0.7];
         for (const t of doorStops) {
             const section = sample(profile, t);
             trimParts.push(detailBox(0.012, section.belt - 0.26, 0.012, side * section.width * 1.003, (section.belt + 0.26) / 2, (t - 0.5) * profile.length));
@@ -629,7 +744,7 @@ function createVehicleShell(kind) {
             }
         }
         // Mirror shells have rounded caps and a separate reflective face; their mounting stems follow the A pillars.
-        const mirrorT = kind === "bus" ? 0.94 : kind === "truck" ? 0.9 : 0.68;
+        const mirrorT = kind === "bus" ? 0.94 : kind === "truck" ? 0.9 : kind === "van" ? 0.84 : 0.7;
         const mirrorSection = sample(profile, mirrorT);
         const mirrorZ = (mirrorT - 0.5) * profile.length;
         const mirror = normalized(new THREE.SphereGeometry(1, 10, 6));
@@ -640,6 +755,22 @@ function createVehicleShell(kind) {
         chromeParts.push(detailBox(0.19, 0.11, 0.018, side * (mirrorSection.width + 0.16), mirrorSection.belt + 0.13, mirrorZ - 0.12));
         if (kind === "suv")
             chromeParts.push(detailBox(0.055, 0.06, 1.9, side * 0.6, height + 0.05, -0.18));
+    }
+    // Wraparound bumpers, lamp housings and rocker panels give the body a real lower structure.
+    const noseBelt = sample(profile, 1).belt, tailBelt = sample(profile, 0).belt;
+    const noseWidth = sample(profile, 0.99).width * 2, tailWidth = sample(profile, 0.01).width * 2;
+    trimParts.push(
+        detailBox(noseWidth * 0.98, 0.2, 0.16, 0, 0.36, half - 0.02),
+        detailBox(tailWidth * 0.98, 0.2, 0.16, 0, 0.36, -half + 0.02),
+        detailBox(noseWidth * 0.5, 0.05, 0.05, 0, 0.27, half + 0.05),
+    );
+    for (const side of [-1, 1]) {
+        trimParts.push(detailBox(0.06, 0.1, profile.length * 0.42, side * (width / 2 - 0.01), 0.3, (profile.axles[0] + profile.axles[1]) / 2));
+        chromeParts.push(
+            detailBox(noseWidth * 0.2, 0.09, 0.03, side * noseWidth * 0.32, noseBelt - 0.05, half + 0.035),
+            detailBox(tailWidth * 0.18, 0.12, 0.03, side * tailWidth * 0.34, tailBelt - 0.02, -half - 0.035),
+            detailBox(0.12, 0.05, 0.02, side * noseWidth * 0.36, 0.33, half + 0.07),
+        );
     }
     // Radiator slats, tailgate handle and twin exhaust exits survive street-level views.
     for (let slot = -3; slot <= 3; slot++) {
@@ -689,12 +820,12 @@ return { createVehicleShell, createVehicleWheel };
 
 const meshes = new Map();
 for (const [name, create] of Object.entries(figures)) meshes.set(name.slice(6).toLowerCase(), create());
-for (const form of ['spreading', 'upright']) {
+for (const form of ['spreading', 'upright', 'conifer']) {
   meshes.set(`${form}Trunk`, trees.createTreeTrunk(form));
   meshes.set(`${form}Canopy`, trees.createTreeCanopy(form));
 }
 const vehicleMetadata = {};
-for (const kind of ['sedan', 'suv', 'bus', 'truck']) {
+for (const kind of ['sedan', 'hatchback', 'van', 'suv', 'bus', 'truck']) {
   const shell = vehicles.createVehicleShell(kind);
   for (const part of ['body', 'glass', 'trim', 'chrome']) meshes.set(`${kind}${part}`, shell[part]);
   vehicleMetadata[kind] = Object.fromEntries(Object.entries(shell).filter(([key]) => !['body', 'glass', 'trim', 'chrome'].includes(key)));
@@ -703,7 +834,11 @@ const wheels = vehicles.createVehicleWheel();
 meshes.set('tire', wheels.tire);
 meshes.set('rim', wheels.rim);
 
-const round = value => Math.abs(value) < 5e-8 ? '0' : Number(value.toFixed(7)).toString();
+// Positions, UVs and colour keep four decimals (a tenth of a millimetre); normals keep six so they stay unit length.
+const round = (value, column) => {
+  const digits = column >= 3 && column <= 5 ? 6 : 4;
+  return Math.abs(value) < 0.5 * 10 ** -digits ? '0' : Number(value.toFixed(digits)).toString().replace(/^(-?)0\./, '$1.');
+};
 const sections = [];
 const manifest = [];
 for (const [name, original] of meshes) {
@@ -717,7 +852,7 @@ for (const [name, original] of meshes) {
   for (let i = 0; i < pos.count; i++) {
     const row = [pos.getX(i), pos.getY(i), pos.getZ(i), normal.getX(i), normal.getY(i), normal.getZ(i), uv?.getX(i) ?? 0, uv?.getY(i) ?? 0, color?.getX(i) ?? 1, color?.getY(i) ?? 1, color?.getZ(i) ?? 1];
     if (!row.every(Number.isFinite)) throw new Error(`${name}: non-finite vertex ${i}`);
-    rows.push(`      ${row.map(round).join(', ')},`);
+    rows.push(`      ${row.map(round).join(',')},`);
   }
   const indexRows = [];
   if (geometry.index) for (let i = 0; i < geometry.index.count; i += 3) indexRows.push(`      ${Array.from(geometry.index.array.slice(i, i + 3)).join(', ')},`);

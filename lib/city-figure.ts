@@ -54,3 +54,23 @@ export function createHair(): THREE.BufferGeometry {
 export function createCap(): THREE.BufferGeometry {
   return createCityMesh("cap");
 }
+
+/** 及肩长发：短发帽加后脑垂落的分层发片。 */
+export function createHairLong(): THREE.BufferGeometry {
+  return createCityMesh("hairlong");
+}
+
+/** 盘发：短发帽加后脑发髻。 */
+export function createHairBun(): THREE.BufferGeometry {
+  return createCityMesh("hairbun");
+}
+
+/** 马尾：短发帽加自后脑垂下的收束发束。 */
+export function createHairPonytail(): THREE.BufferGeometry {
+  return createCityMesh("hairponytail");
+}
+
+/** A 字裙 / 长外套下摆，单位盒内 +Y 为腰线。 */
+export function createSkirt(): THREE.BufferGeometry {
+  return createCityMesh("skirt");
+}

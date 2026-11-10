@@ -306,10 +306,15 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
     value.userData.cityGlazing = kind === "glass";
     // 立面UV按实例实际米数铺设，十五米公寓与百米高楼保持同一楼层比例。
     value.onBeforeCompile = (shader) => {
-      shader.vertexShader = `varying float vWall;\n${shader.vertexShader}`.replace(
+      shader.vertexShader = `varying float vWall;\nvarying vec3 vFacadeWorld;\n${shader.vertexShader}`.replace(
         "#include <uv_vertex>",
         `#include <uv_vertex>
         vWall = 1.0 - abs(normal.y);
+        #ifdef USE_INSTANCING
+          vFacadeWorld = (modelMatrix * instanceMatrix * vec4(position, 1.0)).xyz;
+        #else
+          vFacadeWorld = (modelMatrix * vec4(position, 1.0)).xyz;
+        #endif
         #ifdef USE_INSTANCING
           vec3 facadeScale = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), length(instanceMatrix[2].xyz));
           vec2 repeats = vec2(abs(normal.x) > 0.5 ? facadeScale.z : facadeScale.x, facadeScale.y) / vec2(24.0, 51.2);
@@ -317,11 +322,21 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
           vEmissiveMapUv *= repeats;
         #endif`,
       );
-      shader.fragmentShader = `varying float vWall;\n${shader.fragmentShader}`
-        .replace("diffuseColor *= sampledDiffuseColor;", "diffuseColor *= mix(vec4(0.68, 0.70, 0.67, 1.0), sampledDiffuseColor, vWall);")
+      shader.fragmentShader = `varying float vWall;\nvarying vec3 vFacadeWorld;\n${shader.fragmentShader}`
+        .replace("diffuseColor *= sampledDiffuseColor;", `diffuseColor *= mix(vec4(0.68, 0.70, 0.67, 1.0), sampledDiffuseColor, vWall);
+          // 风化：雨水垂直污渍、勒脚泛潮与逐栋色差，避免立面像刚出厂的 CG 贴图。
+          float facadeColumn = floor((vFacadeWorld.x + vFacadeWorld.z) * 1.7);
+          float columnSeed = fract(sin(facadeColumn * 12.9898) * 43758.5453);
+          float streak = smoothstep(0.62, 1.0, columnSeed) * (0.55 + 0.45 * sin(vFacadeWorld.y * 0.45 + columnSeed * 9.0));
+          float plinth = 1.0 - smoothstep(0.6, 4.2, vFacadeWorld.y);
+          vec2 lotCell = floor(vFacadeWorld.xz / 27.0);
+          float lotTone = fract(sin(dot(lotCell, vec2(41.3, 289.1))) * 15731.743);
+          float grime = (streak * 0.11 + plinth * 0.16) * vWall;
+          diffuseColor.rgb *= (1.0 - grime) * mix(0.93, 1.05, lotTone);
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.96, 0.95, 0.9), plinth * 0.5 * vWall);`)
         .replace("totalEmissiveRadiance *= emissiveColor.rgb;", "totalEmissiveRadiance *= emissiveColor.rgb * vWall;");
     };
-    value.customProgramCacheKey = () => "city-facade-metres-v1";
+    value.customProgramCacheKey = () => "city-facade-metres-v2";
     bindWorldScalePbr(value, facadeMaps[kind], kind === "glass" ? 24 : 4, kind === "glass" ? 51.2 : 4, kind === "glass" ? 0.28 : 0.45);
     if (kind === "glass") facadeInteriors.attach(value);
     materials.add(value);
@@ -442,7 +457,7 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
     box(metal, x + turn * 0.75, 7 + y, z, 1.7, 0.16, 0.2);
     box(lamp, x + turn * 1.4, 6.92 + y, z, 0.9, 0.12, 0.4);
   };
-  const trees = (["spreading", "upright"] as const).map((form) => {
+  const trees = (["spreading", "upright", "conifer"] as const).map((form) => {
     const stem = createTreeTrunk(form), crown = createTreeCanopy(form);
     geometries.add(stem);
     geometries.add(crown);
@@ -494,6 +509,8 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
   const vehicleTrim = solid("#23282b", 0.76, 0.06);
   const shells = {
     sedan: createVehicleShell("sedan"),
+    hatchback: createVehicleShell("hatchback"),
+    van: createVehicleShell("van"),
     suv: createVehicleShell("suv"),
     bus: createVehicleShell("bus"),
     truck: createVehicleShell("truck"),
@@ -561,6 +578,19 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
   }
 
   let buildingCount = 0;
+  // 街层商铺：帆布遮阳篷、店招灯箱与橱窗，颜色取自真实街景的低饱和色。
+  const awnings = ["#7a3b33", "#2f4b5c", "#5d6b3a", "#8a6a3a", "#3d3f44"].map((tone) => solid(tone, 0.9, 0.02));
+  const signBoards = ["#e9e3d3", "#2d3338", "#b8402f", "#1f4f46"].map((tone) => solid(tone, 0.55, 0.08));
+  const shopfront = (x: number, z: number, frontage: number, seed: number, id?: PlaceId) => {
+    const awning = awnings[seed % awnings.length];
+    const sign = signBoards[(seed >> 1) % signBoards.length];
+    box(glass, x, 1.75, z + 0.1, frontage - 0.5, 2.3, 0.14, id);
+    box(metal, x, 0.62, z + 0.14, frontage - 0.3, 0.32, 0.18, id);
+    for (const side of [-1, 1]) box(metal, x + side * (frontage / 2 - 0.2), 1.75, z + 0.16, 0.12, 2.5, 0.16, id);
+    box(sign, x, 3.32, z + 0.18, frontage - 0.4, 0.62, 0.16, id);
+    part(awning, boxGeometry, x, 2.9, z + 0.85, frontage - 0.3, 0.06, 1.55, id, 0, 0);
+    box(awning, x, 2.62, z + 1.6, frontage - 0.3, 0.42, 0.04, id);
+  };
   const rooftop = (x: number, z: number, w: number, d: number, height: number, id?: PlaceId) => {
     // 挑檐压顶线脚与女儿墙盖板
     box(lightStone, x, height - 0.12, z, w + 0.55, 0.26, d + 0.55, id);
@@ -585,6 +615,19 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
       for (const row of [-0.18, 0.06]) {
         box(glass, x - w * 0.16, height + 0.68, z + d * row, w * 0.28, 0.12, 1.15, id);
       }
+    }
+    // 屋顶水箱（带支腿）与通信天线：按楼体尺寸散列放置，补足天际线的小尺度杂物。
+    const roofSeed = Math.abs(Math.round(x * 13 + z * 7)) % 4;
+    if (roofSeed !== 3 && w > 9 && d > 9) {
+      const tx = x - w * 0.24, tz = z + d * 0.24;
+      for (const lx of [-0.75, 0.75]) for (const lz of [-0.75, 0.75]) box(metal, tx + lx, height + 1.2, tz + lz, 0.12, 1.4, 0.12, id);
+      part(roofSeed === 0 ? trunk : railMetal, cylinderGeometry, tx, height + 2.75, tz, 1.15, 1.9, 1.15, id);
+      part(darkRoof, coneGeometry, tx, height + 3.95, tz, 1.2, 0.5, 1.2, id);
+    }
+    if (roofSeed === 1 || roofSeed === 2) {
+      box(railMetal, x + w * 0.3, height + 2.4, z - d * 0.3, 0.08, 3.6, 0.08, id);
+      box(railMetal, x + w * 0.3, height + 3.4, z - d * 0.3, 0.9, 0.05, 0.05, id);
+      box(railMetal, x + w * 0.3, height + 2.9, z - d * 0.3, 0.6, 0.05, 0.05, id);
     }
     if (height > 42) {
       box(metal, x - w * 0.25, height + 3.5, z + d * 0.28, 0.14, 7, 0.14, id);
@@ -679,6 +722,12 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
       }
       box(metal, x - w / 2 - 0.06, 0.55 + h * 0.42, z + d / 2 - 0.2, 0.07, h * 0.7, 0.07);
     }
+    if (!id && style !== "glass") {
+      const frontage = Math.min(5.2, (w - Math.min(w * 0.42, 5.4)) / 2 - 0.8);
+      if (frontage > 2.4) {
+        for (const side of [-1, 1]) shopfront(x + side * (w / 2 - frontage / 2 - 0.4), z + d / 2 + 0.02, frontage, variant * 3 + (side > 0 ? 1 : 0));
+      }
+    }
     if (id !== "slot-8") {
       // 街层精装大堂门厅：透光旋转门厅、暖色迎宾灯带、立柱雨篷与两侧迎宾绿植池
       const lobbyW = Math.min(w * 0.42, 5.4);
@@ -731,7 +780,10 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
       return shells[kind];
     },
     parkVehicle: (kind: "sedan" | "suv" | "truck", colorHex: string, px: number, pz: number, rotY: number) => {
-      placeVehicle(shells[kind], solid(colorHex, 0.28, 0.35), px, pz, rotY);
+      // 路边停车按位置散列混入两厢车与面包车，避免整排同款轿车。
+      const slot = Math.abs(Math.round(px * 7.3 + pz * 3.1)) % 5;
+      const parked: VehicleKind = kind === "sedan" ? (slot === 0 || slot === 3 ? "hatchback" : slot === 4 ? "van" : "sedan") : kind;
+      placeVehicle(shells[parked], solid(colorHex, 0.28, 0.35), px, pz, rotY);
     },
   };
 
@@ -1133,11 +1185,13 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
   const carCount = 60;
   const bodyMaterial = carPaint("#ffffff");
   const classify = (index: number) => {
-    const kind = index % 15 === 0 ? "bus" : index % 11 === 0 ? "truck" : index % 6 === 0 ? "taxi" : index % 3 === 0 ? "suv" : "sedan";
-    const shell: VehicleKind = kind === "bus" || kind === "truck" || kind === "suv" ? kind : "sedan";
+    // 车流构成：轿车、两厢车、SUV 为主，穿插出租车、厢式面包车/快递车、货车与公交。
+    const kind = index % 15 === 0 ? "bus" : index % 11 === 0 ? "truck" : index % 6 === 0 ? "taxi"
+      : index % 7 === 0 ? "van" : index % 3 === 0 ? "suv" : index % 4 === 1 || index % 5 === 2 ? "hatchback" : "sedan";
+    const shell: VehicleKind = kind === "taxi" ? "sedan" : kind;
     return { kind, shell } as const;
   };
-  const shellCounts: Record<VehicleKind, number> = { sedan: 0, suv: 0, bus: 0, truck: 0 };
+  const shellCounts: Record<VehicleKind, number> = { sedan: 0, hatchback: 0, van: 0, suv: 0, bus: 0, truck: 0 };
   for (let index = 0; index < carCount; index++) shellCounts[classify(index).shell]++;
   const shellBodies = {} as Record<VehicleKind, THREE.InstancedMesh>;
   const shellGlass = {} as Record<VehicleKind, THREE.InstancedMesh>;
@@ -1223,14 +1277,15 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
   // 过滤掉紧邻追尾事故现场 (-75, 69) 的街区支路，避免车辆穿模撞车现场
   const safeBlocks = cityBlocks.filter((b) => !(Math.abs(b.x - -97.5) < 5 && Math.abs(b.z - 42.5) < 5));
 
-  const shellCursor: Record<VehicleKind, number> = { sedan: 0, suv: 0, bus: 0, truck: 0 };
+  const shellCursor: Record<VehicleKind, number> = { sedan: 0, hatchback: 0, van: 0, suv: 0, bus: 0, truck: 0 };
   const routes = Array.from({ length: carCount }, (_, i) => {
     const { kind, shell } = classify(i);
     const shellSlot = shellCursor[shell]++;
     const bodyColor =
       kind === "bus" ? "#d97736" :
       kind === "taxi" ? "#f0be3c" :
-      kind === "truck" ? "#dce2e6" :
+      kind === "truck" ? (i % 2 ? "#dce2e6" : "#c9cdd0") :
+      kind === "van" ? (i % 3 === 0 ? "#d9d8d2" : i % 3 === 1 ? "#e8e7e2" : "#8a9096") :
       carPalette[i % carPalette.length];
     const paint = new THREE.Color(bodyColor);
     shellBodies[shell].setColorAt(shellSlot, paint);
@@ -1426,8 +1481,9 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
       roofUnits.setMatrixAt(index, transform.matrix);
 
       for (const side of [-1, 1]) {
-        placeLocal(side * shell.width * 0.52, shell.height * 0.58, shell.length * 0.18);
-        transform.scale.set(0.18, 0.1, 0.24);
+        // 车壳已自带带支杆的后视镜，这里的旧方块镜隐藏，避免重复的悬空方块。
+        transform.position.set(x, -20, z);
+        transform.scale.set(0.001, 0.001, 0.001);
         transform.updateMatrix();
         mirrors.setMatrixAt(index * 2 + (side > 0 ? 1 : 0), transform.matrix);
       }

@@ -51,13 +51,13 @@ function appearance(random: RandomStream, occupation: Occupation, age: AgeGroup)
   if (occupation === "student") coat = "#5f7786";
   const height = age === "child" ? random.between(1.12, 1.43)
     : age === "elder" ? random.between(1.53, 1.73) : random.between(1.61, 1.88);
-  return {
+  const value: Appearance = {
     height,
     shoulderWidth: random.between(0.37, 0.48),
     build: random.between(0.88, 1.16),
-    skin: random.choice(["#d3af8f", "#b78f70", "#ddb99a", "#ad8264", "#c59c7c"]),
+    skin: random.choice(["#d9b294", "#b78f70", "#e6c3a5", "#9a6c51", "#c59c7c", "#7b5240", "#cfa07e", "#a87a5c"]),
     hair: age === "elder" ? random.choice(["#8c8980", "#a6a195", "#6d6a63"])
-      : random.choice(["#332f2a", "#514537", "#403b35", "#2e2c29"]),
+      : random.choice(["#2a2420", "#5a4231", "#403b35", "#1e1c1b", "#7a5a3c", "#a07d55"]),
     coat,
     trousers: random.choice(["#2e3c55", "#24272b", "#3c4a62", "#8f7f62", "#5f6266", "#4a3d32", "#33363a", "#6e7a8c"]),
     shoes: random.choice(["#2a2826", "#4a3a2c", "#d9d6cf", "#3b3f45", "#6b4c35"]),
@@ -68,6 +68,11 @@ function appearance(random: RandomStream, occupation: Occupation, age: AgeGroup)
     sleeveLength: random.between(0.64, 1),
     winterCoat: false,
   };
+  // 派生属性只读取已生成的数值，保持整座城市的随机序列与既有回放一致。
+  value.skirt = age === "adult" && !isUniform && value.hairStyle >= 2 && value.build < 1.04;
+  value.backpack = occupation === "student" || age === "child";
+  if (age === "elder") value.hairStyle = Math.min(value.hairStyle, 1);
+  return value;
 }
 
 function personality(random: RandomStream, occupation: Occupation, age: AgeGroup): Personality {

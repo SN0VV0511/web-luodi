@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { createCityMesh, vehicleMeshMetadata } from "./city-mesh-assets";
 
-export type VehicleKind = "sedan" | "suv" | "bus" | "truck";
+export type VehicleKind = "sedan" | "hatchback" | "van" | "suv" | "bus" | "truck";
 export type VehicleShell = {
   body: THREE.BufferGeometry;
   glass: THREE.BufferGeometry;

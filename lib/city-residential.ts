@@ -59,7 +59,7 @@ export function buildModernResidentialDistrict(
   const torus = new THREE.TorusGeometry(0.65, 0.14, 8, 18, Math.PI);
   [cylinder, cone, torus].forEach((g) => geometries.add(g));
 
-  const whiteStucco = solid("#e0dbd0", 0.7, 0.04);
+  const whiteStucco = solid("#d3cdc1", 0.7, 0.04);
   const warmConcrete = solid("#d7d2c7", 0.76, 0.04);
   const darkSlate = solid("#2e373d", 0.54, 0.24);
   const aluminum = solid("#b7c1c6", 0.28, 0.66);

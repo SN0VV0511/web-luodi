@@ -86,6 +86,10 @@ export interface Appearance {
   coatLength: number;
   sleeveLength: number;
   winterCoat: boolean;
+  /** 下装为及膝裙（腿部改为丝袜/肤色），由发型与体型确定性派生，不额外消耗随机流。 */
+  skirt?: boolean;
+  /** 学生与儿童背双肩包。 */
+  backpack?: boolean;
 }
 
 export interface Relationship {

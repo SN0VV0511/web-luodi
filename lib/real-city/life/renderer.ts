@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { CivicKit } from "../../city-civic";
-import { createCalf, createForearm, createHair, createHand, createHead, createNeck, createPelvis, createShoe, createThigh, createTorso, createUpperArm } from "../../city-figure";
+import { createBackpack, createCalf, createForearm, createHair, createHairBun, createHairLong, createHairPonytail, createHand, createHead, createNeck, createPelvis, createSkirt, createShoe, createThigh, createTorso, createUpperArm } from "../../city-figure";
 import { angleDelta, lerp, point3, type Point3 } from "./math";
 import type { Actor, LifeContext } from "./types";
 import { LifePropRenderer } from "./render-props";
@@ -52,6 +52,12 @@ export class LifeRenderer {
   private activeScale = 1;
   private heads: BodyBatch;
   private necks: BodyBatch;
+  private hairLong: BodyBatch;
+  private hairBun: BodyBatch;
+  private hairPonytail: BodyBatch;
+  private skirts: BodyBatch;
+  private coatTails: BodyBatch;
+  private backpacks: BodyBatch;
   private hair: BodyBatch;
   private torsos: BodyBatch;
   private pelvis: BodyBatch;
@@ -101,6 +107,12 @@ export class LifeRenderer {
     this.heads = this.batch("faces", createHead(), skin, maximumActors);
     this.necks = this.batch("necks", createNeck(), skin, maximumActors);
     this.hair = this.batch("hair", createHair(), hair, maximumActors);
+    this.hairLong = this.batch("long hair", createHairLong(), hair, maximumActors);
+    this.hairBun = this.batch("hair buns", createHairBun(), hair, maximumActors);
+    this.hairPonytail = this.batch("ponytails", createHairPonytail(), hair, maximumActors);
+    this.skirts = this.batch("skirts", createSkirt(), cloth, maximumActors);
+    this.coatTails = this.batch("coat tails", createSkirt(), cloth, maximumActors);
+    this.backpacks = this.batch("backpacks", createBackpack(), kit.solid("#ffffff", 0.82, 0.02), maximumActors);
     this.torsos = this.batch("tailored jackets", createTorso(), cloth, maximumActors);
     this.pelvis = this.batch("trousers", createPelvis(), cloth, maximumActors);
     this.upperArms = this.batch("upper sleeves", createUpperArm(), cloth, maximumActors * 2);
@@ -242,12 +254,35 @@ export class LifeRenderer {
     this.local.z = p.head.z;
     this.part(this.heads, this.local, 0.185, 0.215, 0.2, a.skin, p.headPitch, p.headYaw);
     this.local.y += 0.006;
-    this.part(this.hair, this.local, 0.19, 0.219 + a.hairStyle * 0.002, 0.205, a.hair, p.headPitch, p.headYaw);
+    // 发型：0/1 短发，2 及肩长发，3 盘发，4 马尾；戴帽者统一压成短发。
+    const style = a.hat ? 0 : a.hairStyle;
+    const hairBatch = style === 2 ? this.hairLong : style === 3 ? this.hairBun : style === 4 ? this.hairPonytail : this.hair;
+    this.part(hairBatch, this.local, 0.19, style === 1 ? 0.212 : 0.219, style === 1 ? 0.198 : 0.205, a.hair, p.headPitch, p.headYaw);
     this.local.y = p.head.y + HEAD_LIFT - 0.15;
     this.local.z = p.head.z * 0.6 + p.chest.z * 0.4 - 0.01;
     this.part(this.necks, this.local, 0.12, 0.13, 0.125, a.skin, p.headPitch * 0.5);
     this.part(this.torsos, p.chest, width * 0.94 * bulk, 0.57 + a.coatLength * 0.035, 0.255 * a.build * bulk, a.coat, p.chestPitch, p.chestYaw);
     this.part(this.pelvis, p.hips, width * 0.74, 0.25, 0.25 * a.build, a.trousers);
+    const legTone = a.skirt ? "#3a3534" : a.trousers;
+    if (a.skirt) {
+      this.local.x = p.hips.x;
+      this.local.y = p.hips.y - 0.2;
+      this.local.z = p.hips.z;
+      this.part(this.skirts, this.local, width * 0.86, 0.46, 0.27 * a.build, a.trousers);
+    }
+    if (a.coatLength > 0.62 || a.winterCoat) {
+      // 长款大衣下摆从腰线垂到膝上，替代上衣在胯部的硬切口。
+      this.local.x = p.chest.x;
+      this.local.y = p.hips.y - 0.08;
+      this.local.z = p.hips.z;
+      this.part(this.coatTails, this.local, width * 0.92 * bulk, 0.42, 0.29 * a.build * bulk, a.coat, p.chestPitch * 0.5, p.chestYaw);
+    }
+    if (a.backpack) {
+      this.local.x = p.chest.x;
+      this.local.y = p.chest.y + 0.02;
+      this.local.z = p.chest.z - 0.2 * a.build;
+      this.part(this.backpacks, this.local, 0.3, 0.38, 0.16, shirtTone(a.shoes === "#d9d6cf" ? "#46566b" : "#6b3a32"), p.chestPitch, p.chestYaw);
+    }
     for (const side of [-1, 1]) {
       const left = side < 0;
       const shoulder = left ? p.leftShoulder : p.rightShoulder;
@@ -255,14 +290,14 @@ export class LifeRenderer {
       const hand = left ? p.leftHand : p.rightHand;
       const knee = left ? p.leftKnee : p.rightKnee;
       const ankle = left ? p.leftAnkle : p.rightAnkle;
-      this.segment(this.upperArms, shoulder, elbow, 0.138 * bulk, a.coat);
-      this.segment(this.forearms, elbow, hand, 0.11 * bulk, a.sleeveLength > 0.7 ? a.coat : a.skin);
+      this.segment(this.upperArms, shoulder, elbow, 0.13 * bulk, a.coat);
+      this.segment(this.forearms, elbow, hand, 0.105 * bulk, a.sleeveLength > 0.7 ? a.coat : a.skin);
       this.part(this.hands, hand, 0.085, 0.125, 0.066, a.skin);
       this.local.x = p.hips.x + side * 0.09;
       this.local.y = p.hips.y;
       this.local.z = p.hips.z;
-      this.segment(this.thighs, this.local, knee, 0.175 * a.build, a.trousers);
-      this.segment(this.calves, knee, ankle, 0.13 * a.build, a.trousers);
+      this.segment(this.thighs, this.local, knee, 0.17 * a.build, a.skirt ? legTone : a.trousers);
+      this.segment(this.calves, knee, ankle, (a.skirt ? 0.11 : 0.128) * a.build, legTone);
       this.local.x = ankle.x;
       this.local.y = ankle.y - 0.018;
       this.local.z = ankle.z + 0.065;
@@ -271,7 +306,7 @@ export class LifeRenderer {
       this.local.x = p.chest.x + side * 0.055;
       this.local.y = p.chest.y + 0.2;
       this.local.z = p.chest.z + 0.112;
-      this.part(this.collars, this.local, 0.045, 0.06, 0.012, a.shirt ?? shirtTone(a.coat), 0.05, p.chestYaw, side * -0.23);
+      // 翻领由躯干网格的领口顶点色表达；独立的平板领片在近景里会读成胸前的浅色方块，已移除。
       if (a.sleeveLength > 0.7) {
         this.local.x = lerp(elbow.x, hand.x, 0.91);
         this.local.y = lerp(elbow.y, hand.y, 0.91);
@@ -306,23 +341,24 @@ export class LifeRenderer {
     this.local.x = p.head.x + eyeX * Math.cos(yaw) + eyeZ * Math.sin(yaw);
     this.local.y = headY + 0.036 * k;
     this.local.z = p.head.z + eyeZ * Math.cos(yaw) - eyeX * Math.sin(yaw);
-    this.part(this.eyes, this.local, 0.009, Math.max(0.001, 0.0065 * (1 - p.eyeBlink)), 0.005, "#3a3330", p.headPitch, yaw);
+    // 头部网格已用形变与顶点色塑造眼窝、鼻梁、耳廓与嘴唇；这里只保留眨眼时的眼睑和眉毛，不再叠加小球五官。
+    if (p.eyeBlink > 0.5) this.part(this.eyes, this.local, 0.011, 0.004, 0.004, actor.appearance.skin, p.headPitch, yaw);
     if (actor.appearance.glasses) this.part(this.glasses, this.local, 0.026, 0.018, 0.014, "#4f4c47", p.headPitch, yaw);
     this.local.y += (0.028 + p.browLift * 0.008) * k;
     this.part(this.brows, this.local, 0.024, 0.0045, 0.004, actor.appearance.hair, p.headPitch, yaw, side * p.browLift * -0.15);
     this.local.x = p.head.x + side * 0.126 * k * Math.cos(yaw);
     this.local.y = headY + 0.005 * k;
     this.local.z = p.head.z - side * 0.126 * k * Math.sin(yaw);
-    this.part(this.ears, this.local, 0.016, 0.031, 0.018, actor.appearance.skin, 0, yaw);
+
     if (side < 0) {
       this.local.x = p.head.x + 0.147 * k * Math.sin(yaw);
       this.local.y = headY - 0.003 * k;
       this.local.z = p.head.z + 0.147 * k * Math.cos(yaw);
-      this.part(this.noses, this.local, 0.016, 0.024, 0.022, actor.appearance.skin, p.headPitch, yaw);
+
       this.local.x = p.head.x + 0.131 * k * Math.sin(yaw);
       this.local.y = headY - (0.055 - p.smile * 0.003) * k;
       this.local.z = p.head.z + 0.131 * k * Math.cos(yaw);
-      this.part(this.mouths, this.local, 0.024 + p.smile * 0.006, 0.0025 + p.mouthOpen * 0.007, 0.003, "#8b6351", p.headPitch, yaw);
+      if (p.mouthOpen > 0.3) this.part(this.mouths, this.local, 0.018, 0.004 + p.mouthOpen * 0.006, 0.003, "#5a3a32", p.headPitch, yaw);
     }
   }
 

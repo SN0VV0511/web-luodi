@@ -357,10 +357,10 @@ export function buildResidentialMaterials(kit: CivicKit): ResidentialMaterialPal
   };
 
   const apartmentFacades: Record<ModernFacadeStyle, THREE.MeshStandardMaterial> = {
-    "pearl-condo": makeApartmentFacade("pearl-condo", "#d6ccb9", "#b3a790", "#46525a", "#2f5368"),
+    "pearl-condo": makeApartmentFacade("pearl-condo", "#c6bba7", "#b3a790", "#46525a", "#2f5368"),
     "graphite-tower": makeApartmentFacade("graphite-tower", "#455058", "#2b343b", "#aebac2", "#25495e"),
     "terracotta-modern": makeApartmentFacade("terracotta-modern", "#c9ae93", "#9c5a45", "#3d464c", "#315364"),
-    "coastal-residences": makeApartmentFacade("coastal-residences", "#bfc3c0", "#86979d", "#52646e", "#295872"),
+    "coastal-residences": makeApartmentFacade("coastal-residences", "#adb3b2", "#86979d", "#52646e", "#295872"),
   };
 
   const retailSigns = {} as Record<RetailBrandId, THREE.MeshStandardMaterial>;

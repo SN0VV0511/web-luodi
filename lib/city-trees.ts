@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { createCityMesh } from "./city-mesh-assets";
 
-export type TreeForm = "spreading" | "upright";
+export type TreeForm = "spreading" | "upright" | "conifer";
 
 /** 米制根张、弯曲枝干与小叶簇；每种树只创建一份几何，交给实例批次复用。 */
 export function createTreeTrunk(form: TreeForm = "spreading"): THREE.BufferGeometry {
