@@ -68,9 +68,9 @@ void main() {
   float density = shape * (n * 1.55 - q.y * 1.05 + 0.18) * smoothstep(0.0, 0.22, q.y);
   float heat = clamp(density * 1.7, 0.0, 1.0);
   if (heat < 0.03) discard;
-  vec3 color = mix(vec3(0.45, 0.03, 0.0), vec3(1.0, 0.28, 0.02), smoothstep(0.03, 0.35, heat));
+  vec3 color = mix(vec3(0.5, 0.04, 0.0), vec3(1.0, 0.24, 0.015), smoothstep(0.03, 0.4, heat));
   color = mix(color, vec3(1.0, 0.62, 0.16), smoothstep(0.35, 0.7, heat));
-  color = mix(color, vec3(1.0, 0.9, 0.62), smoothstep(0.75, 1.0, heat));
+  color = mix(color, vec3(1.0, 0.86, 0.55), smoothstep(0.85, 1.0, heat));
   gl_FragColor = vec4(color * pow(heat, 1.3) * uBrightness * uIntensity, 1.0);
 }
 `;
@@ -324,7 +324,7 @@ export class CityFireEffect {
     flameGeometry.setAttribute("aSize", new THREE.InstancedBufferAttribute(sizes, 2));
     flameGeometry.instanceCount = FLAME_COUNT;
     this.flames = this.mesh("Fire flames", flameGeometry, this.material(flameVertex, flameFragment, {
-      uBrightness: { value: 2.6 },
+      uBrightness: { value: 1.45 },
     }, THREE.AdditiveBlending), 6);
 
     const windowGeometry = new THREE.InstancedBufferGeometry().copy(quad as unknown as THREE.InstancedBufferGeometry);

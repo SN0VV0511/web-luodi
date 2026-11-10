@@ -7,6 +7,8 @@ export function createCityWeather() {
   const uniforms = {
     citySnow: { value: 0 },
     cityWetness: { value: 0 },
+    /** 夜景路面「雨后湿润」光泽：参照夜景概念图，沥青在夜间变暗并带镜面高光。 */
+    cityNightWet: { value: 0 },
     cityAutumn: { value: 0 },
     cityWinter: { value: 0 },
     cityWindTime: { value: 0 },
@@ -47,7 +49,7 @@ export function createCityWeather() {
       shader.fragmentShader = shader.fragmentShader.replace("#include <common>", `#include <common>
         varying vec3 vWeatherPosition;
         varying vec3 vWeatherNormal;
-        uniform float citySnow, cityWetness, cityAutumn, cityWinter;
+        uniform float citySnow, cityWetness, cityAutumn, cityWinter, cityNightWet;
         uniform vec3 cityGrass;
         float weatherNoise(vec2 p) {
           vec2 i = floor(p), f = fract(p);
@@ -82,16 +84,22 @@ export function createCityWeather() {
             diffuseColor.rgb *= 1.0 - puddle * 0.25;
             roughnessFactor = mix(roughnessFactor, 0.09, puddle * 0.88);
           ` : ""}
+          ${kind === "asphalt" ? `
+            float nightSheen = cityNightWet * weatherUp;
+            diffuseColor.rgb *= 1.0 - nightSheen * 0.38;
+            roughnessFactor = mix(roughnessFactor, 0.14 + weatherPatch * 0.22, nightSheen);
+          ` : ""}
           float snowCover = citySnow * weatherUp * smoothstep(0.12, 0.62, weatherPatch + citySnow * 0.35);
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.82, 0.87, 0.9), snowCover);
           roughnessFactor = mix(roughnessFactor, 0.87, snowCover);
           #include <lights_physical_fragment>`);
     };
-    material.customProgramCacheKey = () => `${key}:seasonal-weather-1:${kind}`;
+    material.customProgramCacheKey = () => `${key}:seasonal-weather-2:${kind}`;
     material.needsUpdate = true;
   }
 
-  function update(seconds: number, state: SeasonState) {
+  function update(seconds: number, state: SeasonState, night = false) {
+    uniforms.cityNightWet.value = night ? 1 : 0;
     const amount = (season: SeasonState["season"]) =>
       (state.season === season ? 1 - state.blend : 0) + (state.nextSeason === season ? state.blend : 0);
     uniforms.citySnow.value = amount("winter") * 0.82;

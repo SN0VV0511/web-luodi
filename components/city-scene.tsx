@@ -1022,9 +1022,15 @@ export default function CityScene(props: CitySceneProps) {
       __cityCamera?: (position: number[], target: number[]) => void;
       __cityScene?: THREE.Scene;
       __cityPick?: (x: number, y: number) => unknown;
+      __cityAdvance?: (seconds: number) => number;
     };
     if (new URLSearchParams(window.location.search).has("debugCamera")) {
       debugWindow.__cityScene = scene;
+      debugWindow.__cityAdvance = (seconds) => {
+        worldTime += seconds;
+        schedule();
+        return worldTime;
+      };
       debugWindow.__cityPick = (x, y) => {
         const ray = new THREE.Raycaster();
         ray.setFromCamera(new THREE.Vector2(x * 2 - 1, 1 - y * 2), camera);

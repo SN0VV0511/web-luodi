@@ -1394,7 +1394,7 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
   const animate = (seconds: number, night: boolean, seasonMode: SeasonMode = "auto", seasonState?: SeasonState) => {
     const state = seasonState ?? sampleSeasonState(seconds, seasonMode);
     setNight(night);
-    weather.update(seconds, state);
+    weather.update(seconds, state, night);
     facadeInteriors.update(seconds, night);
     detailedEnvironment.animate(seconds, night, state);
     atmosphere.animate(seconds, state);
