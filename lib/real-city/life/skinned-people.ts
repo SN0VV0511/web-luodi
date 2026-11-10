@@ -536,7 +536,7 @@ export class SkinnedPeople {
     set(group.hair, appearance.hair);
     // 地标单位：躯干/腿 0 地面…1 踝…2 膝…3 髋…4 腰带…5 颈；手臂 0 肩…1 肘…2 腕。
     const sleeve = appearance.sleeveLength > 0.7 || appearance.winterCoat ? 1.96 : 0.5;
-    const bareTop = appearance.skirt ? 2.15 : 1.25;
+    const bareTop = appearance.skirt || appearance.shorts ? 2.15 : 1.25;
     const coatBottom = appearance.winterCoat || appearance.coatLength > 0.62 ? Math.max(2.15, 3.2 - appearance.coatLength * 1.1) : 3.62;
     group.style.setXYZW(i, sleeve, bareTop, coatBottom, appearance.winterCoat ? 1 : 0);
     // 发型阈值（越小发际越低）与发量；戴帽时只留帽下鬓角，不鼓出以免顶穿帽子。

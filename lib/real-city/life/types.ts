@@ -90,6 +90,8 @@ export interface Appearance {
   skirt?: boolean;
   /** 学生与儿童背双肩包。 */
   backpack?: boolean;
+  /** 短裤 / 泳裤：膝上露腿但不改变性别体型（v3 沙滩、慢跑）。 */
+  shorts?: boolean;
 }
 
 export interface Relationship {

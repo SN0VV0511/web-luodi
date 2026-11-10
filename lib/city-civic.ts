@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createLakeWater, type LakeWater } from "./real-city/v3/water/lake-water";
 import { ServiceVehicle } from "./real-city/v3/vehicles/service-fleet";
 import { canLoadCityAssets, loadCarModelsOnce } from "./real-city/vehicles/car-models";
 import type { PlaceId } from "./city-content";
@@ -53,7 +54,7 @@ export const centralParkGatherings = [{x:30,z:-66},{x:39,z:37},{x:-30,z:53},{x:9
 
 
 /** 分区公共设施与连续中央公园；公共楼保持在各自街区十五米边界内。 */
-export function buildCivicDistrict(kit: CivicKit): { landmarks: CivicLandmark[]; lakeMaterial: THREE.ShaderMaterial } {
+export function buildCivicDistrict(kit: CivicKit): { landmarks: CivicLandmark[]; lakeMaterial: LakeWater } {
   const { box, part, beam, tree, solid } = kit;
   const landmarks: CivicLandmark[] = [];
   const civic = (kind: typeof civicLots[number]["kind"]) => {
@@ -449,46 +450,11 @@ export function buildCivicDistrict(kit: CivicKit): { landmarks: CivicLandmark[];
   const lakeshore = flatShape(lakePoints(2.2));
   const lake = flatShape(lakePoints());
   part(sand, lakeshore, 0, 0.32, 0, 1, 1, 1);
-  const lakeMaterial = new THREE.ShaderMaterial({
-    uniforms: THREE.UniformsUtils.merge([
-      THREE.UniformsLib.fog,
-      { uTime: { value: 0 }, uNight: { value: 0 } },
-    ]),
-    vertexShader: `varying vec3 vWorld; varying vec3 vView;
-      #include <fog_pars_vertex>
-      void main() {
-        vec4 world = modelMatrix * vec4(position, 1.0);
-        vWorld = world.xyz;
-        vView = cameraPosition - world.xyz;
-        vec4 mvPosition = viewMatrix * world;
-        gl_Position = projectionMatrix * mvPosition;
-        #include <fog_vertex>
-      }`,
-    fragmentShader: `uniform float uTime; uniform float uNight; varying vec3 vWorld; varying vec3 vView;
-      #include <fog_pars_fragment>
-      void main() {
-        float ripple = sin(vWorld.x * 0.85 + vWorld.z * 1.15 + uTime * 0.8);
-        float rippleB = sin(vWorld.x * 1.7 - vWorld.z * 0.6 + uTime * 1.15);
-        vec3 normal = normalize(vec3(ripple * 0.04, 1.0, rippleB * 0.035));
-        vec3 view = normalize(vView);
-        float fresnel = pow(1.0 - max(dot(normal, view), 0.0), 3.0);
-        vec3 deep = vec3(0.05, 0.28, 0.32);
-        vec3 shallow = vec3(0.20, 0.48, 0.46);
-        vec3 day = mix(deep, shallow, 0.45 + ripple * 0.08);
-        day = mix(day, vec3(0.72, 0.84, 0.82), fresnel * 0.75);
-        day += vec3(1.0, 0.9, 0.7) * pow(max(dot(reflect(vec3(0.4, -0.6, -0.3), normal), view), 0.0), 48.0) * 0.35;
-        vec3 nightColor = mix(vec3(0.02, 0.08, 0.12), vec3(0.08, 0.16, 0.22), fresnel);
-        gl_FragColor = vec4(mix(day, nightColor, uNight), 0.92);
-        #include <tonemapping_fragment>
-        #include <colorspace_fragment>
-        #include <fog_fragment>
-      }`,
-    transparent: true,
-    depthWrite: false,
-    fog: true,
-  });
-  kit.materials.add(lakeMaterial);
-  const lakeMesh = new THREE.Mesh(lake, lakeMaterial);
+  // v3 湖面：物理水面材质（天空反射 + 菲涅尔 + 多层法线波纹 + 岸线白沫 + 深浅水色 + 涟漪）。
+  const lakeMaterial = createLakeWater({ cx: -12, cz: -15, rx: 27.5, rz: 37.5 });
+  kit.materials.add(lakeMaterial.material);
+  const lakeMesh = new THREE.Mesh(lake, lakeMaterial.material);
+  lakeMesh.receiveShadow = true;
   lakeMesh.name = "CentralParkLake";
   lakeMesh.position.y = 0.37;
   lakeMesh.renderOrder = 2;

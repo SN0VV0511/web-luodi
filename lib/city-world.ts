@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { canLoadCityAssets, loadCarModelsOnce, type CarModelKind } from "./real-city/vehicles/car-models";
+import { buildV3Scenes } from "./real-city/v3/scenes";
 import { cityLots, ROAD_SEGMENTS, cityBlocks, districts, civicLots, type CityLot } from "./city-map";
 import type { PlaceId } from "./city-content";
 import { getBuildingExperience } from "./building-experience";
@@ -1123,6 +1124,9 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
   });
 
   const events = buildCityEvents(cityKit);
+  // v3 生活场景：湖畔垂钓 / 划船 / 天鹅船 / 鸭群，海滩排球 / 日光浴 / 游泳。
+  const v3Scenes = buildV3Scenes(lakeMaterial);
+  group.add(v3Scenes.group);
   const detailedEnvironment = buildDetailedEnvironment(cityKit, { sites: architecture.sites, budget: detailBudget });
   const life = buildDetailedCityLife(cityKit, {
     sites: architecture.sites,
@@ -1535,6 +1539,7 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
     utilities.animate(seconds);
     cruise.animate(seconds);
     events.animate(seconds);
+    v3Scenes.animate(seconds, night);
     waterMaterial.uniforms.uTime.value = seconds;
     lakeMaterial.uniforms.uTime.value = seconds;
 
@@ -1701,6 +1706,7 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
     getLifeSnapshot: life.snapshot,
     dispose: () => {
       treeField.dispose();
+      v3Scenes.dispose();
       life.dispose();
       traffic.dispose();
       trafficDetails.dispose();
