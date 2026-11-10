@@ -108,14 +108,16 @@ function createNeck() {
 /** 创建有胸背厚度、肩斜和衣领的上衣；顶点色表达领口与衣料接缝，支持实例染色。 */
 function createTorso() {
     const sections = [
-        { y: -0.5, hw: 0.4, hd: 0.42 },
-        { y: -0.34, hw: 0.41, hd: 0.44 },
-        { y: -0.08, hw: 0.38, hd: 0.4 },
-        { y: 0.17, hw: 0.45, hd: 0.47 },
-        { y: 0.33, hw: 0.51, hd: 0.44 },
-        { y: 0.4, hw: 0.5, hd: 0.4 },
-        { y: 0.46, hw: 0.32, hd: 0.3 },
-        { y: 0.5, hw: 0.19, hd: 0.23 },
+        // Tapered waist, fuller chest and sloping trapezius so shoulders read as anatomy rather than a flat box lid.
+        { y: -0.5, hw: 0.39, hd: 0.41 },
+        { y: -0.34, hw: 0.39, hd: 0.42 },
+        { y: -0.08, hw: 0.36, hd: 0.39 },
+        { y: 0.15, hw: 0.43, hd: 0.46 },
+        { y: 0.29, hw: 0.49, hd: 0.44 },
+        { y: 0.36, hw: 0.48, hd: 0.4 },
+        { y: 0.42, hw: 0.39, hd: 0.34 },
+        { y: 0.465, hw: 0.27, hd: 0.27 },
+        { y: 0.5, hw: 0.18, hd: 0.22 },
     ];
     const rings = sections.map((section) => ring(section.y, section.hw, section.hd, 16, (angle, x, z) => {
         // 小幅不规则褶皱保留衣料体积，而非让躯干像收腰的硬塑料外壳。
@@ -437,19 +439,20 @@ return { createTreeTrunk, createTreeCanopy, paintLeafCluster };
 const vehicles = (() => {
 const profiles = {
     sedan: {
-        length: 4.65, wheelR: 0.34, axles: [-1.38, 1.42], cabin: [0.21, 0.76], roof: [0.35, 0.59], pillars: [0.48],
+        // Modern saloon proportions: long low bonnet, steeply raked screens, fastback C-pillar and a rising waistline.
+        length: 4.7, wheelR: 0.335, axles: [-1.4, 1.45], cabin: [0.2, 0.77], roof: [0.38, 0.58], pillars: [0.48],
         sections: [
-            { t: 0, roof: 0.79, belt: 0.64, width: 0.8, roofWidth: 0.72 },
-            { t: 0.055, roof: 0.91, belt: 0.83, width: 0.89, roofWidth: 0.82 },
-            { t: 0.19, roof: 0.96, belt: 0.91, width: 0.92, roofWidth: 0.81 },
-            { t: 0.23, roof: 1.02, belt: 0.94, width: 0.92, roofWidth: 0.79 },
-            { t: 0.35, roof: 1.45, belt: 0.96, width: 0.91, roofWidth: 0.67 },
-            { t: 0.48, roof: 1.49, belt: 0.96, width: 0.91, roofWidth: 0.68 },
-            { t: 0.59, roof: 1.46, belt: 0.96, width: 0.91, roofWidth: 0.67 },
-            { t: 0.74, roof: 1.01, belt: 0.93, width: 0.92, roofWidth: 0.81 },
-            { t: 0.81, roof: 0.95, belt: 0.87, width: 0.91, roofWidth: 0.83 },
-            { t: 0.95, roof: 0.84, belt: 0.74, width: 0.87, roofWidth: 0.78 },
-            { t: 1, roof: 0.7, belt: 0.6, width: 0.78, roofWidth: 0.69 },
+            { t: 0, roof: 0.82, belt: 0.7, width: 0.82, roofWidth: 0.72 },
+            { t: 0.05, roof: 0.95, belt: 0.87, width: 0.9, roofWidth: 0.82 },
+            { t: 0.16, roof: 1.0, belt: 0.94, width: 0.92, roofWidth: 0.83 },
+            { t: 0.21, roof: 1.05, belt: 0.96, width: 0.92, roofWidth: 0.8 },
+            { t: 0.38, roof: 1.42, belt: 0.95, width: 0.92, roofWidth: 0.7 },
+            { t: 0.48, roof: 1.45, belt: 0.94, width: 0.92, roofWidth: 0.71 },
+            { t: 0.58, roof: 1.42, belt: 0.93, width: 0.92, roofWidth: 0.7 },
+            { t: 0.77, roof: 0.97, belt: 0.9, width: 0.92, roofWidth: 0.83 },
+            { t: 0.85, roof: 0.92, belt: 0.85, width: 0.91, roofWidth: 0.84 },
+            { t: 0.96, roof: 0.79, belt: 0.69, width: 0.86, roofWidth: 0.78 },
+            { t: 1, roof: 0.65, belt: 0.55, width: 0.78, roofWidth: 0.68 },
         ],
     },
     suv: {

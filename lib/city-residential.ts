@@ -59,7 +59,7 @@ export function buildModernResidentialDistrict(
   const torus = new THREE.TorusGeometry(0.65, 0.14, 8, 18, Math.PI);
   [cylinder, cone, torus].forEach((g) => geometries.add(g));
 
-  const whiteStucco = solid("#f1eee7", 0.64, 0.04);
+  const whiteStucco = solid("#e0dbd0", 0.7, 0.04);
   const warmConcrete = solid("#d7d2c7", 0.76, 0.04);
   const darkSlate = solid("#2e373d", 0.54, 0.24);
   const aluminum = solid("#b7c1c6", 0.28, 0.66);
@@ -81,6 +81,13 @@ export function buildModernResidentialDistrict(
   nightMaterials.push({ material: warmLamp, day: 0.18, night: 3.4 });
 
   markCitySurface(whiteStucco, "stucco");
+  const sandstoneTrim = solid("#c8b79a", 0.78, 0.03);
+  const greyConcreteTrim = solid("#a9a79f", 0.82, 0.03);
+  const brickTrim = solid("#8e5340", 0.84, 0.02);
+  markCitySurface(sandstoneTrim, "stucco");
+  markCitySurface(greyConcreteTrim, "concrete");
+  markCitySurface(brickTrim, "brick");
+  const apartmentTrims = [whiteStucco, sandstoneTrim, greyConcreteTrim, brickTrim, sandstoneTrim];
   markCitySurface(warmConcrete, "concrete");
   markCitySurface(darkSlate, "roof");
   markCitySurface(turfLush, "grass");
@@ -92,6 +99,9 @@ export function buildModernResidentialDistrict(
     ...Object.values(palette.apartmentFacades),
     ...Object.values(palette.retailSigns),
     whiteStucco,
+    sandstoneTrim,
+    greyConcreteTrim,
+    brickTrim,
     warmConcrete,
     darkSlate,
     palette.villaTravertine,
@@ -120,6 +130,8 @@ export function buildModernResidentialDistrict(
     const facadeMat = palette.apartmentFacades[styleKey];
     const secondaryStyle = FACADE_STYLES[(variant + 1) % FACADE_STYLES.length];
     const secondaryFacade = palette.apartmentFacades[secondaryStyle];
+    // 每个组团使用不同的线脚/阳台板材质，避免整片城区都是同一种白色体块。
+    const trimStucco = apartmentTrims[variant % apartmentTrims.length];
 
     // 社区绿地底座、石材步道与围合矮绿篱
     box(turfLush, bx, 0.28, bz, 29.2, 0.16, 29.2);
@@ -150,8 +162,8 @@ export function buildModernResidentialDistrict(
     // 塔楼标准层主体与现代竖向铝板装饰翼墙
     box(facadeMat, mainX, 3.85 + mainH / 2, mainZ, mainW, mainH, mainD);
     for (const finX of [-mainW * 0.48, 0, mainW * 0.48]) {
-      box(whiteStucco, mainX + finX, 3.85 + mainH / 2, mainZ + mainD / 2 + 0.16, 0.34, mainH + 0.4, 0.38);
-      box(whiteStucco, mainX + finX, 3.85 + mainH / 2, mainZ - mainD / 2 - 0.16, 0.34, mainH + 0.4, 0.38);
+      box(trimStucco, mainX + finX, 3.85 + mainH / 2, mainZ + mainD / 2 + 0.16, 0.34, mainH + 0.4, 0.38);
+      box(trimStucco, mainX + finX, 3.85 + mainH / 2, mainZ - mainD / 2 - 0.16, 0.34, mainH + 0.4, 0.38);
     }
 
     // 逐层精细外挑玻璃观景阳台、空调外机与绿植花箱
@@ -161,7 +173,7 @@ export function buildModernResidentialDistrict(
         const balX = mainX + balCol;
         const balZ = mainZ + mainD / 2 + 0.72;
         // 阳台混凝土底板与铝合金包边
-        box(whiteStucco, balX, fy, balZ, 4.4, 0.18, 1.35);
+        box(trimStucco, balX, fy, balZ, 4.4, 0.18, 1.35);
         // 夹胶玻璃阳台护栏与不锈钢扶手
         box(palette.balconyGlass, balX, fy + 0.56, balZ + 0.62, 4.3, 0.92, 0.06);
         box(aluminum, balX, fy + 1.05, balZ + 0.62, 4.36, 0.06, 0.08);
@@ -181,7 +193,7 @@ export function buildModernResidentialDistrict(
 
     // 现代平屋顶女儿墙、电梯机房、不锈钢水箱与真空管太阳能热水器阵列
     const topY = 3.85 + mainH;
-    box(whiteStucco, mainX, topY + 0.45, mainZ, mainW + 0.6, 0.9, mainD + 0.6);
+    box(trimStucco, mainX, topY + 0.45, mainZ, mainW + 0.6, 0.9, mainD + 0.6);
     box(darkSlate, mainX, topY + 0.94, mainZ, mainW + 0.15, 0.14, mainD + 0.15);
     box(warmConcrete, mainX - 2.4, topY + 1.9, mainZ - 1.4, 4.2, 2.2, 3.8);
     box(darkSlate, mainX - 2.4, topY + 3.08, mainZ - 1.4, 4.5, 0.18, 4.1);
@@ -202,11 +214,11 @@ export function buildModernResidentialDistrict(
     box(secondaryFacade, subX, 3.45 + subH / 2, subZ, subW, subH, subD);
     for (let sf = 1; sf < subFloors; sf++) {
       const sfy = 3.45 + sf * floorH;
-      box(whiteStucco, subX, sfy, subZ + subD / 2 + 0.62, 6.6, 0.16, 1.15);
+      box(trimStucco, subX, sfy, subZ + subD / 2 + 0.62, 6.6, 0.16, 1.15);
       box(palette.balconyGlass, subX, sfy + 0.52, subZ + subD / 2 + 1.15, 6.5, 0.85, 0.06);
     }
     const subTopY = 3.45 + subH;
-    box(whiteStucco, subX, subTopY + 0.42, subZ, subW + 0.45, 0.84, subD + 0.45);
+    box(trimStucco, subX, subTopY + 0.42, subZ, subW + 0.45, 0.84, subD + 0.45);
     // 副楼屋顶空中花园露台
     box(turfLush, subX, subTopY + 0.88, subZ, subW - 1.2, 0.12, subD - 1.2);
 
@@ -221,7 +233,7 @@ export function buildModernResidentialDistrict(
     const rampZ = bz + 9.2;
     box(asphaltRamp, rampX, 0.34, rampZ, 4.4, 0.1, 7.6);
     for (const side of [-2.3, 2.3]) {
-      box(whiteStucco, rampX + side, 0.95, rampZ - 1.2, 0.28, 1.25, 5.4);
+      box(trimStucco, rampX + side, 0.95, rampZ - 1.2, 0.28, 1.25, 5.4);
       box(safetyYellow, rampX + side, 0.68, rampZ + 2.4, 0.32, 0.65, 0.42);
     }
     box(palette.balconyGlass, rampX, 2.15, rampZ - 1.6, 4.8, 0.14, 4.6);

@@ -518,15 +518,15 @@ export default function CityScene(props: CitySceneProps) {
       const state = sampleSeasonState(worldTime, current.current.seasonMode ?? "auto");
       hemisphere.color.set(night ? "#6889be" : "#d8ecff");
       hemisphere.groundColor.set(night ? "#1b2838" : "#647a5e");
-      hemisphere.intensity = night ? 0.65 : 1.05;
+      hemisphere.intensity = night ? 0.65 : 0.78;
       sun.color.copy(state.sunColor);
       if (night) sun.color.set("#9cb8e4");
       seasonSunOffset.copy(state.sunPosition);
       sun.position.copy(seasonSunOffset).add(sun.target.position);
       sun.intensity = night ? 0.48 : state.sunIntensity;
-      fill.intensity = night ? 0.24 : 0.42;
-      renderer.toneMappingExposure = night ? 0.94 : 0.98;
-      scene.environmentIntensity = night ? 0.25 : 0.7;
+      fill.intensity = night ? 0.24 : 0.3;
+      renderer.toneMappingExposure = night ? 0.94 : 1.04;
+      scene.environmentIntensity = night ? 0.25 : 0.62;
       fog.color.copy(state.fogDayColor);
       if (night) fog.color.set("#0e1d34");
       fog.density = night ? 0.00095 : state.fogDensity;
@@ -983,6 +983,19 @@ export default function CityScene(props: CitySceneProps) {
         updateHighlight();
       },
     };
+    // 截图与视觉回归用：仅在 URL 带 ?debugCamera 时暴露相机定位接口。
+    const debugWindow = window as unknown as { __cityCamera?: (position: number[], target: number[]) => void; __cityScene?: THREE.Scene };
+    if (new URLSearchParams(window.location.search).has("debugCamera")) {
+      debugWindow.__cityScene = scene;
+      debugWindow.__cityCamera = (position, target) => {
+        flyTo(new THREE.Vector3(position[0], position[1], position[2]), new THREE.Vector3(target[0], target[1], target[2]), true);
+        controls.minDistance = 0.5;
+        controls.maxDistance = 2000;
+        renderer.shadowMap.needsUpdate = true;
+        shadowController.invalidate();
+        schedule();
+      };
+    }
     // 行情大屏每分钟拉取一次同源静态快照；失败保留上一幅画面，连续失败才提示维护。
     const boardAbort = new AbortController();
     let boardStopped = false;

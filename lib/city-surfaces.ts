@@ -36,13 +36,19 @@ const SURFACE_BODY: Record<CitySurface, string> = {
     diffuseColor.rgb = mix(diffuseColor.rgb * 0.68, diffuseColor.rgb, clamp(seam, 0.0, 1.0));
   `,
   grass: `
+    // 多尺度草坪：大片干湿斑块 + 中尺度草丛明暗 + 细颗粒叶片 + 轻微修剪条纹，远看不再是一整块纯色。
+    float patchA = cityNoise(w * 0.035 + vec2(11.0, 3.0));
     float lawn = cityNoise(w * 0.16);
+    float clump = cityNoise(w * 0.9 + vec2(2.0, 7.0));
     float tuft = cityNoise(w * 2.8 + vec2(4.0, 1.0));
-    float stripe = 0.95 + 0.05 * cityFilteredSine(w.x * 0.62 + w.y * 0.08);
-    vec3 dry = diffuseColor.rgb * vec3(1.12, 1.02, 0.72);
-    vec3 lush = diffuseColor.rgb * vec3(0.78, 1.06, 0.82);
-    diffuseColor.rgb = mix(lush, dry, lawn * lawn);
-    diffuseColor.rgb *= (0.9 + tuft * 0.18) * stripe;
+    float blade = cityGrain(w * 9.0);
+    float stripe = 0.96 + 0.04 * cityFilteredSine(w.x * 0.62 + w.y * 0.08);
+    vec3 dry = diffuseColor.rgb * vec3(1.16, 1.04, 0.7);
+    vec3 lush = diffuseColor.rgb * vec3(0.74, 1.0, 0.78);
+    vec3 shade = diffuseColor.rgb * vec3(0.72, 0.82, 0.7);
+    diffuseColor.rgb = mix(lush, dry, smoothstep(0.25, 0.85, lawn * 0.6 + patchA * 0.55));
+    diffuseColor.rgb = mix(diffuseColor.rgb, shade, smoothstep(0.55, 0.85, clump) * 0.45);
+    diffuseColor.rgb *= (0.86 + tuft * 0.2) * (0.92 + blade * 0.12) * stripe;
   `,
   stucco: `
     vec2 plasterPlane = cityWallCoordinates(vCityPos);
@@ -149,6 +155,6 @@ export function applyCitySurface(material: THREE.MeshStandardMaterial, kind: Cit
       )
       .replace("#include <color_fragment>", `#include <color_fragment>\nvec2 w = vCityPos.xz;\n${body}`);
   };
-  material.customProgramCacheKey = () => `${previousKey}:city-surface-v5:${kind}`;
+  material.customProgramCacheKey = () => `${previousKey}:city-surface-v6:${kind}`;
   material.needsUpdate = true;
 }

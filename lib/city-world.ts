@@ -68,8 +68,8 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
     materials.add(value);
     return value;
   };
-  const concrete = solid("#d2cec2", 0.78);
-  const lightStone = solid("#e8e0cf", 0.72);
+  const concrete = solid("#c4bfb3", 0.8);
+  const lightStone = solid("#dcd4c3", 0.74);
   const darkRoof = solid("#364147", 0.62, 0.18);
   const paleRoof = solid("#aeb8bd", 0.58, 0.14);
   const pavement = solid("#b2b0a6", 0.8);
@@ -77,9 +77,10 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
   const asphalt = solid("#272e33", 0.82, 0.06);
   const roadLine = solid("#f2efe6", 0.65);
   const roadYellow = solid("#e6b245", 0.65);
-  const grass = solid("#628e54", 0.88);
-  const turf = solid("#7ca866", 0.84);
-  const soil = solid("#687c58", 0.92);
+  // 低饱和的橄榄绿草坪，与《都市：天际线》式写实色调一致，纹理变化交给表面着色器。
+  const grass = solid("#5a7445", 0.92);
+  const turf = solid("#66804c", 0.9);
+  const soil = solid("#5f6648", 0.94);
   const trunk = solid("#634c3b", 0.88);
   const leaves = [
     solid("#2b5838"), solid("#3f7245"), solid("#588a4d"),
@@ -329,8 +330,8 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
   };
   const facades = {
     glass: [facade("glass", "#2b5670"), facade("glass", "#32636d"), facade("glass", "#244761")],
-    stone: [facade("stone", "#ded6c5"), facade("stone", "#d4cbb8"), facade("stone", "#e5dfd1")],
-    brick: [facade("brick", "#a85c46"), facade("brick", "#9a6c54")],
+    stone: [facade("stone", "#cdbfa6"), facade("stone", "#bdb7ac"), facade("stone", "#d8cfbc")],
+    brick: [facade("brick", "#97553f"), facade("brick", "#8c6550"), facade("brick", "#7e4636")],
   };
 
   // 紧凑高密度海岸岛屿基底，覆盖西侧观海别墅带 (x=-260) 与东侧电力/污水市政园区 (x=316)
@@ -485,9 +486,10 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
     return material;
   };
   const parkedPaints = new Map<number, THREE.MeshPhysicalMaterial>();
-  const vehicleGlass = solid("#617b87", 0.13, 0.4);
+  // 深色着色玻璃：车窗与车身形成真实的明暗对比，而不是与车漆同亮度的浅蓝色块。
+  const vehicleGlass = solid("#1b252c", 0.05, 0.72);
   vehicleGlass.envMap = vehicleEnvironment;
-  vehicleGlass.envMapIntensity = 0.85;
+  vehicleGlass.envMapIntensity = 1.15;
   vehicleSurfaces.add(vehicleGlass);
   const vehicleTrim = solid("#23282b", 0.76, 0.06);
   const shells = {
@@ -939,8 +941,8 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
   terrainGeometry.rotateX(-Math.PI / 2);
   const terrainPositions = terrainGeometry.getAttribute("position");
   const terrainColors: number[] = [];
-  const terrainLow = new THREE.Color("#52784a");
-  const terrainHigh = new THREE.Color("#738f5d");
+  const terrainLow = new THREE.Color("#4d6a3f");
+  const terrainHigh = new THREE.Color("#6f7d52");
   for (let index = 0; index < terrainPositions.count; index++) {
     const x = terrainPositions.getX(index);
     const z = terrainPositions.getZ(index) - 435;
@@ -1189,9 +1191,11 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
     group.add(mesh);
   });
 
+  // 接近真实车流的车漆分布：白、银、灰、黑占多数，少量深蓝、酒红与墨绿。
   const carPalette = [
-    "#f2efe9", "#d6dce0", "#2f5d7c", "#c84b38", "#2d6a62",
-    "#d8b056", "#313a42", "#728c9c", "#9c4138", "#e8e2d5",
+    "#e9e8e4", "#a9adb1", "#1d2024", "#5d6268", "#25344c",
+    "#e9e8e4", "#7a1f24", "#c7c9cb", "#2c3a33", "#3c4148",
+    "#f1efe9", "#8a8f94", "#121416", "#6f5a46",
   ];
   // 严格贴合 ROAD_SEGMENTS 真实道路中心线，100% 避开中央公园 (x:-75..75, z:-115..95)
   const arterialLoops = [

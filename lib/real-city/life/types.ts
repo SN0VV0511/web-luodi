@@ -76,6 +76,8 @@ export interface Appearance {
   skin: string;
   hair: string;
   coat: string;
+  /** 领口与袖口露出的衬衫色；缺省时由外套色推导。 */
+  shirt?: string;
   trousers: string;
   shoes: string;
   hairStyle: number;

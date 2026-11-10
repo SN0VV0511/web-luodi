@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { CivicKit } from "../../city-civic";
-import { createCalf, createForearm, createHair, createHand, createHead, createPelvis, createShoe, createThigh, createTorso, createUpperArm } from "../../city-figure";
+import { createCalf, createForearm, createHair, createHand, createHead, createNeck, createPelvis, createShoe, createThigh, createTorso, createUpperArm } from "../../city-figure";
 import { angleDelta, lerp, point3, type Point3 } from "./math";
 import type { Actor, LifeContext } from "./types";
 import { LifePropRenderer } from "./render-props";
@@ -20,6 +20,20 @@ type FleetShell = {
   chrome: BodyBatch;
 };
 
+/** 头部相对姿态骨架的抬升量与五官缩放：骨架仍按 1.76 m 成人计算，头更小、下颌更高。 */
+const HEAD_LIFT = 0.022;
+const FACE_SCALE = 0.72;
+const shirtTones = new Map<string, string>();
+/** 由外套色推导略深的翻领/袖口色，领口与袖口不再是统一的白色方片。 */
+function shirtTone(coat: string): string {
+  let tone = shirtTones.get(coat);
+  if (!tone) {
+    tone = `#${new THREE.Color(coat).lerp(new THREE.Color("#1c1c1c"), 0.22).getHexString()}`;
+    shirtTones.set(coat, tone);
+  }
+  return tone;
+}
+
 export class LifeRenderer {
   private readonly group = new THREE.Group();
   private readonly batches: BodyBatch[] = [];
@@ -37,6 +51,7 @@ export class LifeRenderer {
   private activeHeading = 0;
   private activeScale = 1;
   private heads: BodyBatch;
+  private necks: BodyBatch;
   private hair: BodyBatch;
   private torsos: BodyBatch;
   private pelvis: BodyBatch;
@@ -79,11 +94,12 @@ export class LifeRenderer {
     const hair = kit.solid("#ffffff", 0.96, 0);
     const rubber = kit.solid("#292d2d", 0.88, 0.01);
     const eye = kit.solid("#252729", 0.35, 0.05);
-    const glass = kit.solid("#5c7379", 0.2, 0.45);
+    const glass = kit.solid("#1e2a31", 0.06, 0.7);
     const metal = kit.solid("#9b9b94", 0.35, 0.6);
     const vehicle = kit.solid("#ffffff", 0.38, 0.24);
     const light = kit.solid("#f7e5bd", 0.3, 0.15);
     this.heads = this.batch("faces", createHead(), skin, maximumActors);
+    this.necks = this.batch("necks", createNeck(), skin, maximumActors);
     this.hair = this.batch("hair", createHair(), hair, maximumActors);
     this.torsos = this.batch("tailored jackets", createTorso(), cloth, maximumActors);
     this.pelvis = this.batch("trousers", createPelvis(), cloth, maximumActors);
@@ -220,13 +236,18 @@ export class LifeRenderer {
     const a = actor.appearance;
     const width = a.shoulderWidth;
     const bulk = a.winterCoat ? 1.12 : 1;
-    this.part(this.heads, p.head, 0.26, 0.31, 0.285, a.skin, p.headPitch, p.headYaw);
+    // 写实比例：头高约为身高的 1/7.5（约 0.24 m），颈部可见，躯干厚度接近真人胸廓。
     this.local.x = p.head.x;
-    this.local.y = p.head.y + 0.008;
+    this.local.y = p.head.y + HEAD_LIFT;
     this.local.z = p.head.z;
-    this.part(this.hair, this.local, 0.267, 0.315 + a.hairStyle * 0.003, 0.291, a.hair, p.headPitch, p.headYaw);
-    this.part(this.torsos, p.chest, width * bulk, 0.57 + a.coatLength * 0.035, 0.3 * a.build * bulk, a.coat, p.chestPitch, p.chestYaw);
-    this.part(this.pelvis, p.hips, width * 0.77, 0.25, 0.28 * a.build, a.trousers);
+    this.part(this.heads, this.local, 0.185, 0.215, 0.2, a.skin, p.headPitch, p.headYaw);
+    this.local.y += 0.006;
+    this.part(this.hair, this.local, 0.19, 0.219 + a.hairStyle * 0.002, 0.205, a.hair, p.headPitch, p.headYaw);
+    this.local.y = p.head.y + HEAD_LIFT - 0.15;
+    this.local.z = p.head.z * 0.6 + p.chest.z * 0.4 - 0.01;
+    this.part(this.necks, this.local, 0.12, 0.13, 0.125, a.skin, p.headPitch * 0.5);
+    this.part(this.torsos, p.chest, width * 0.94 * bulk, 0.57 + a.coatLength * 0.035, 0.255 * a.build * bulk, a.coat, p.chestPitch, p.chestYaw);
+    this.part(this.pelvis, p.hips, width * 0.74, 0.25, 0.25 * a.build, a.trousers);
     for (const side of [-1, 1]) {
       const left = side < 0;
       const shoulder = left ? p.leftShoulder : p.rightShoulder;
@@ -234,72 +255,74 @@ export class LifeRenderer {
       const hand = left ? p.leftHand : p.rightHand;
       const knee = left ? p.leftKnee : p.rightKnee;
       const ankle = left ? p.leftAnkle : p.rightAnkle;
-      this.segment(this.upperArms, shoulder, elbow, 0.155 * bulk, a.coat);
-      this.segment(this.forearms, elbow, hand, 0.123 * bulk, a.sleeveLength > 0.7 ? a.coat : a.skin);
-      this.part(this.hands, hand, 0.094, 0.135, 0.073, a.skin);
+      this.segment(this.upperArms, shoulder, elbow, 0.138 * bulk, a.coat);
+      this.segment(this.forearms, elbow, hand, 0.11 * bulk, a.sleeveLength > 0.7 ? a.coat : a.skin);
+      this.part(this.hands, hand, 0.085, 0.125, 0.066, a.skin);
       this.local.x = p.hips.x + side * 0.09;
       this.local.y = p.hips.y;
       this.local.z = p.hips.z;
-      this.segment(this.thighs, this.local, knee, 0.19 * a.build, a.trousers);
-      this.segment(this.calves, knee, ankle, 0.145 * a.build, a.trousers);
+      this.segment(this.thighs, this.local, knee, 0.175 * a.build, a.trousers);
+      this.segment(this.calves, knee, ankle, 0.13 * a.build, a.trousers);
       this.local.x = ankle.x;
       this.local.y = ankle.y - 0.018;
       this.local.z = ankle.z + 0.065;
-      this.part(this.shoes, this.local, 0.15, 0.13, 0.265, a.shoes, left ? p.leftFootPitch : p.rightFootPitch);
+      this.part(this.shoes, this.local, 0.12, 0.11, 0.27, a.shoes, left ? p.leftFootPitch : p.rightFootPitch);
       this.faceDetail(actor, side);
       this.local.x = p.chest.x + side * 0.055;
-      this.local.y = p.chest.y + 0.19;
-      this.local.z = p.chest.z + 0.132;
-      this.part(this.collars, this.local, 0.066, 0.092, 0.019, "#e1dfd3", 0.05, p.chestYaw, side * -0.23);
+      this.local.y = p.chest.y + 0.2;
+      this.local.z = p.chest.z + 0.112;
+      this.part(this.collars, this.local, 0.045, 0.06, 0.012, a.shirt ?? shirtTone(a.coat), 0.05, p.chestYaw, side * -0.23);
       if (a.sleeveLength > 0.7) {
         this.local.x = lerp(elbow.x, hand.x, 0.91);
         this.local.y = lerp(elbow.y, hand.y, 0.91);
         this.local.z = lerp(elbow.z, hand.z, 0.91);
-        this.part(this.cuffs, this.local, 0.129, 0.035, 0.129, "#d5d3c9");
+        this.part(this.cuffs, this.local, 0.112, 0.022, 0.112, a.shirt ?? shirtTone(a.coat));
       }
     }
     for (let button = 0; button < 3; button++) {
       this.local.x = p.chest.x;
       this.local.y = p.chest.y + 0.12 - button * 0.11;
-      this.local.z = p.chest.z + 0.155 * a.build;
-      this.part(this.buttons, this.local, 0.012, 0.012, 0.009, "#8b8c83");
+      this.local.z = p.chest.z + 0.132 * a.build;
+      this.part(this.buttons, this.local, 0.009, 0.009, 0.007, "#5d5e58");
     }
     if (a.hat) {
       this.local.x = p.head.x;
-      this.local.y = p.head.y + 0.11;
+      this.local.y = p.head.y + HEAD_LIFT + 0.075;
       this.local.z = p.head.z;
-      this.part(this.hats, this.local, 0.146, 0.13, 0.15, a.coat);
-      this.local.y -= 0.006;
-      this.local.z += 0.015;
-      this.part(this.brims, this.local, 0.18, 0.018, 0.19, a.coat);
+      this.part(this.hats, this.local, 0.106, 0.095, 0.112, a.coat);
+      this.local.y -= 0.004;
+      this.local.z += 0.012;
+      this.part(this.brims, this.local, 0.135, 0.012, 0.145, a.coat);
     }
   }
 
   private faceDetail(actor: Actor, side: number): void {
     const p = actor.pose;
     const yaw = p.headYaw;
-    const eyeX = side * 0.052;
-    const eyeZ = 0.126;
+    const k = FACE_SCALE;
+    const headY = p.head.y + HEAD_LIFT;
+    const eyeX = side * 0.052 * k;
+    const eyeZ = 0.126 * k;
     this.local.x = p.head.x + eyeX * Math.cos(yaw) + eyeZ * Math.sin(yaw);
-    this.local.y = p.head.y + 0.036;
+    this.local.y = headY + 0.036 * k;
     this.local.z = p.head.z + eyeZ * Math.cos(yaw) - eyeX * Math.sin(yaw);
-    this.part(this.eyes, this.local, 0.012, Math.max(0.001, 0.009 * (1 - p.eyeBlink)), 0.007, "#272827", p.headPitch, yaw);
-    if (actor.appearance.glasses) this.part(this.glasses, this.local, 0.036, 0.025, 0.019, "#625f58", p.headPitch, yaw);
-    this.local.y += 0.028 + p.browLift * 0.008;
-    this.part(this.brows, this.local, 0.032, 0.006, 0.005, actor.appearance.hair, p.headPitch, yaw, side * p.browLift * -0.15);
-    this.local.x = p.head.x + side * 0.126 * Math.cos(yaw);
-    this.local.y = p.head.y + 0.005;
-    this.local.z = p.head.z - side * 0.126 * Math.sin(yaw);
-    this.part(this.ears, this.local, 0.022, 0.043, 0.025, actor.appearance.skin, 0, yaw);
+    this.part(this.eyes, this.local, 0.009, Math.max(0.001, 0.0065 * (1 - p.eyeBlink)), 0.005, "#3a3330", p.headPitch, yaw);
+    if (actor.appearance.glasses) this.part(this.glasses, this.local, 0.026, 0.018, 0.014, "#4f4c47", p.headPitch, yaw);
+    this.local.y += (0.028 + p.browLift * 0.008) * k;
+    this.part(this.brows, this.local, 0.024, 0.0045, 0.004, actor.appearance.hair, p.headPitch, yaw, side * p.browLift * -0.15);
+    this.local.x = p.head.x + side * 0.126 * k * Math.cos(yaw);
+    this.local.y = headY + 0.005 * k;
+    this.local.z = p.head.z - side * 0.126 * k * Math.sin(yaw);
+    this.part(this.ears, this.local, 0.016, 0.031, 0.018, actor.appearance.skin, 0, yaw);
     if (side < 0) {
-      this.local.x = p.head.x + 0.147 * Math.sin(yaw);
-      this.local.y = p.head.y - 0.003;
-      this.local.z = p.head.z + 0.147 * Math.cos(yaw);
-      this.part(this.noses, this.local, 0.025, 0.032, 0.032, actor.appearance.skin, p.headPitch, yaw);
-      this.local.x = p.head.x + 0.131 * Math.sin(yaw);
-      this.local.y = p.head.y - 0.055 + p.smile * 0.003;
-      this.local.z = p.head.z + 0.131 * Math.cos(yaw);
-      this.part(this.mouths, this.local, 0.032 + p.smile * 0.008, 0.003 + p.mouthOpen * 0.009, 0.004, "#8b6351", p.headPitch, yaw);
+      this.local.x = p.head.x + 0.147 * k * Math.sin(yaw);
+      this.local.y = headY - 0.003 * k;
+      this.local.z = p.head.z + 0.147 * k * Math.cos(yaw);
+      this.part(this.noses, this.local, 0.016, 0.024, 0.022, actor.appearance.skin, p.headPitch, yaw);
+      this.local.x = p.head.x + 0.131 * k * Math.sin(yaw);
+      this.local.y = headY - (0.055 - p.smile * 0.003) * k;
+      this.local.z = p.head.z + 0.131 * k * Math.cos(yaw);
+      this.part(this.mouths, this.local, 0.024 + p.smile * 0.006, 0.0025 + p.mouthOpen * 0.007, 0.003, "#8b6351", p.headPitch, yaw);
     }
   }
 

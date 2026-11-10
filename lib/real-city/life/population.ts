@@ -35,7 +35,11 @@ export function emptyPose(): ActorPose {
 }
 
 function appearance(random: RandomStream, occupation: Occupation, age: AgeGroup): Appearance {
-  const jacket = random.choice(["#64717a", "#777462", "#8a675c", "#465e6a", "#9a8e78", "#53655b", "#745e67", "#a18d73"]);
+  // 写实城市着装：深色外套、牛仔、卡其与少量暖色单品，饱和度与真实街拍接近。
+  const jacket = random.choice([
+    "#2f3a4c", "#26282c", "#4a4d52", "#6c7176", "#8e9fb2", "#a8946f", "#55603f", "#6b3238",
+    "#3e5674", "#93463a", "#c9c5bb", "#1f2f3f", "#716355", "#b2883e", "#5a4a5e", "#7d8a7a",
+  ]);
   const isUniform = occupation === "cleaner" || occupation === "courier" || occupation === "medic" || occupation === "officer";
   let coat = jacket;
   if (occupation === "cleaner") coat = "#c28b43";
@@ -55,8 +59,8 @@ function appearance(random: RandomStream, occupation: Occupation, age: AgeGroup)
     hair: age === "elder" ? random.choice(["#8c8980", "#a6a195", "#6d6a63"])
       : random.choice(["#332f2a", "#514537", "#403b35", "#2e2c29"]),
     coat,
-    trousers: random.choice(["#3c474e", "#565b55", "#665e54", "#4a535d"]),
-    shoes: random.choice(["#3b3934", "#514c42", "#706b61"]),
+    trousers: random.choice(["#2e3c55", "#24272b", "#3c4a62", "#8f7f62", "#5f6266", "#4a3d32", "#33363a", "#6e7a8c"]),
+    shoes: random.choice(["#2a2826", "#4a3a2c", "#d9d6cf", "#3b3f45", "#6b4c35"]),
     hairStyle: random.integer(0, 4),
     hat: isUniform || random.probability(0.12),
     glasses: age === "elder" || random.probability(0.24),

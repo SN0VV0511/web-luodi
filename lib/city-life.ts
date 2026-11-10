@@ -652,14 +652,15 @@ export function buildCityLife({
     briefcases, coffeeCups, phones, mcBags, umbrellas, volleyBallMesh,
   ];
   const color = new THREE.Color();
+  // 写实都市服装色：低饱和的深色外套、衬衫与牛仔，偶尔一抹暖色，避免卡通高饱和配色。
   const coats = [
-    "#d45d42", "#e2ad47", "#3f749c", "#f0ece1", "#d9847c",
-    "#3d7d6c", "#496174", "#8a709e", "#2d4356", "#e67e51",
-    "#689975", "#f3c969",
+    "#2f3a4c", "#26282c", "#4a4d52", "#d6d3ca", "#8e9fb2",
+    "#a8946f", "#55603f", "#6b3238", "#3e5674", "#93463a",
+    "#8b8d8e", "#b2883e", "#1f2f3f", "#716355", "#c5c0b4",
   ];
-  const skins = ["#e2b18c", "#c6926e", "#f2cfb0", "#9c6d54"];
-  const pants = ["#2b3b4b", "#494a47", "#2c4c56", "#8c7d65", "#d8d2c5", "#364552"];
-  const hairs = ["#2c2520", "#61422e", "#c9b592", "#1f2426", "#8c4a32", "#e8dfc8"];
+  const skins = ["#d9a888", "#bb8a68", "#e8c3a4", "#8f634c", "#c99a78", "#a87656"];
+  const pants = ["#2e3c55", "#24272b", "#3c4a62", "#8f7f62", "#5f6266", "#4a3d32", "#33363a"];
+  const hairs = ["#231d19", "#4d3527", "#8f7457", "#17191a", "#6c3b28", "#b7ad9c"];
   const bagColors = ["#7c5338", "#2f3942", "#9e6b43", "#4c6459", "#b89f7d"];
   const bikeColors = ["#e0533c", "#3b82a6", "#e5b842", "#479c78", "#d8dde0"];
   const dogColors = ["#c89662", "#f0e6d2", "#5c4636", "#a87246"];
@@ -970,18 +971,19 @@ export function buildCityLife({
                 : 0;
 
       const build = 0.92 + (index % 7) * 0.022;
-      const headY = 1.2 + Math.cos(torsoPitch) * 0.54 + hipShift;
-      const headZ = Math.sin(torsoPitch) * 0.54 + 0.015;
-      place(torsos, index, 0, 1.2 + hipShift, 0, 0.49 * build, 0.6, 0.32, torsoPitch);
+      // 成年人头高约为身高的 1/7.5：缩小头部并让颈部露出，避免大头娃娃式比例。
+      const headY = 1.2 + Math.cos(torsoPitch) * 0.52 + hipShift;
+      const headZ = Math.sin(torsoPitch) * 0.52 + 0.015;
+      place(torsos, index, 0, 1.2 + hipShift, 0, 0.45 * build, 0.6, 0.27, torsoPitch);
       place(pelvis, index, 0, 0.94 + hipShift, 0, 0.43 * build, 0.25, 0.32, torsoPitch * 0.25);
-      place(necks, index, 0, 1.2 + Math.cos(torsoPitch) * 0.35 + hipShift, Math.sin(torsoPitch) * 0.35, 0.15, 0.13, 0.15, torsoPitch * 0.6);
-      place(heads, index, 0, headY, headZ, 0.24, 0.24, 0.235, 0, headYaw);
+      place(necks, index, 0, 1.2 + Math.cos(torsoPitch) * 0.37 + hipShift, Math.sin(torsoPitch) * 0.37, 0.125, 0.15, 0.13, torsoPitch * 0.6);
+      place(heads, index, 0, headY, headZ, 0.19, 0.2, 0.2, 0, headYaw);
       if (resident.hasHat) {
         place(hair, index, 0, -12, 0, 0.001, 0.001, 0.001);
-        place(hats, index, 0, headY + 0.09, headZ, 0.25, 0.13, 0.26, 0, headYaw);
+        place(hats, index, 0, headY + 0.075, headZ, 0.205, 0.11, 0.215, 0, headYaw);
       } else {
         place(hats, index, 0, -12, 0, 0.001, 0.001, 0.001);
-        place(hair, index, 0, headY, headZ, 0.25, 0.245, 0.245, 0, headYaw);
+        place(hair, index, 0, headY + 0.004, headZ, 0.2, 0.205, 0.207, 0, headYaw);
       }
 
       if (resident.hasBag && !seated) {
@@ -1022,8 +1024,8 @@ export function buildCityLife({
         const lowerLegLength = seated ? 0.38 : LEG_LENGTH.calf;
         const ankleY = kneeY - Math.cos(kneeAngle) * lowerLegLength;
         const ankleZ = kneeZ - Math.sin(kneeAngle) * lowerLegLength;
-        limb(thighs, index * 2 + side, sign * 0.092 * build, hipY, 0, LEG_LENGTH.thigh, 0.24 * build, legAngle);
-        limb(calves, index * 2 + side, sign * 0.092 * build, kneeY, kneeZ, lowerLegLength, 0.23 * build, kneeAngle);
+        limb(thighs, index * 2 + side, sign * 0.092 * build, hipY, 0, LEG_LENGTH.thigh, 0.215 * build, legAngle);
+        limb(calves, index * 2 + side, sign * 0.092 * build, kneeY, kneeZ, lowerLegLength, 0.2 * build, kneeAngle);
         place(shoes, index * 2 + side, sign * 0.092 * build, ankleY - 0.025, ankleZ + 0.055, 0.15, 0.14, 0.3, grounded ? walkingLeg.footPitch : kneeAngle * 0.2);
 
         const talking = (resident.activity === "talk" || (greeting && greetStage === "chat")) && side === 1;
@@ -1095,11 +1097,11 @@ export function buildCityLife({
         const shoulderZ = Math.sin(torsoPitch) * 0.24;
         const upperLen = 0.29;
         const lowerLen = 0.255;
-        const armX = sign * 0.235 * build;
+        const armX = sign * 0.218 * build;
         const elbowY = shoulderY - Math.cos(armAngle) * upperLen;
         const elbowZ = shoulderZ - Math.sin(armAngle) * upperLen;
-        limb(upperArms, index * 2 + side, armX, shoulderY, shoulderZ, upperLen, 0.165 * build, armAngle);
-        limb(forearms, index * 2 + side, armX, elbowY, elbowZ, lowerLen, 0.145 * build, forearmAngle);
+        limb(upperArms, index * 2 + side, armX, shoulderY, shoulderZ, upperLen, 0.145 * build, armAngle);
+        limb(forearms, index * 2 + side, armX, elbowY, elbowZ, lowerLen, 0.125 * build, forearmAngle);
         const wristY = elbowY - Math.cos(forearmAngle) * lowerLen;
         const wristZ = elbowZ - Math.sin(forearmAngle) * lowerLen;
         const handLen = 0.14;
@@ -1109,9 +1111,9 @@ export function buildCityLife({
           armX,
           wristY - Math.cos(forearmAngle) * handLen * 0.45,
           wristZ - Math.sin(forearmAngle) * handLen * 0.45,
-          0.12,
+          0.1,
           handLen,
-          0.13,
+          0.11,
           forearmAngle,
         );
         if (side === 1) {
