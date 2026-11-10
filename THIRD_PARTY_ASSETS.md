@@ -5,6 +5,7 @@ is in the public domain (CC0), so attribution is not required; it is recorded he
 
 | Asset | Used for | Source | License | Shipped files | Size |
 | --- | --- | --- | --- | --- | --- |
+| Quaternius — *LowPoly Cars / Realistic Car Pack (Nov 2018)*: NormalCar1, NormalCar2, SUV (OBJ) | Traffic sedans, hatchbacks and SUVs (body / glass / trim / chrome; wheels stay procedural so they can spin) | https://quaternius.itch.io/lowpoly-cars (also https://quaternius.com/packs/cars.html) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | `public/models/vehicles/cars.bin`, `cars.json` | ~164 KB total |
 | Quaternius — *Universal Base Characters* (Standard, Superhero_Male / Superhero_Female, body + eyebrows + eyes, base colour textures) | Realistic residents (instanced, pose-skinned bodies) | https://quaternius.itch.io/universal-base-characters (also https://quaternius.com) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | `public/models/people/body-male.bin`, `body-female.bin`, `body-male.webp`, `body-female.webp` | ~270 KB total |
 
 ## How the shipped files are produced
@@ -15,6 +16,9 @@ is in the public domain (CC0), so attribution is not required; it is recorded he
    (LOD0 4,800 tris, LOD1 1,100 tris), quantizes positions/normals/UVs and writes clothing zones.
 3. `python3 scripts/build-people-textures.py "<pack>/Base Characters"` — resizes the base colour maps to
    512 px WebP.
+
+4. `node scripts/build-vehicle-assets.mjs "<Realistic Car Pack - Nov 2018>/OBJ"` — splits the cars by material,
+   strips the wheel objects (exporting wheel centres/radius and lamp centroids instead) and writes `cars.bin`/`cars.json`.
 
 The files are fetched only after the scene is ready; if they fail to load, residents fall back to the
 procedural figures.

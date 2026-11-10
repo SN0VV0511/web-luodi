@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { canLoadCityAssets, loadCarModels, type CarModelKind } from "./real-city/vehicles/car-models";
 import { cityLots, ROAD_SEGMENTS, cityBlocks, districts, civicLots, type CityLot } from "./city-map";
 import type { PlaceId } from "./city-content";
 import { getBuildingExperience } from "./building-experience";
@@ -1206,6 +1207,26 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
     shellChrome[kind] = new THREE.InstancedMesh(shells[kind].chrome, railMetal, Math.max(1, shellCounts[kind]));
     for (const mesh of [shellBodies[kind], shellGlass[kind], shellTrim[kind], shellChrome[kind]]) mesh.name = `Traffic · ${kind}`;
   });
+  // CC0 车型懒加载：就绪后原地替换轿车 / 两厢车 / SUV 的车壳几何与轮位、灯位元数据。
+  if (canLoadCityAssets()) {
+    loadCarModels().then((models) => {
+      for (const kind of Object.keys(models) as CarModelKind[]) {
+        const model = models[kind];
+        const shell = shells[kind];
+        for (const geometry of [model.body, model.glass, model.trim, model.chrome]) geometries.add(geometry);
+        shellBodies[kind].geometry = model.body;
+        shellGlass[kind].geometry = model.glass;
+        shellTrim[kind].geometry = model.trim;
+        shellChrome[kind].geometry = model.chrome;
+        shell.length = model.length;
+        shell.width = model.width;
+        shell.height = model.height;
+        shell.wheelR = model.wheelR;
+        shell.wheels.splice(0, shell.wheels.length, ...model.wheels);
+        shell.lamps.splice(0, shell.lamps.length, ...model.lamps);
+      }
+    }).catch((error: unknown) => console.warn("[city] car models unavailable, keeping procedural shells", error));
+  }
   const lights = new THREE.InstancedMesh(boxGeometry, lamp, carCount * 2);
   const taillights = new THREE.InstancedMesh(boxGeometry, tailRed, carCount * 2);
   const roofUnits = new THREE.InstancedMesh(boxGeometry, lightStone, carCount);
