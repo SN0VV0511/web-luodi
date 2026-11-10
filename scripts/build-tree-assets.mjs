@@ -29,8 +29,8 @@ mkdirSync(outDir, { recursive: true });
 // 图集单元：[u0, v0]（左下角），每格 0.5。
 const CELL = { oak: [0, 0.5], ash: [0.5, 0.5], pine: [0, 0], aspen: [0.5, 0] };
 const FORMS = [
-  { form: "spreading", preset: "Oak Medium", leaf: "oak", height: 7.0, tweak: (o) => { o.leaves.count = 5; o.leaves.size *= 1.9; } },
-  { form: "upright", preset: "Ash Medium", leaf: "aspen", height: 7.6, tweak: (o) => { o.leaves.count = 7; o.leaves.size *= 1.7; o.branch.sections = { 0: 9, 1: 6, 2: 4, 3: 3 }; o.branch.segments = { 0: 8, 1: 5, 2: 3, 3: 3 }; } },
+  { form: "spreading", preset: "Oak Medium", leaf: "oak", height: 7.0, tweak: (o) => { o.leaves.count = 7; o.leaves.size *= 1.85; } },
+  { form: "upright", preset: "Ash Medium", leaf: "aspen", height: 7.6, tweak: (o) => { o.leaves.count = 9; o.leaves.size *= 1.7; o.branch.sections = { 0: 9, 1: 6, 2: 4, 3: 3 }; o.branch.segments = { 0: 8, 1: 5, 2: 3, 3: 3 }; } },
   { form: "conifer", preset: "Pine Medium", leaf: "pine", height: 8.6, tweak: (o) => { o.leaves.count = 10; o.leaves.size *= 1.7; o.branch.sections = { 0: 10, 1: 6, 2: 4, 3: 3 }; o.branch.segments = { 0: 8, 1: 4, 2: 3, 3: 3 }; } },
 ];
 

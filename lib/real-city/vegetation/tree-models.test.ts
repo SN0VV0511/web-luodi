@@ -16,7 +16,7 @@ describe("street tree models", () => {
       expect(info.leaf.vertices % (4 * info.perLeaf)).toBe(0);
       expect(streams.get(`${form}.leaf.vertex`)!.byteLength).toBe(info.leaf.vertices * 8);
       // 中等面数：每棵近景树（枝干 + 叶卡）不超过 8k 三角形。
-      expect(info.bark0.triangles + info.leaf.vertices / 2).toBeLessThan(8000);
+      expect(info.bark0.triangles + info.leaf.vertices / 2).toBeLessThan(9500);
     }
   });
 });

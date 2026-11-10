@@ -22,7 +22,7 @@ import { createCityTraffic } from "./city-traffic";
 import type { CityLifeSnapshot } from "./real-city/snapshot";
 import { bindWorldScalePbr, createGlassCurtainWallPbr, createAshlarStonePbr, createSidewalkPaverPbr } from "./city-pbr";
 import { applyCitySurface, markCitySurface, type CitySurface } from "./city-surfaces";
-import { TreeField, type TreePlacement } from "./real-city/vegetation/tree-field";
+import { TreeField, applyTreeWind, type TreePlacement } from "./real-city/vegetation/tree-field";
 import { loadTreeModels } from "./real-city/vegetation/tree-models";
 import { createTreeCanopy, createTreeTrunk, createVehicleShell, createVehicleWheel, paintLeafCluster, type VehicleKind, type VehicleShell } from "./city-forms";
 
@@ -1258,8 +1258,12 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
   const leafAtlas = new THREE.Texture();
   leafAtlas.colorSpace = THREE.SRGBColorSpace;
   leafAtlas.anisotropy = 4;
+  // 图集 UV 以图像顶部为 v = 0（与 ImageBitmap 一致，避免不同解码路径翻转不一致把橡树叶采样成松针）。
+  leafAtlas.flipY = false;
   const treeBark = new THREE.MeshStandardMaterial({ name: "Tree bark", color: "#d9cfc4", map: barkTexture, vertexColors: true, roughness: 0.92 });
   const treeLeaves = new THREE.MeshStandardMaterial({ name: "Tree leaves", color: "#ffffff", map: leafAtlas, vertexColors: true, roughness: 0.78, alphaTest: 0.42, side: THREE.DoubleSide });
+  applyTreeWind(treeBark, false);
+  applyTreeWind(treeLeaves, true);
   markCitySurface(treeBark, "bark");
   markCitySurface(treeLeaves, "foliage");
   applyCitySurface(treeBark, "bark");

@@ -92,7 +92,8 @@ function leaves(view: Uint8Array, info: PackedInfo, form: FormInfo, keepEvery: n
         const ao = 0.46 + 0.4 * radial + 0.14 * height;
         color[o] = color[o + 1] = color[o + 2] = ao;
         uv[(q * 4 + corner) * 2] = u0 + QUAD_UV[corner * 2] * 0.49 + 0.005;
-        uv[(q * 4 + corner) * 2 + 1] = v0 + QUAD_UV[corner * 2 + 1] * 0.49 + 0.005;
+        // 叶图集按「图像顶部 = v 0」（flipY = false）采样：CELL 的 v0 以图像底部为 0 定义，这里翻转。
+        uv[(q * 4 + corner) * 2 + 1] = 1 - (v0 + QUAD_UV[corner * 2 + 1] * 0.49 + 0.005);
       }
       const s = q * 4;
       index.set([s, s + 1, s + 2, s, s + 2, s + 3], q * 6);
