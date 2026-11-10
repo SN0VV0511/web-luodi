@@ -488,6 +488,13 @@ export class SkinnedPeople {
     this.materials.push(material, depth);
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = "Neighborhood · resident hair";
+    // 调试 / 截图：按骨骼槽位取头部世界位置与朝向（绑定空间头部中心 × 头部骨矩阵）。
+    mesh.userData.head = (slot: number, center: number[]) => {
+      const m = new THREE.Matrix4().fromArray(this.bones, (slot * TEXELS_PER_ROW + 2 * 4) * 4);
+      const c = new THREE.Vector3().fromArray(center).applyMatrix4(m);
+      const f = new THREE.Vector3(0, 0, 1).transformDirection(m);
+      return [c.x, c.y, c.z, f.x, f.z];
+    };
     mesh.customDepthMaterial = depth;
     mesh.castShadow = true;
     mesh.receiveShadow = true;

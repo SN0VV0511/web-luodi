@@ -324,11 +324,11 @@ async function bake(name, file) {
  * 每顶点：pos f32×3 | normal i8×3 + 层号 | flow u16×2（u 绕头一周，v 从发际 0 → 发梢 / 头顶 1）。
  */
 const HAIR_STYLES = [
-  { name: "short", cut: 0.47, volume: 0.02, layers: 3 },
-  { name: "crop", cut: 0.55, volume: 0.009, layers: 2 },
-  { name: "long", cut: 0.41, volume: 0.022, layers: 3, curtain: true },
+  { name: "short", cut: 0.47, volume: 0.02, layers: 3, fringe: 0.03 },
+  { name: "crop", cut: 0.55, volume: 0.009, layers: 2, fringe: 0.016 },
+  { name: "long", cut: 0.41, volume: 0.022, layers: 3, curtain: true, fringe: 0.038 },
   { name: "bun", cut: 0.41, volume: 0.015, layers: 3, bun: true },
-  { name: "ponytail", cut: 0.41, volume: 0.015, layers: 3, ponytail: true },
+  { name: "ponytail", cut: 0.41, volume: 0.015, layers: 3, ponytail: true, fringe: 0.022 },
 ];
 async function bakeHair(name, { positions, normals, indices, kinds, segW, scalp, head }) {
   const P = (v) => [positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2]];
@@ -397,28 +397,25 @@ async function bakeHair(name, { positions, normals, indices, kinds, segW, scalp,
         lod1.push(q[0], q[1], q[2], q[0], q[2], q[3]);
       }
     };
-    if (style.curtain) {
-      // 及下颌的波波长发：绕后脑与两侧（避开面部 ±50°）垂下的发帘，下摆略向外张开。
-      const columns = 30, rows = 6, drop = 0.2;
+    // 发帘：从外层发壳的发际线（同一角度上最低的顶点）向下垂；center / span 用 angle() 的圈数单位（0.5 = 正前方，0 / 1 = 正后方）。
+    const curtain = (center, span, columns, rows, drop, flare, lift) => {
       const grid = [];
       for (let ci = 0; ci <= columns; ci++) {
-        const theta = (-0.36 + (ci / columns) * 0.72); // 圈数：0 = 正后方
-        const target = theta + 0.5 > 1 ? theta - 0.5 : theta + 0.5; // 转换为 angle() 定义（0.5 = 正前方）
+        const target = (((center - span + (ci / columns) * span * 2) % 1) + 1) % 1;
         let best = -1, bestY = Infinity;
         for (const v of outer) {
-          let d = Math.abs(flow[v * 2] - (target + 1) % 1); d = Math.min(d, 1 - d);
-          if (d > 0.02) continue;
-          if (flow[v * 2 + 1] > 0.12) continue;
+          let d = Math.abs(flow[v * 2] - target); d = Math.min(d, 1 - d);
+          if (d > 0.02 || flow[v * 2 + 1] > 0.12) continue;
           if (pos[v * 3 + 1] < bestY) { bestY = pos[v * 3 + 1]; best = v; }
         }
         if (best < 0) { grid.push(null); continue; }
-        const a = [pos[best * 3], pos[best * 3 + 1] + 0.035, pos[best * 3 + 2]];
+        const a = [pos[best * 3], pos[best * 3 + 1] + lift, pos[best * 3 + 2]];
         const radial = norm([a[0] - head[0], 0, a[2] - head[2]]);
         const col = [];
         for (let r = 0; r <= rows; r++) {
           const t = r / rows;
-          const p = [a[0] + radial[0] * (0.004 + 0.03 * t * t), a[1] - drop * t, a[2] + radial[2] * (0.004 + 0.03 * t * t)];
-          col.push(push(p, [radial[0], 0.2, radial[2]], (target + 1) % 1, 1 - t * 0.98, 3));
+          const out = 0.004 + flare * t * (0.4 + 0.6 * t);
+          col.push(push([a[0] + radial[0] * out, a[1] - drop * t, a[2] + radial[2] * out], [radial[0], 0.2, radial[2]], target, 1 - t * 0.98, 3));
         }
         grid.push(col);
       }
@@ -430,7 +427,11 @@ async function bakeHair(name, { positions, normals, indices, kinds, segW, scalp,
           lod1.push(q[0], q[1], q[2], q[0], q[2], q[3]);
         }
       }
-    }
+    };
+    // 及下颌的波波长发：只挂在后脑与两侧（以正后方为中心 ±0.32 圈，面部前方 ±65° 留空），下摆略外张。
+    if (style.curtain) curtain(0, 0.32, 30, 6, 0.2, 0.03, 0.035);
+    // 刘海：额前发际线垂下 2–4 cm 的碎发，打散短发在额头上的硬边。
+    if (style.fringe) curtain(0.5, 0.15, 16, 3, style.fringe, 0.014, 0.012);
     if (style.bun) {
       const c = [head[0], head[1] + 0.055, head[2] - 0.095];
       tube([[c[0], c[1] + 0.045, c[2] + 0.01], [c[0], c[1] + 0.03, c[2] - 0.02], [c[0], c[1], c[2] - 0.035], [c[0], c[1] - 0.03, c[2] - 0.02], [c[0], c[1] - 0.045, c[2] + 0.01]],
