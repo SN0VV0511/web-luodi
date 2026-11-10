@@ -442,7 +442,7 @@ async function bakeHair(name, { positions, normals, indices, kinds, segW, scalp,
       tube(path, (t) => 0.028 * (1 - t * 0.6) + 0.006, 8, 3, 0.3);
     }
     // 每层发壳用 meshopt 简化（保持边界），远景只留内层与发束；之后只保留被引用的顶点。
-    const [r0] = MeshoptSimplifier.simplify(new Uint32Array(lod0), new Float32Array(pos), 3, Math.floor(Math.min(lod0.length, 2600 * 3) / 3) * 3, 0.004, ["LockBorder"]);
+    const [r0] = MeshoptSimplifier.simplify(new Uint32Array(lod0), new Float32Array(pos), 3, Math.floor(Math.min(lod0.length, 1500 * 3) / 3) * 3, 0.012, ["LockBorder"]);
     const [r1] = MeshoptSimplifier.simplify(new Uint32Array(lod1), new Float32Array(pos), 3, Math.floor(Math.min(lod1.length, 500 * 3) / 3) * 3, 0.01, ["LockBorder"]);
     const used = new Map();
     for (const i of [...r0, ...r1]) if (!used.has(i)) used.set(i, used.size);

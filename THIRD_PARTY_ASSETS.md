@@ -9,7 +9,7 @@ public domain (CC0) or MIT; attribution is recorded here for provenance (and req
 | Daniel Greenheck — *EZ-Tree* procedural tree generator v1.1.0 (`@dgreenheck/ez-tree`), presets Oak Medium / Ash Medium / Pine Medium, leaf sprite textures (oak, aspen, pine) | Street and park trees (3 forms, baked offline; nothing from EZ-Tree runs in the browser) | https://github.com/dgreenheck/ez-tree | [MIT](https://github.com/dgreenheck/ez-tree/blob/main/LICENSE) — Copyright (c) 2024 Daniel Greenheck | `public/models/trees/trees.bin`, `leaves.webp` | ~310 KB |
 | Poly Haven — *Bark Brown 02* (colour map, via EZ-Tree's `oak_color_1k.jpg`) | Tree bark | https://polyhaven.com/a/bark_brown_02 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | `public/models/trees/bark.webp` | ~17 KB |
 | Quaternius — *Truck* (2024, glTF) | Box/delivery trucks in traffic and parked fleets | https://poly.pizza/m/cXw6oiFtZ8 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | packed into `public/models/vehicles/cars.bin` | ~48 KB of `cars.bin` |
-| Quaternius — *Universal Base Characters* (Standard, Superhero_Male / Superhero_Female, body + eyebrows + eyes, base colour textures) | Realistic residents (instanced, pose-skinned bodies) | https://quaternius.itch.io/universal-base-characters (also https://quaternius.com) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | `public/models/people/body-male.bin`, `body-female.bin`, `body-male.webp`, `body-female.webp` | ~155 KB total |
+| Quaternius — *Universal Base Characters* (Standard, Superhero_Male / Superhero_Female, body + eyebrows + eyes, base colour textures) | Realistic residents (instanced, pose-skinned bodies) | https://quaternius.itch.io/universal-base-characters (also https://quaternius.com) | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | `public/models/people/body-male.bin`, `body-female.bin`, `body-male.webp`, `body-female.webp` (1024 px base colour), `body-*-normal.webp` (512 px normal maps, used on skin only), `hair-male.bin`, `hair-female.bin` (volumetric hair shells / bob curtain / bun / ponytail generated offline from the UBC head mesh — no separate hair asset) | ~380 KB total (bodies ~140 KB, textures ~82 KB, hair ~160 KB) |
 
 ## How the shipped files are produced
 
@@ -17,9 +17,10 @@ public domain (CC0) or MIT; attribution is recorded here for provenance (and req
 2. `node scripts/build-people-assets.mjs "<pack>/Base Characters/Godot - UE"` — remaps the 65-joint skeleton
    to 15 pose segments driven by the existing `ActorPose` simulation, simplifies with meshoptimizer
    (LOD0 4,800 tris, LOD1 1,100 tris), quantizes positions/normals/UVs, writes clothing zones and packs everything with the meshoptimizer vertex/index codecs
-   (decoded in the browser by three.js' bundled `meshopt_decoder`).
+   (decoded in the browser by three.js' bundled `meshopt_decoder`). The same run writes `hair-*.bin`: three strand shells offset along the scalp normals
+   (soft alpha hairline, sparse outer strands for a fuzzy silhouette) plus a bob curtain, bun or ponytail, all rigid on the head segment.
 3. `python3 scripts/build-people-textures.py "<pack>/Base Characters"` — resizes the base colour maps to
-   512 px WebP.
+   1024 px WebP and the (DirectX-convention) normal maps to 512 px WebP.
 
 4. Download the Quaternius *Truck* glb from Poly Pizza and run `python3 scripts/glb-atlas-to-obj.py truck.glb <dir>/Truck.obj`
    (samples the palette atlas per triangle into body / glass / trim / grey-metal groups), then
