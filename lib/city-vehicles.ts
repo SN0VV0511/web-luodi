@@ -18,7 +18,7 @@ export type VehicleShell = {
 /** 四类米制车壳包含连贯轮拱、分格玻璃、后视镜、门缝、格栅与排气。
  * 烘焙源保留材质分组；整座城市的同类车辆通过 InstancedMesh 共享这份网格。 */
 export function createVehicleShell(kind: VehicleKind): VehicleShell {
-  const metadata = vehicleMeshMetadata[kind];
+  const metadata = vehicleMeshMetadata(kind);
   return {
     body: createCityMesh(`${kind}body`),
     glass: createCityMesh(`${kind}glass`),
