@@ -6,6 +6,8 @@ import { sampleCruiseVoyage } from "./city-cruise";
 import type { Locale } from "./site-content";
 import { buildStreetActivities, getStreetActivityIncidents } from "./city-street-events";
 import { createHead, createTorso, createUpperArm } from "./city-figure";
+import { SkinnedPeople, createWorldPose } from "./real-city/life/skinned-people";
+import type { Appearance } from "./real-city/life/types";
 
 export type IncidentKind = "fire" | "burglar" | "medical" | "utility" | "cruise" | "traffic" | "life";
 
@@ -830,6 +832,81 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
     "#d4684e",                        // 8: 突发不适市民
     "#eb8b28", "#eb8b28",             // 9..10: 市政抢修工程师橙色反光服
   ];
+  // 写实蒙皮人体：事件角色（职业制服）与火灾现场围观群众。
+  const ONLOOKER_COUNT = 9;
+  const eventPeople = new SkinnedPeople(group, ACTOR_COUNT + ONLOOKER_COUNT);
+  const eventPose = createWorldPose();
+  const uniformTrousers = ["#2f2a1e", "#2f2a1e", "#2f2a1e", "#16181c", "#141c2b", "#141c2b", "#e9ece8", "#e9ece8", "#3a4150", "#2d3138", "#2d3138"];
+  const onlookerCoats = ["#3e5674", "#8e9fb2", "#6b3238", "#c5c0b4", "#26282c", "#a8946f", "#55603f", "#d6d3ca", "#93463a"];
+  const onlookerSkins = ["#d9a888", "#bb8a68", "#e8c3a4", "#8f634c", "#c99a78"];
+  const eventAppearances: Appearance[] = Array.from({ length: ACTOR_COUNT + ONLOOKER_COUNT }, (_, i) => {
+    const onlooker = i >= ACTOR_COUNT;
+    return {
+      height: onlooker ? 1.62 + (i % 4) * 0.06 : 1.78, shoulderWidth: 0.42, build: onlooker ? 0.94 + (i % 3) * 0.04 : 1.04,
+      skin: onlookerSkins[i % onlookerSkins.length], hair: i % 3 ? "#231d19" : "#4d3527",
+      coat: onlooker ? onlookerCoats[(i - ACTOR_COUNT) % onlookerCoats.length] : actorCoatColors[i],
+      trousers: onlooker ? (i % 2 ? "#2e3c55" : "#24272b") : uniformTrousers[i], shoes: i % 4 === 1 ? "#d9d6cf" : "#1f1f21",
+      hairStyle: onlooker && i % 3 === 0 ? 2 : 0, hat: false, glasses: false, coatLength: !onlooker && i < 3 ? 0.75 : 0.4,
+      sleeveLength: onlooker && i % 4 === 2 ? 0.3 : 0.95, winterCoat: !onlooker && i < 3, skirt: onlooker && i % 5 === 1,
+    };
+  });
+  const eventPoint = (ax: number, ay: number, az: number, sinH: number, cosH: number, lx: number, ly: number, lz: number, target: THREE.Vector3) =>
+    target.set(ax + cosH * lx + sinH * lz, ay + ly, az - sinH * lx + cosH * lz);
+  /** 由简化的「职业动作」生成 ActorPose 关节并交给实例化蒙皮人体。 */
+  const skinnedActor = (
+    slot: number, ax: number, ay: number, az: number, heading: number, seconds: number,
+    mode: "run" | "spray" | "handsUp" | "kneel" | "work" | "watch" | "film",
+  ): THREE.Vector3 | null => {
+    const sinH = Math.sin(heading);
+    const cosH = Math.cos(heading);
+    const cycle = seconds * (mode === "run" ? 10.5 : 3.6) + slot * 1.3;
+    const stride = mode === "run" ? Math.sin(cycle) * 0.62 : 0;
+    const bob = mode === "run" ? Math.abs(Math.cos(cycle)) * 0.05 : Math.sin(seconds * 1.4 + slot) * 0.004;
+    const kneel = mode === "kneel";
+    const hipsY = (kneel ? 0.6 : 0.94) + bob;
+    const tp = mode === "run" ? 0.2 : kneel ? 0.3 : mode === "work" ? 0.32 : mode === "spray" ? 0.08 : 0.02;
+    const at = (lx: number, ly: number, lz: number, target: THREE.Vector3) => eventPoint(ax, ay, az, sinH, cosH, lx, ly, lz, target);
+    at(0, hipsY, 0, eventPose.hips);
+    at(0, hipsY + Math.cos(tp) * 0.36, Math.sin(tp) * 0.36, eventPose.chest);
+    at(0, hipsY + Math.cos(tp) * 0.71, Math.sin(tp) * 0.71, eventPose.head);
+    for (const side of [-1, 1]) {
+      const left = side < 0;
+      const s = left ? 0 : 1;
+      let thigh = kneel ? (s === 0 ? -1.45 : 0.15) : side * stride;
+      let shin = kneel ? (s === 0 ? 0 : 1.5) : thigh + Math.max(0, Math.sin(cycle) * side) * (mode === "run" ? 1.0 : 0);
+      if (mode === "work") { thigh = -0.35; shin = 0.2; }
+      const hx = side * 0.1;
+      const kneeY = hipsY - Math.cos(thigh) * 0.43;
+      const kneeZ = -Math.sin(thigh) * 0.43;
+      at(hx, hipsY, 0, left ? eventPose.leftHip : eventPose.rightHip);
+      at(hx, kneeY, kneeZ, left ? eventPose.leftKnee : eventPose.rightKnee);
+      at(hx, Math.max(0.085, kneeY - Math.cos(shin) * 0.43), kneeZ - Math.sin(shin) * 0.43, left ? eventPose.leftAnkle : eventPose.rightAnkle);
+      const shoulderY = hipsY + Math.cos(tp) * 0.5;
+      const shoulderZ = Math.sin(tp) * 0.5;
+      let upper = -side * stride * 0.8;
+      let lower = upper - 0.25;
+      if (mode === "spray") { upper = s === 1 ? -0.95 : -0.75; lower = s === 1 ? -1.45 : -1.35; }
+      if (mode === "handsUp") { upper = -2.8; lower = -2.95; }
+      if (mode === "kneel" || mode === "work") { upper = -0.85 + Math.sin(seconds * 6 + s) * 0.2; lower = upper - 0.5; }
+      if (mode === "watch") { upper = s === 1 && slot % 3 === 0 ? -0.55 : 0.05; lower = s === 1 && slot % 3 === 0 ? -1.9 : -0.1; }
+      if (mode === "film") { upper = s === 1 ? -1.2 : 0.05; lower = s === 1 ? -1.5 : -0.1; }
+      const sx = side * 0.21;
+      const elbowY = shoulderY - Math.cos(upper) * 0.29;
+      const elbowZ = shoulderZ - Math.sin(upper) * 0.29;
+      at(sx, shoulderY, shoulderZ, left ? eventPose.leftShoulder : eventPose.rightShoulder);
+      at(sx + side * 0.03, elbowY, elbowZ, left ? eventPose.leftElbow : eventPose.rightElbow);
+      at(sx + (mode === "spray" || mode === "film" ? -side * 0.06 : side * 0.01), elbowY - Math.cos(lower) * 0.31, elbowZ - Math.sin(lower) * 0.31, left ? eventPose.leftHand : eventPose.rightHand);
+    }
+    const a = eventAppearances[slot];
+    eventPose.heading = heading;
+    eventPose.headYaw = mode === "watch" ? Math.sin(seconds * 0.4 + slot) * 0.25 : 0;
+    eventPose.headPitch = mode === "watch" || mode === "film" || mode === "spray" ? -0.35 : kneel ? 0.35 : 0;
+    eventPose.leftFootPitch = 0;
+    eventPose.rightFootPitch = 0;
+    eventPose.scale = a.height / 1.76;
+    return eventPeople.add(eventPose, a) ? eventPose.head : null;
+  };
+
   const tmpColor = new THREE.Color();
   actorCoatColors.forEach((hex, idx) => {
     actorTorsos.setColorAt(idx, tmpColor.set(hex));
@@ -945,6 +1022,22 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
     mode: "run" | "spray" | "handsUp" | "kneel" | "work",
     helmetSlot?: number,
   ) => {
+    if (eventPeople.ready) {
+      hideInstance(actorTorsos, actorIdx);
+      hideInstance(actorHeads, actorIdx);
+      for (let limb = 0; limb < 4; limb++) hideInstance(actorLimbs, actorIdx * 4 + limb);
+      const head = ay > -5 ? skinnedActor(actorIdx, ax, ay, az, heading, seconds, mode) : null;
+      if (helmetSlot !== undefined) {
+        if (head) {
+          dummy.position.set(head.x, head.y + 0.075, head.z);
+          dummy.rotation.set(0, heading, 0);
+          dummy.scale.set(0.135, 0.085, 0.15);
+          dummy.updateMatrix();
+          actorHelmets.setMatrixAt(helmetSlot, dummy.matrix);
+        } else hideInstance(actorHelmets, helmetSlot);
+      }
+      return;
+    }
     const sinH = Math.sin(heading);
     const cosH = Math.cos(heading);
     const cycle = seconds * (mode === "run" ? 10.5 : 3.6) + actorIdx * 1.3;
@@ -1006,6 +1099,7 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
 
   const animate = (seconds: number) => {
     streetActivities.animate(seconds);
+    eventPeople.begin();
     const flashA = Math.sin(seconds * 15) > 0;
     const flashB = !flashA;
 
@@ -1125,6 +1219,22 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
         const fz = fSite.crewBaseZ;
         const faceFire = Math.atan2(fSite.fireX - fx, fSite.fireZ - fz);
         poseActor(ff, fx, 0.48, fz, faceFire, seconds, "spray", ff);
+      }
+    }
+
+    // 围观群众：在消防员身后约 9–13 m 处驻足、举手机拍摄。
+    if (fireArrived && fireIntensity > 0.05) {
+      const awayX = fSite.crewBaseX - fSite.fireX;
+      const awayZ = fSite.crewBaseZ - fSite.fireZ;
+      const awayLength = Math.hypot(awayX, awayZ) || 1;
+      const ux = awayX / awayLength, uz = awayZ / awayLength;
+      for (let o = 0; o < ONLOOKER_COUNT; o++) {
+        const back = 6.5 + (o % 3) * 0.9 + Math.sin(o * 2.3) * 0.4;
+        const across = (o - (ONLOOKER_COUNT - 1) / 2) * 1.05;
+        const ox = fSite.crewBaseX + ux * back - uz * across;
+        const oz = fSite.crewBaseZ + uz * back + ux * across;
+        const face = Math.atan2(fSite.fireX - ox, fSite.fireZ - oz) + Math.sin(o * 1.7) * 0.2;
+        skinnedActor(ACTOR_COUNT + o, ox, 0.48, oz, face, seconds, o % 4 === 1 ? "film" : "watch");
       }
     }
 
@@ -1375,6 +1485,7 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
       for (let c = 0; c < 3; c++) hideInstance(lootAndProps, 3 + c);
     }
 
+    eventPeople.end();
     allMeshes.forEach((mesh) => {
       mesh.instanceMatrix.needsUpdate = true;
     });

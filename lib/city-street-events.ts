@@ -6,6 +6,8 @@ import {
   createCalf, createForearm, createHair, createHand, createHead,
   createPelvis, createShoe, createThigh, createTorso, createUpperArm,
 } from "./city-figure";
+import { SkinnedPeople, createWorldPose, type WorldPose } from "./real-city/life/skinned-people";
+import type { Appearance } from "./real-city/life/types";
 
 type Neighborhood = "park" | "promenade" | "commerce" | "office" | "school";
 type Activity =
@@ -253,6 +255,20 @@ export function buildStreetActivities(kit: CivicKit): { animate: (seconds: numbe
   const rounds = batch("cups produce and animal contours", new THREE.SphereGeometry(1, 12, 8), propMaterial, SITES.length * 16);
   const rods = batch("leashes frames handles and tools", new THREE.CylinderGeometry(1, 1, 1, 8), metal, SITES.length * 24);
   const wheels = batch("bicycle and trolley wheels", new THREE.TorusGeometry(1, 0.075, 6, 20), rubber, SITES.length * 4);
+  // 写实蒙皮人体（CC0，懒加载）；加载完成前沿用程序化人形。
+  const people = new SkinnedPeople(kit.group, actorCount);
+  const pose: WorldPose = createWorldPose();
+  const bodyParts = [heads, torsos, pelvis, upperArms, forearms, hands, thighs, calves, shoes];
+  const skinTones = ["#d9a888", "#bb8a68", "#e8c3a4", "#8f634c", "#c99a78", "#a87656"];
+  const trouserTones = ["#2e3c55", "#24272b", "#3c4a62", "#8f7f62", "#5f6266", "#4a3d32"];
+  const hairTones = ["#231d19", "#4d3527", "#17191a", "#6c3b28", "#8f7457", "#b7ad9c"];
+  const shoeTones = ["#1f1f21", "#2b2420", "#d9d6cf", "#4a3a2c"];
+  const appearances: Appearance[] = Array.from({ length: actorCount }, (_, index) => ({
+    height: 1.74, shoulderWidth: 0.42, build: 0.94 + (index % 5) * 0.025, skin: skinTones[(index * 7) % skinTones.length],
+    hair: hairTones[(index * 5) % hairTones.length], coat: "#ffffff", trousers: trouserTones[(index * 3) % trouserTones.length],
+    shoes: shoeTones[index % shoeTones.length], hairStyle: index % 3 === 1 ? 2 : index % 7 === 3 ? 4 : 0, hat: false, glasses: false,
+    coatLength: index % 8 === 2 ? 0.8 : 0.4, sleeveLength: index % 4 === 1 ? 0.3 : 0.9, winterCoat: false, skirt: index % 9 === 4,
+  }));
   const color = new THREE.Color();
   const dummy = new THREE.Object3D();
   const from = new THREE.Vector3();
@@ -336,6 +352,45 @@ export function buildStreetActivities(kit: CivicKit): { animate: (seconds: numbe
     const chestY = hipsY + 0.37 + bob;
     const headY = hipsY + 0.77 + bob;
     const lean = kneeling ? 0.18 : gesture === "run" ? 0.08 : 0;
+    const skinned = people.ready;
+    if (skinned) {
+      const appearance = appearances[index];
+      appearance.coat = tint;
+      const at = (x: number, y: number, z: number, target: THREE.Vector3) => transformPoint(...actorPoint(x, y, z), target);
+      at(0, hipsY, 0, pose.hips);
+      at(0, chestY, lean * 0.5, pose.chest);
+      at(0, hipsY + 0.73 + bob, lean, pose.head);
+      pose.heading = activeSite.heading + heading;
+      pose.headYaw = 0;
+      pose.headPitch = kneeling ? 0.2 : 0;
+      pose.leftFootPitch = 0;
+      pose.rightFootPitch = 0;
+      pose.scale = scale;
+      for (const side of [-1, 1]) {
+        const left = side < 0;
+        const footZ = seated ? 0.38 : kneeling ? (side === 1 ? 0.3 : -0.2) : legSwing * side;
+        const footY = moving ? Math.max(0, -step * side) * 0.08 : 0;
+        const kneeY = seated ? 0.35 : kneeling ? 0.19 : 0.49;
+        const kneeZ = seated ? 0.36 : kneeling ? 0.22 : footZ * 0.42 + 0.035;
+        at(side * 0.1, hipsY, 0, left ? pose.leftHip : pose.rightHip);
+        at(side * 0.1, kneeY, kneeZ, left ? pose.leftKnee : pose.rightKnee);
+        at(side * 0.1, 0.09 + footY, footZ, left ? pose.leftAnkle : pose.rightAnkle);
+        let handY = chestY - 0.38, handX = side * 0.25, handZ = lean - legSwing * side;
+        if (gesture === "talk" || gesture === "work") { handY = chestY - 0.13 + Math.sin(seconds * 2.1 + side + index) * 0.09; handZ = 0.32 + lean; }
+        if (gesture === "wave" && side === 1) { handY = headY + 0.2; handX = 0.38 + Math.sin(seconds * 5) * 0.09; }
+        if (gesture === "hold" || gesture === "photo") { handY = gesture === "photo" ? headY - 0.03 : chestY - 0.08; handZ = 0.37 + lean; handX = side * 0.14; }
+        if (gesture === "kneel" || gesture === "sit") { handY = hipsY + 0.08; handZ = 0.4; }
+        if (gesture === "phone" && side === 1) { handY = headY - 0.02; handX = 0.18; handZ = 0.08; }
+        if (gesture === "taichi") { handY = chestY + Math.sin(seconds * 0.55 + side) * 0.2; handX = side * (0.38 + Math.sin(seconds * 0.55) * 0.12); handZ = 0.16 + Math.cos(seconds * 0.55 + side) * 0.15; }
+        at(side * 0.21, chestY + 0.1, lean, left ? pose.leftShoulder : pose.rightShoulder);
+        at(side * 0.26, (chestY + handY) / 2 - 0.06, (lean + handZ) / 2 + 0.025, left ? pose.leftElbow : pose.rightElbow);
+        at(handX, handY, handZ, left ? pose.leftHand : pose.rightHand);
+      }
+      if (people.add(pose, appearance)) {
+        anatomy(hairMesh, index, 0, hipsY + 0.73 + bob + 0.03, lean - 0.008, 0.178, 0.2, 0.2);
+        return;
+      }
+    }
     anatomy(pelvis, index, 0, hipsY, 0, 0.35, 0.24, 0.28);
     anatomy(torsos, index, 0, chestY, lean, 0.45, 0.58, 0.3, tint);
     anatomy(heads, index, 0, headY, lean, 0.28, 0.31, 0.29);
@@ -376,6 +431,8 @@ export function buildStreetActivities(kit: CivicKit): { animate: (seconds: numbe
     dummy.scale.set(0, 0, 0);
     dummy.updateMatrix();
     for (const mesh of meshes) for (let index = 0; index < mesh.count; index++) mesh.setMatrixAt(index, dummy.matrix);
+    people.begin();
+    for (const mesh of bodyParts) mesh.visible = !people.ready;
 
     for (const event of sampleStreetActivities(seconds)) {
       activeSite = event.site; activeSlot = event.slot;
@@ -549,6 +606,7 @@ export function buildStreetActivities(kit: CivicKit): { animate: (seconds: numbe
       }
       if (spec.id === "commute") for (const [x, z] of actorPositions) box(x, 0.76, z - 0.27, 0.14, 0.3, 0.38, "#55504a");
     }
+    people.end();
     for (const mesh of meshes) {
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
