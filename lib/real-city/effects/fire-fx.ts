@@ -71,7 +71,9 @@ void main() {
   vec3 color = mix(vec3(0.5, 0.04, 0.0), vec3(1.0, 0.24, 0.015), smoothstep(0.03, 0.4, heat));
   color = mix(color, vec3(1.0, 0.62, 0.16), smoothstep(0.35, 0.7, heat));
   color = mix(color, vec3(1.0, 0.86, 0.55), smoothstep(0.85, 1.0, heat));
-  gl_FragColor = vec4(color * pow(heat, 1.3) * uBrightness * uIntensity, 1.0);
+  // 预乘 alpha：火舌既发光又遮挡身后墙面，白天亮墙上仍保持橙红而不是被叠加成白色。
+  float cover = clamp(heat * 0.85, 0.0, 0.85) * uIntensity;
+  gl_FragColor = vec4(color * pow(heat, 1.3) * uBrightness * uIntensity, cover);
 }
 `;
 
@@ -325,7 +327,12 @@ export class CityFireEffect {
     flameGeometry.instanceCount = FLAME_COUNT;
     this.flames = this.mesh("Fire flames", flameGeometry, this.material(flameVertex, flameFragment, {
       uBrightness: { value: 1.45 },
-    }, THREE.AdditiveBlending), 6);
+    }, THREE.CustomBlending), 6);
+    // src·1 + dst·(1-α)：发光 + 部分遮挡。
+    const flameMaterial = this.flames.material as THREE.ShaderMaterial;
+    flameMaterial.blendSrc = THREE.OneFactor;
+    flameMaterial.blendDst = THREE.OneMinusSrcAlphaFactor;
+    flameMaterial.blendEquation = THREE.AddEquation;
 
     const windowGeometry = new THREE.InstancedBufferGeometry().copy(quad as unknown as THREE.InstancedBufferGeometry);
     this.windowData = new Float32Array(WINDOW_COUNT * 4);
