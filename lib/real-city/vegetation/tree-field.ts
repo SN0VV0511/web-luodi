@@ -237,6 +237,7 @@ export class TreeField {
       geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
       geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
       const material = new THREE.MeshStandardMaterial({ name: "Tree impostor", map: target.texture, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.9 });
+      shadeImpostor(material, crownY, top, radius);
       this.impostorGeometries.push(geometry);
       this.impostorMaterials.push(material);
       const capacity = Math.max(1, layer.placements.length);
@@ -319,4 +320,38 @@ export class TreeField {
     for (const geometry of this.impostorGeometries) geometry.dispose();
     this.group.removeFromParent();
   }
+}
+
+/**
+ * 远景替身的体积化光照：平面卡片本身只有一个法线，远处整排树会被照成同一亮度的“剪纸”。
+ * 这里用相对树冠中心的椭球法线代替卡片法线（向阳面亮、背阴面暗、顶部受天光），
+ * 再叠加自下而上的冠内遮蔽与轻微的叶片透光，让远景树林有明暗体积。
+ */
+function shadeImpostor(material: THREE.MeshStandardMaterial, crownY: number, top: number, radius: number): void {
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vTreeSphere;\nvarying float vTreeHeight;")
+      .replace("#include <begin_vertex>", `#include <begin_vertex>
+{
+  vec3 sph = position - vec3(0.0, ${crownY.toFixed(3)}, 0.0);
+  sph.y *= ${(radius / Math.max(0.5, top - crownY * 0.5)).toFixed(3)};
+  sph.y += ${(radius * 0.35).toFixed(3)};
+  mat3 toView = mat3(modelViewMatrix);
+  #ifdef USE_INSTANCING
+  toView = toView * mat3(instanceMatrix);
+  #endif
+  vTreeSphere = normalize(toView * sph);
+  vTreeHeight = position.y / ${top.toFixed(3)};
+}`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vTreeSphere;\nvarying float vTreeHeight;")
+      .replace("#include <normal_fragment_maps>", `#include <normal_fragment_maps>
+normal = normalize(vTreeSphere);`)
+      .replace("#include <color_fragment>", `#include <color_fragment>
+{
+  float ao = mix(0.5, 1.06, smoothstep(0.05, 0.9, vTreeHeight));
+  diffuseColor.rgb *= ao;
+}`);
+  };
+  material.customProgramCacheKey = () => `tree-impostor-volume-${crownY.toFixed(2)}-${top.toFixed(2)}-${radius.toFixed(2)}`;
 }
