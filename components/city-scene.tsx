@@ -19,6 +19,7 @@ import { CityRenderPipeline } from "@/lib/real-city/render/pipeline";
 import { CityRenderQuality } from "@/lib/real-city/render/quality";
 import { CitySkyEnvironment } from "@/lib/real-city/render/sky-environment";
 import { CityShadowController } from "@/lib/real-city/render/shadows";
+import { CityAmbience } from "@/lib/real-city/audio/ambience";
 import { CityPickingIndex } from "@/lib/real-city/render/picking";
 import { CityCameraSafety } from "@/lib/real-city/render/camera-safety";
 import { CityLocalReflections } from "@/lib/real-city/render/local-reflections";
@@ -39,6 +40,8 @@ type CitySceneProps = {
   timeOfDay?: TimeOfDay;
   /** Optional miniature-lens depth of field. */
   tiltShift?: boolean;
+  /** 环境音（默认关闭）。 */
+  ambience?: boolean;
   seasonMode?: SeasonMode;
   paused: boolean;
   resetKey: number;
@@ -101,6 +104,7 @@ export default function CityScene(props: CitySceneProps) {
   const [arrived, setArrived] = useState<PlaceId | null>(null);
   const current = useRef(props);
   const sceneRef = useRef<SceneHandle | null>(null);
+  const ambienceRef = useRef<CityAmbience | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   current.current = props;
 
@@ -728,6 +732,13 @@ export default function CityScene(props: CitySceneProps) {
           container.dataset.season = season.season;
           container.dataset.weather = season.weather.en;
         }
+        const ambience = ambienceRef.current;
+        if (ambience?.active) {
+          const target = controls.target;
+          const lakeDistance = Math.hypot((target.x + 12) / 34, (target.z + 15) / 44);
+          const water = Math.max(1 - THREE.MathUtils.smoothstep(lakeDistance, 0.8, 1.6), THREE.MathUtils.clamp((target.z - 85) / 45, 0, 1));
+          ambience.update({ night: current.current.night, rain: season.precipitation, height: camera.position.y, water });
+        }
         lastSeasonMode = current.current.seasonMode;
         lastAnimatedTime = worldTime;
         const timeBucket = Math.floor(worldTime * 2);
@@ -1145,6 +1156,14 @@ export default function CityScene(props: CitySceneProps) {
 
   useEffect(() => { sceneRef.current?.update(); }, [props.night, props.timeOfDay, props.tiltShift, props.paused, props.labelsVisible, props.touring, props.locale, props.seasonMode]);
   useEffect(() => { sceneRef.current?.syncFloor(); }, [props.activeFloorIndex]);
+  useEffect(() => {
+    if (props.ambience) {
+      ambienceRef.current ??= new CityAmbience();
+      void ambienceRef.current.enable();
+      sceneRef.current?.update();
+    } else ambienceRef.current?.disable();
+  }, [props.ambience]);
+  useEffect(() => () => { ambienceRef.current?.dispose(); ambienceRef.current = null; }, []);
   useEffect(() => { sceneRef.current?.inspect(); }, [props.experienceChapter]);
   useEffect(() => { if (props.experienceReplayKey) sceneRef.current?.inspect(true); }, [props.experienceReplayKey]);
   // 动态场景首次就绪后再执行选择，避免载入期间的点击被初始视角覆盖。

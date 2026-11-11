@@ -40,6 +40,8 @@ import {
   Sunset,
   Aperture,
   X,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { cityBuildings, safeAppUrl, type PlaceId } from "@/lib/city-content";
 import { CITY_BOUNDS, ROAD_SEGMENTS, cityLots, civicLots, parkLots } from "@/lib/city-map";
@@ -76,6 +78,7 @@ export function LandingPage(): ReactNode {
   const [night, setNight] = useState(false);
   const [golden, setGolden] = useState(false);
   const [tiltShift, setTiltShift] = useState(false);
+  const [ambience, setAmbience] = useState(false);
   const timeOfDay = night ? "night" : golden ? "golden" : "day";
   const [seasonMode, setSeasonMode] = useState<SeasonMode>("auto");
   const [paused, setPaused] = useState(false);
@@ -285,6 +288,7 @@ export function LandingPage(): ReactNode {
           night={night}
           timeOfDay={timeOfDay}
           tiltShift={tiltShift}
+          ambience={ambience}
           seasonMode={seasonMode}
           paused={paused}
           resetKey={resetKey}
@@ -1304,6 +1308,15 @@ export function LandingPage(): ReactNode {
           >
             <Aperture size={18} />
             <span>{t("移轴", "Tilt")}</span>
+          </button>
+          <button
+            type="button"
+            aria-label={ambience ? t("关闭城市环境音", "Mute city ambience") : t("开启城市环境音", "Play city ambience")}
+            aria-pressed={ambience}
+            onClick={() => setAmbience((value) => !value)}
+          >
+            {ambience ? <Volume2 size={18} /> : <VolumeX size={18} />}
+            <span>{t("声音", "Sound")}</span>
           </button>
           <button
             type="button"
