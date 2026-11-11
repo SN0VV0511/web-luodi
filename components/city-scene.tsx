@@ -1028,9 +1028,11 @@ export default function CityScene(props: CitySceneProps) {
       __cityScene?: THREE.Scene;
       __cityPick?: (x: number, y: number) => unknown;
       __cityAdvance?: (seconds: number) => number;
+      __cityDebug?: Record<string, unknown>;
     };
     if (new URLSearchParams(window.location.search).has("debugCamera")) {
       debugWindow.__cityScene = scene;
+      debugWindow.__cityDebug = { renderer, quality: renderQuality, pipeline: renderPipeline, sun, camera, controls };
       debugWindow.__cityAdvance = (seconds) => {
         worldTime += seconds;
         schedule();

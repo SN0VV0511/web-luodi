@@ -10,7 +10,15 @@ float linearDepth(float depth) {
     / (cameraFar - depth * (cameraFar - cameraNear));
 }
 
+// 深度纹理是最近邻采样：重建位置必须使用被取样纹素的中心坐标，否则 uv 与深度错开
+// 半个纹素，平坦地面 / 湖面会被重建成倾斜面，AO 在近景整片变暗并形成一条水平“暗缝”。
+vec2 depthTexelUv(vec2 uv) {
+  vec2 size = vec2(textureSize(tDepth, 0));
+  return (floor(uv * size) + 0.5) / size;
+}
+
 vec3 viewPosition(vec2 uv) {
+  uv = depthTexelUv(uv);
   float depth = texture2D(tDepth, uv).r;
   vec4 clip = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
   vec4 view = inverseProjection * clip;
@@ -22,13 +30,17 @@ vec3 surfaceNormal(vec2 uv, vec3 center) {
   vec3 right = viewPosition(uv + vec2(inverseResolution.x, 0.0));
   vec3 down = viewPosition(uv - vec2(0.0, inverseResolution.y));
   vec3 up = viewPosition(uv + vec2(0.0, inverseResolution.y));
-  vec3 dx = abs(left.z - center.z) < abs(right.z - center.z)
-    ? center - left : right - center;
-  vec3 dy = abs(down.z - center.z) < abs(up.z - center.z)
-    ? center - down : up - center;
+  vec3 dl = center - left, dr = right - center, dd = center - down, du = up - center;
+  // 选深度差更小的一侧，但跳过与中心同一纹素（零向量）的退化邻居。
+  bool useLeft = abs(dl.z) < abs(dr.z) && dot(dl, dl) > 1e-10 || dot(dr, dr) <= 1e-10;
+  bool useDown = abs(dd.z) < abs(du.z) && dot(dd, dd) > 1e-10 || dot(du, du) <= 1e-10;
+  vec3 dx = useLeft ? dl : dr;
+  vec3 dy = useDown ? dd : du;
   vec3 crossProduct = cross(dx, dy);
   float lengthSquared = dot(crossProduct, crossProduct);
-  if (lengthSquared < 0.0000001) return vec3(0.0, 0.0, 1.0);
+  // 近景地面相邻像素只相距几毫米，叉积长度平方可低至 1e-9：旧阈值 1e-7 会把整片近地面
+  // 误判为退化并回落成“朝向相机”的法线 → AO 在某一屏幕行以下整片变暗（湖面直线暗缝）。
+  if (lengthSquared < 1e-24) return vec3(0.0, 0.0, 1.0);
   return crossProduct * inversesqrt(lengthSquared);
 }
 
@@ -68,7 +80,11 @@ void main() {
     vec3 delta = samplePosition - center;
     float separation = length(delta);
     float falloff = 1.0 - smoothstep(radius * 0.15, radius, separation);
-    float horizon = max(0.0, dot(normal, delta / max(0.001, separation)) - 0.12);
+    // 只有明显高出切平面的样本才算遮挡：平坦地面 / 水面在掠射角下的深度量化
+    // 不会再在固定屏幕行上形成一条“暗缝”（像素半径钳位处）。
+    float planeEpsilon = 0.01 + 0.002 * -center.z;
+    float lift = dot(normal, delta) - planeEpsilon;
+    float horizon = lift > 0.0 ? max(0.0, lift / max(0.001, separation) - 0.12) : 0.0;
     total += horizon * falloff;
     totalWeight += 1.0;
   }
