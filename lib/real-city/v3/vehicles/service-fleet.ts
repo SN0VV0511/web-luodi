@@ -9,7 +9,7 @@ import type { CarModel } from "../../vehicles/car-models";
  * 大梁 / 轮拱 / 双后轮位正确，后门卷帘可开）、市政工程车。
  * 坐标约定与既有车壳一致：车头 +z，地面 y = 0。
  */
-export type ServiceKind = "police" | "taxi" | "ambulance" | "boxtruck" | "utility" | "civilian" | "foodtruck";
+export type ServiceKind = "police" | "taxi" | "ambulance" | "boxtruck" | "utility" | "civilian" | "foodtruck" | "fireengine";
 
 export type ServiceShell = {
   kind: ServiceKind;
@@ -246,9 +246,121 @@ function sedanService(kind: "police" | "taxi" | "civilian", base: { body: THREE.
   };
 }
 
+/** 消防水罐 / 云梯车：四门乘员驾驶室 + 泵浦器材厢（卷帘门、铝合金分条）+ 车顶水带床 / 转台
+ *  + 侧挂拉梯、水带卷盘、泵浦操作面板、前置水炮、警灯排与镀铬保险杠。云梯本身由事件系统驱动。 */
+function fireEngineShell(): ServiceShell {
+  const b = new PartBuilder();
+  const L = 8.6, W = 2.46, H = 3.0, R = 0.52, hl = L / 2;
+  const fw = 2.95, rw = -2.05;
+  const wheels = [{ x: 1.02, z: fw }, { x: -1.02, z: fw }, { x: 1.02, z: rw }, { x: -1.02, z: rw }, { x: 1.02, z: rw - 1.3 }, { x: -1.02, z: rw - 1.3 }];
+  const hw = W / 2;
+  // 底盘：大梁、油箱、侧踏板
+  b.pair("trim", 0.16, 0.28, L - 0.8, 0.5, 0.74, -0.2);
+  b.pair("chrome", 0.5, 0.06, 1.6, hw - 0.12, 0.62, 1.1);
+  b.pair("trim", 0.5, 0.18, 1.6, hw - 0.12, 0.52, 1.1);
+  // 乘员驾驶室（cabBack..front），下沿带前轮拱，平头前脸
+  const front = hl, cabBack = 1.62;
+  bodyWithArches(b, hw - 0.02, 0.6, 1.55, cabBack, front - 0.06, [fw], R);
+  b.box("body", W - 0.04, 1.32, front - cabBack - 0.06, 0, 2.21, (cabBack + front - 0.06) / 2);
+  // 加高顶（Raised roof）
+  b.box("body", W - 0.1, 0.22, 1.25, 0, 2.98, cabBack + 0.68);
+  b.box("body", W - 0.06, 0.08, front - cabBack - 0.12, 0, 2.9, (cabBack + front - 0.12) / 2);
+  // 分体前风挡 + 中柱
+  b.box("glass", W - 0.3, 0.98, 0.05, 0, 2.28, front - 0.04, -0.06);
+  b.box("trim", 0.08, 1.0, 0.07, 0, 2.28, front - 0.02, -0.06);
+  // 四扇车门侧窗 + 门缝 + 把手
+  for (const z of [front - 0.62, cabBack + 0.62]) {
+    b.pair("glass", 0.04, 0.78, 0.92, hw + 0.002, 2.33, z);
+    b.pair("trim", 0.03, 1.55, 0.03, hw + 0.004, 1.75, z - 0.5);
+    b.pair("chrome", 0.04, 0.05, 0.22, hw + 0.02, 1.62, z - 0.3);
+  }
+  // 前脸：镀铬格栅、大灯、前保险杠、拖钩
+  for (let i = 0; i < 6; i++) b.box("chrome", 1.24, 0.045, 0.05, 0, 1.0 + i * 0.1, front + 0.005);
+  b.box("trim", 1.34, 0.66, 0.03, 0, 1.25, front - 0.01);
+  b.pair("chrome", 0.34, 0.24, 0.05, 0.86, 1.18, front + 0.005);
+  b.box("chrome", W + 0.1, 0.3, 0.26, 0, 0.64, front + 0.14);
+  b.pair("chrome", 0.08, 0.16, 0.18, 0.55, 0.55, front + 0.3);
+  // 前置水炮（保险杠上）
+  b.cylinder("chrome", 0.06, 0.4, 0, 0.92, front + 0.25, "z", 10);
+  b.cylinder("trim", 0.1, 0.1, 0, 0.82, front + 0.1, "y", 10);
+  // 后视镜
+  b.pair("trim", 0.05, 0.05, 0.5, hw + 0.2, 2.45, front - 0.3, 0, 0.6);
+  b.pair("chrome", 0.08, 0.46, 0.2, hw + 0.42, 2.3, front - 0.12);
+  arch(b, hw - 0.02, fw, R);
+  // 驾驶室警灯排 + 侧角灯 + 喇叭
+  b.box("trim", W - 0.3, 0.1, 0.34, 0, 3.14, front - 0.4);
+  b.box("lensA", (W - 0.5) / 2, 0.16, 0.28, -(W - 0.5) / 4, 3.27, front - 0.4);
+  b.box("lensB", (W - 0.5) / 2, 0.16, 0.28, (W - 0.5) / 4, 3.27, front - 0.4);
+  b.box("chrome", 0.12, 0.15, 0.26, 0, 3.26, front - 0.4);
+  b.pair("lensA", 0.04, 0.14, 0.22, hw + 0.01, 2.75, front - 0.25);
+  b.pair("lensB", 0.16, 0.12, 0.04, 0.55, 1.5, front + 0.006);
+  b.pair("chrome", 0.14, 0.14, 0.38, 0.3, 3.12, front - 0.05);
+  // 器材厢（boxFront..-hl）：底沿高于后轮，卷帘器材门
+  const boxBottom = 0.78, boxTop = 2.62, boxFront = cabBack - 0.04, boxBack = -hl;
+  bodyWithArches(b, hw, boxBottom, 1.55, boxBack, boxFront, [rw, rw - 1.3], R);
+  b.box("body", W, boxTop - 1.55, boxFront - boxBack, 0, (boxTop + 1.55) / 2, (boxFront + boxBack) / 2);
+  arch(b, hw, rw, R);
+  arch(b, hw, rw - 1.3, R);
+  // 侧面：泵浦操作面板（驾驶室后）+ 3 个卷帘门
+  const pumpZ0 = boxFront - 0.95;
+  b.pair("chrome", 0.03, 1.5, 0.86, hw + 0.012, 1.72, pumpZ0 + 0.47);
+  for (const [dy, dz] of [[0.35, 0.2], [0.35, 0.68], [-0.15, 0.2], [-0.15, 0.68]] as const) {
+    b.pair("trim", 0.05, 0.16, 0.16, hw + 0.03, 1.72 + dy, pumpZ0 + dz);
+    b.cylinder("chrome", 0.06, 0.12, hw + 0.08, 1.72 + dy, pumpZ0 + dz, "x", 10);
+    b.cylinder("chrome", 0.06, 0.12, -hw - 0.08, 1.72 + dy, pumpZ0 + dz, "x", 10);
+  }
+  b.pair("trim", 0.04, 0.16, 0.6, hw + 0.03, 2.2, pumpZ0 + 0.45);
+  const doors: [number, number][] = [[pumpZ0 - 0.1, -0.25], [-0.35, -2.0 + 0.62], [-2.0 + 0.48, boxBack + 0.12]];
+  for (const [z1, z0] of doors) {
+    const len = z1 - z0, mid = (z0 + z1) / 2;
+    const top = z0 < rw + R + 0.2 && z1 > rw - 1.3 - R - 0.2 ? 2.5 : 2.5;
+    const bottom = z0 < rw + R + 0.15 && z1 > rw - 1.3 - R - 0.15 ? 1.62 : 0.92;
+    b.pair("chrome", 0.02, top - bottom, len, hw + 0.006, (top + bottom) / 2, mid);
+    const slats = Math.round((top - bottom) / 0.09);
+    for (let i = 1; i < slats; i++) b.pair("trim", 0.012, 0.012, len - 0.04, hw + 0.018, bottom + i * (top - bottom) / slats, mid);
+    b.pair("trim", 0.04, 0.05, len, hw + 0.015, top + 0.03, mid);
+    b.pair("chrome", 0.05, 0.06, 0.3, hw + 0.03, bottom + 0.12, mid);
+  }
+  // 车顶：水带床 + 栏杆 + 转台底座（云梯由事件系统叠加）+ 侧挂拉梯
+  b.box("trim", W - 0.3, 0.16, 2.4, 0, boxTop + 0.08, -1.0);
+  for (let i = 0; i < 5; i++) b.box("body", 0.36, 0.14, 2.3, -0.8 + i * 0.4, boxTop + 0.2, -1.0);
+  for (const s of [-1, 1]) {
+    b.box("chrome", 0.04, 0.04, boxFront - boxBack - 0.2, s * (hw - 0.06), boxTop + 0.34, (boxFront + boxBack) / 2);
+    for (const z of [boxFront - 0.2, 0.2, -1.4, -3.0, boxBack + 0.15]) b.box("chrome", 0.04, 0.3, 0.04, s * (hw - 0.06), boxTop + 0.18, z);
+  }
+  b.cylinder("trim", 0.62, 0.22, 0, boxTop + 0.12, -3.05, "y", 20);
+  b.cylinder("chrome", 0.44, 0.12, 0, boxTop + 0.29, -3.05, "y", 20);
+  b.box("body", 0.9, 0.4, 0.7, 0, boxTop + 0.45, -3.05);
+  // 侧挂二节拉梯（左侧）
+  for (const y of [2.18, 2.48]) b.box("chrome", 0.04, 0.04, 3.4, -hw - 0.12, y, -1.6);
+  for (let i = 0; i < 12; i++) b.box("chrome", 0.035, 0.32, 0.035, -hw - 0.12, 2.33, -3.2 + i * 0.29);
+  for (const z of [-0.4, -2.8]) b.box("trim", 0.14, 0.4, 0.06, -hw - 0.06, 2.33, z);
+  // 右侧水带卷盘
+  b.cylinder("trim", 0.24, 0.26, hw + 0.15, 2.0, -0.95, "x", 18);
+  b.cylinder("chrome", 0.26, 0.025, hw + 0.03, 2.0, -0.95, "x", 18);
+  b.cylinder("chrome", 0.26, 0.025, hw + 0.28, 2.0, -0.95, "x", 18);
+  b.cylinder("chrome", 0.05, 0.3, hw + 0.15, 2.0, -0.95, "x", 8);
+  // 车尾器材卷帘门
+  b.box("chrome", 1.3, 0.9, 0.02, 0, 2.02, boxBack - 0.012);
+  for (let i = 1; i < 10; i++) b.box("trim", 1.26, 0.012, 0.012, 0, 1.57 + i * 0.09, boxBack - 0.024);
+  // 车尾：后踏板、扶手、尾灯与警示灯
+  b.box("trim", W - 0.1, 0.12, 0.42, 0, 0.62, boxBack - 0.18);
+  for (const s of [-1, 1]) b.box("chrome", 0.05, 1.2, 0.05, s * 0.75, 1.65, boxBack - 0.06);
+  b.box("chrome", W - 0.3, 0.04, 0.04, 0, 2.1, boxBack - 0.06);
+  b.pair("lensA", 0.16, 0.2, 0.05, hw - 0.14, 2.42, boxBack - 0.02);
+  b.pair("lensB", 0.12, 0.12, 0.05, hw - 0.14, 2.15, boxBack - 0.02);
+  return {
+    kind: "fireengine",
+    body: b.merge("body"), glass: b.merge("glass"), trim: b.merge("trim"), chrome: b.merge("chrome"), lensA: b.merge("lensA"), lensB: b.merge("lensB"),
+    length: L, width: W, height: H, wheelR: R, wheels, dualRear: true,
+    lamps: [{ x: 0.86, y: 1.18, z: front + 0.03, tail: false }, { x: -0.86, y: 1.18, z: front + 0.03, tail: false }, { x: 1.0, y: 1.1, z: boxBack - 0.03, tail: true }, { x: -1.0, y: 1.1, z: boxBack - 0.03, tail: true }],
+  };
+}
+
 export function createServiceShell(kind: ServiceKind, model?: CarModel): ServiceShell {
   if (kind === "boxtruck" || kind === "utility" || kind === "foodtruck") return { ...boxTruckShell(kind === "utility"), kind };
   if (kind === "ambulance") return ambulanceShell();
+  if (kind === "fireengine") return fireEngineShell();
   const base = model ?? createVehicleShell("sedan");
   const shell = sedanService(kind, base);
   if (!model) for (const g of [base.body, base.glass, base.trim, base.chrome]) g.dispose();
@@ -256,7 +368,7 @@ export function createServiceShell(kind: ServiceKind, model?: CarModel): Service
 }
 
 // ---------- 涂装着色器 ----------
-const LIVERY_KIND: Record<ServiceKind, number> = { police: 0, taxi: 1, ambulance: 2, boxtruck: 3, utility: 4, civilian: 5, foodtruck: 6 };
+const LIVERY_KIND: Record<ServiceKind, number> = { police: 0, taxi: 1, ambulance: 2, boxtruck: 3, utility: 4, civilian: 5, foodtruck: 6, fireengine: 7 };
 /** 侧面字样区域（车长 / 车高比例）：z0, z1, y0, y1 与图集行号。 */
 const DECALS: Record<ServiceKind, [number, number, number, number, number]> = {
   police: [-0.2, 0.18, 0.36, 0.5, 0],
@@ -266,8 +378,9 @@ const DECALS: Record<ServiceKind, [number, number, number, number, number]> = {
   utility: [-0.45, 0.18, 0.5, 0.8, 4],
   civilian: [2, 2.0001, 2, 2.0001, 0],
   foodtruck: [-0.45, 0.18, 0.5, 0.82, 5],
+  fireengine: [0.205, 0.47, 0.365, 0.5, 6],
 };
-const DECAL_ROWS = 6;
+const DECAL_ROWS = 7;
 
 let decalTexture: THREE.Texture | null | undefined;
 function liveryDecals(): THREE.Texture | null {
@@ -306,6 +419,12 @@ function liveryDecals(): THREE.Texture | null {
   row(5, (y) => {
     c.fillStyle = "#7a2e12"; c.font = "900 70px 'Noto Sans SC','PingFang SC',Arial,sans-serif"; c.textAlign = "left"; c.fillText("街角煎饼  CRÊPES", 40, y + 60);
     c.fillStyle = "#e8a33c"; for (let i = 0; i < 16; i++) { c.beginPath(); c.arc(32 + i * 64, y + 118, 24, Math.PI, 0); c.fill(); }
+  });
+  row(6, (y) => {
+    c.fillStyle = "#f5c518"; c.font = "900 84px Arial,sans-serif"; c.textAlign = "left"; c.fillText("119", 30, y + 66);
+    c.fillStyle = "#ffffff"; c.font = "800 50px 'Noto Sans SC','PingFang SC',sans-serif"; c.fillText("消防救援  FIRE RESCUE", 230, y + 66);
+    c.strokeStyle = "#f5c518"; c.lineWidth = 6; c.beginPath(); c.arc(968, y + 64, 44, 0, Math.PI * 2); c.stroke();
+    c.fillStyle = "#f5c518"; c.beginPath(); c.moveTo(968, y + 28); c.lineTo(992, y + 82); c.lineTo(944, y + 82); c.closePath(); c.fill();
   });
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -368,6 +487,14 @@ ${decal ? "uniform sampler2D uLiveryDecal;" : ""}`)
   col = vec3(0.92, 0.62, 0.1);
   float hz = step(0.5, fract((p.z + p.y) * 1.4));
   col = mix(col, mix(vec3(0.95, 0.95, 0.9), vec3(0.8, 0.1, 0.08), hz), step(0.36, yt) * step(yt, 0.42) * step(zt, 0.2) * side);` : ""}
+  ${LIVERY_KIND[kind] === 7 ? `
+  // 消防车：中国红车身、白色驾驶室顶、侧面金白反光腰线、车尾红黄人字纹
+  col = vec3(0.62, 0.03, 0.04);
+  col = mix(col, vec3(0.94, 0.94, 0.92), step(0.9, yt) * step(0.19, zt));
+  col = mix(col, vec3(0.97, 0.97, 0.95), step(0.3, yt) * step(yt, 0.335) * side);
+  col = mix(col, vec3(0.96, 0.74, 0.08), step(0.335, yt) * step(yt, 0.35) * side);
+  float fchev = step(0.5, fract((abs(p.x) * 1.4 + p.y * 1.4)));
+  col = mix(col, mix(vec3(0.7, 0.03, 0.05), vec3(1.0, 0.8, 0.08), fchev), step(0.9, -n.z) * step(yt, 0.5) * step(zt, -0.3));` : ""}
   ${LIVERY_KIND[kind] === 6 ? `
   // 餐车：奶油色车身 + 薄荷绿下沿
   col = mix(vec3(0.95, 0.9, 0.78), vec3(0.42, 0.72, 0.62), step(yt, 0.36) * side);
@@ -385,7 +512,7 @@ ${decal ? "uniform sampler2D uLiveryDecal;" : ""}`)
   diffuseColor.rgb = col;
 }`);
   };
-  material.customProgramCacheKey = () => `v3-livery-2-${kind}-${decal ? 1 : 0}`;
+  material.customProgramCacheKey = () => `v3-livery-3-${kind}-${decal ? 1 : 0}`;
   return material;
 }
 
@@ -396,7 +523,7 @@ const sharedMaterials = {
   chrome: new THREE.MeshStandardMaterial({ name: "v3 service chrome", color: "#c9cfd2", roughness: 0.22, metalness: 0.9 }),
   tire: new THREE.MeshStandardMaterial({ name: "v3 service tire", color: "#151719", roughness: 0.9 }),
 };
-const LENS_COLORS: Record<ServiceKind, [string, string]> = { civilian: ["#222222", "#222222"], foodtruck: ["#ffb020", "#ffb020"], police: ["#ff2a1f", "#1f6dff"], taxi: ["#ffe07a", "#ffe07a"], ambulance: ["#ff2a1f", "#1f6dff"], boxtruck: ["#ffb020", "#ffb020"], utility: ["#ffb020", "#ffb020"] };
+const LENS_COLORS: Record<ServiceKind, [string, string]> = { civilian: ["#222222", "#222222"], foodtruck: ["#ffb020", "#ffb020"], police: ["#ff2a1f", "#1f6dff"], taxi: ["#ffe07a", "#ffe07a"], ambulance: ["#ff2a1f", "#1f6dff"], fireengine: ["#ff2a1f", "#ff2a1f"], boxtruck: ["#ffb020", "#ffb020"], utility: ["#ffb020", "#ffb020"] };
 
 export class ServiceVehicle {
   readonly group = new THREE.Group();

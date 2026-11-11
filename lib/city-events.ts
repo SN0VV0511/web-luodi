@@ -1,8 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { CityFireEffect } from "./real-city/effects/fire-fx";
-import { createVehicleShell, createVehicleWheel } from "./city-vehicles";
-import { createFireEngineShell } from "./real-city/vehicles/procedural-heavy";
 import type { CivicKit } from "./city-civic";
 import { sampleCruiseVoyage } from "./city-cruise";
 import type { Locale } from "./site-content";
@@ -961,31 +959,11 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
     facadeCache.set(site.id, entry);
     return entry;
   };
-  // The fire engine uses the panelled truck shell (cab, arches, lamps) instead of two red boxes.
-  const truckShell = createVehicleShell("truck");
-  for (const geometry of [truckShell.body, truckShell.glass, truckShell.trim, truckShell.chrome]) geometry.dispose();
-  const engineShell = { ...truckShell, ...createFireEngineShell(truckShell) };
-  const engineWheel = createVehicleWheel();
-  for (const geometry of [engineShell.body, engineShell.glass, engineShell.trim, engineShell.chrome, engineWheel.tire, engineWheel.rim]) geometries.add(geometry);
-  const fireEngine = new THREE.Group();
+  // v3 消防车：与警车 / 救护车同一套整车构件与涂装（乘员室、卷帘器材厢、转台、拉梯、卷盘、警灯排）。
+  const fireUnit = new ServiceVehicle("fireengine");
+  group.add(fireUnit.track(kit).group);
+  const fireEngine = fireUnit.group;
   fireEngine.name = "Events · fire engine";
-  for (const [geometry, material] of [[engineShell.body, fireTruckRed], [engineShell.glass, windshieldMat], [engineShell.trim, tireDark], [engineShell.chrome, ladderSilver]] as const) {
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    fireEngine.add(mesh);
-  }
-  for (const wheel of engineShell.wheels) {
-    for (const [geometry, material] of [[engineWheel.tire, tireDark], [engineWheel.rim, ladderSilver]] as const) {
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.set(wheel.x, engineShell.wheelR, wheel.z);
-      mesh.rotation.set(0, 0, Math.PI / 2);
-      mesh.scale.setScalar(engineShell.wheelR);
-      fireEngine.add(mesh);
-    }
-  }
-  fireEngine.scale.setScalar(1.08);
-  group.add(fireEngine);
   const fireNozzle = new THREE.Vector3();
   const fireHose = new THREE.Vector3();
 
@@ -1190,13 +1168,15 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
     hideInstance(emergencyGlass, 0);
 
     // 消防云梯（到场后自动仰起瞄准着火点！）
-    const aimAngle = Math.atan2(fSite.fireX - fire.truckX, fSite.fireZ - fire.truckZ);
+    // 云梯根部固定在器材厢后部的转台上（车身中心后方约 2.35 m）。
+    const ladderBaseX = fire.truckX + fSin * (0.7 - 3.05), ladderBaseZ = fire.truckZ + fCos * (0.7 - 3.05);
+    const aimAngle = Math.atan2(fSite.fireX - ladderBaseX, fSite.fireZ - ladderBaseZ);
     const ladderPitch = fireArrived ? -0.52 : -0.04;
     const ladderLen = fireArrived ? 8.8 : 5.6;
     dummy.position.set(
-      fire.truckX + Math.sin(aimAngle) * (fireArrived ? 2.6 : 0),
-      fireArrived ? 4.65 : 3.05,
-      fire.truckZ + Math.cos(aimAngle) * (fireArrived ? 2.6 : 0),
+      fire.truckX + (fireArrived ? ladderBaseX - fire.truckX + Math.sin(aimAngle) * Math.cos(0.52) * ladderLen / 2 : -fSin * 0.5),
+      fireArrived ? 3.3 + Math.sin(0.52) * ladderLen / 2 : 3.25,
+      fire.truckZ + (fireArrived ? ladderBaseZ - fire.truckZ + Math.cos(aimAngle) * Math.cos(0.52) * ladderLen / 2 : -fCos * 0.5),
     );
     dummy.rotation.set(ladderPitch, fireArrived ? aimAngle : fSite.truckHeading, 0);
     // 云梯几何按 9 m 建模：展开时伸长，收起时各节套叠（沿长度压缩）。
@@ -1213,11 +1193,11 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
     hideInstance(fireEngineLadder, 3);
 
     for (let wheel = 0; wheel < 4; wheel++) hideInstance(emergencyWheels, wheel);
-    fireEngine.position.set(fire.truckX + fSin * 0.7, 0.42, fire.truckZ + fCos * 0.7);
-    fireEngine.rotation.set(0, fSite.truckHeading, 0);
+    fireUnit.place(fire.truckX + fSin * 0.7, 0.42, fire.truckZ + fCos * 0.7, fSite.truckHeading);
+    fireUnit.flash(seconds, true, strobeRedMat.emissiveIntensity > 2.5);
 
     // 消防车红灯爆闪
-    dummy.position.set(fire.truckX + fSin * 3.1, flashA ? 2.92 : -20, fire.truckZ + fCos * 3.1);
+    dummy.position.set(fire.truckX + fSin * 3.1, -20, fire.truckZ + fCos * 3.1);
     dummy.rotation.set(0, fSite.truckHeading, 0);
     dummy.scale.set(1.55, 0.22, 0.34);
     dummy.updateMatrix();
@@ -1254,7 +1234,7 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
 
     // 24 颗抛物线消防高压水炮水柱 + 10 团灭火白色水蒸气
     const facade = facadeFor(fSite);
-    fireNozzle.set(fire.truckX + Math.sin(aimAngle) * 5.2, 6.4, fire.truckZ + Math.cos(aimAngle) * 5.2);
+    fireNozzle.set(ladderBaseX + Math.sin(aimAngle) * Math.cos(0.52) * 8.6, 3.3 + Math.sin(0.52) * 8.6, ladderBaseZ + Math.cos(aimAngle) * Math.cos(0.52) * 8.6);
     fireHose.set(fSite.crewBaseX, 1.55, fSite.crewBaseZ);
     fireFx.update({
       seconds, origin: facade.origin, normal: facade.normal, intensity: fireIntensity, progress: fire.progress,
