@@ -22,6 +22,7 @@ uniform vec3 hazeColor;
 uniform float hazeDensity;
 uniform float hazeStart;
 uniform float hazeMax;
+uniform float hazeCameraHeight;
 uniform float saturation;
 uniform float contrast;
 uniform vec3 shadowTint;
@@ -84,7 +85,9 @@ void main() {
 
   // Aerial perspective: distant geometry fades toward the atmosphere colour (the sky already carries it).
   if (!sky) {
-    float haze = 1.0 - exp(-max(distance - hazeStart, 0.0) * hazeDensity);
+    // 高度衰减：俯瞰时视线大部分穿过上层稀薄空气（按平均高度 ≈ 相机高度的一半、标高 80 m 近似）。
+    float thinAir = exp(-max(hazeCameraHeight, 0.0) * 0.5 / 80.0);
+    float haze = 1.0 - exp(-max(distance - hazeStart, 0.0) * hazeDensity * thinAir);
     color = mix(color, hazeColor, clamp(haze, 0.0, hazeMax));
   }
 

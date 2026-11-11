@@ -106,8 +106,9 @@ export class CityRenderPipeline {
       cameraFar: { value: 4000 },
       hazeColor: { value: new THREE.Color() },
       hazeDensity: { value: 0 },
-      hazeStart: { value: 140 },
+      hazeStart: { value: 170 },
       hazeMax: { value: 0.7 },
+      hazeCameraHeight: { value: 0 },
       saturation: { value: 1 },
       contrast: { value: 1 },
       shadowTint: { value: new THREE.Color(0.5, 0.5, 0.5) },
@@ -202,6 +203,7 @@ export class CityRenderPipeline {
       uniforms.hazeColor.value.copy(grade.hazeColor);
       uniforms.hazeDensity.value = grade.hazeDensity;
       uniforms.hazeMax.value = grade.hazeMax;
+      uniforms.hazeCameraHeight.value = camera.position.y;
       uniforms.saturation.value = grade.saturation;
       uniforms.contrast.value = grade.contrast;
       uniforms.shadowTint.value.copy(grade.shadowTint);

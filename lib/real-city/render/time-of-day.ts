@@ -56,11 +56,11 @@ const grade = (values: Omit<CityGrade, "shadowTint" | "highlightTint" | "hazeCol
 export const TIME_OF_DAY_GRADES: Record<TimeOfDay, CityGrade> = {
   day: grade({
     saturation: 1.05, contrast: 1.04, shadowTint: "#203448", highlightTint: "#fff4e2",
-    vignette: 0.18, hazeColor: "#b9c9d8", hazeDensity: 0.0014, hazeMax: 0.6, bloom: 1,
+    vignette: 0.18, hazeColor: "#b9c9d8", hazeDensity: 0.0008, hazeMax: 0.42, bloom: 1,
   }),
   golden: grade({
     saturation: 1.04, contrast: 1.05, shadowTint: "#2d2a4a", highlightTint: "#ffc98a",
-    vignette: 0.26, hazeColor: "#e7b27d", hazeDensity: 0.002, hazeMax: 0.62, bloom: 2.4,
+    vignette: 0.26, hazeColor: "#e7b27d", hazeDensity: 0.0009, hazeMax: 0.4, bloom: 2.4,
   }),
   night: grade({
     saturation: 1.08, contrast: 1.06, shadowTint: "#0b1a33", highlightTint: "#ffd7a1",
@@ -81,7 +81,7 @@ export function goldenHourLighting(): Omit<TimeOfDayLighting, "grade"> {
     exposure: 1.0,
     environmentIntensity: 0.48,
     fogColor: new THREE.Color("#d9a780"),
-    fogDensity: 0.00125,
+    fogDensity: 0.0007,
     skyZenith: new THREE.Color("#3d5f93"),
     skyHorizon: new THREE.Color("#ffbf7f"),
     skyGround: new THREE.Color("#8c7468"),

@@ -783,7 +783,7 @@ export default function CityScene(props: CitySceneProps) {
         renderPipeline.render(scene, camera, renderQuality.state, current.current.night, {
           grade: TIME_OF_DAY_GRADES[timeOfDay()], tiltShift: Boolean(current.current.tiltShift),
           sunDirection: godRaySun.copy(seasonSunOffset).normalize(),
-          godRays: timeOfDay() === "golden" ? 1.0 : timeOfDay() === "day" ? 0.3 : 0,
+          godRays: (timeOfDay() === "golden" ? 0.55 : timeOfDay() === "day" ? 0.12 : 0) * (1 - 0.75 * THREE.MathUtils.smoothstep(camera.position.y, 25, 110)),
           sunTint: timeOfDay() === "golden" ? goldenRayTint : dayRayTint,
         });
       } finally {
