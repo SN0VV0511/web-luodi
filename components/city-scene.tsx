@@ -7,7 +7,7 @@ import { sampleSeasonState, type SeasonMode } from "@/lib/city-seasons";
 import { cityBuildings, type PlaceId } from "@/lib/city-content";
 import { cityLots } from "@/lib/city-map";
 import { buildCityWorld } from "@/lib/city-world";
-import { buildArchiveTower3D } from "@/lib/archive-tower-3d";
+import { buildArchiveTower3D, type ArchiveUploadedFloor } from "@/lib/archive-tower-3d";
 import { buildCityLandmarks, landmarkCamera } from "@/lib/city-landmarks";
 import { getBuildingExperience } from "@/lib/building-experience";
 import { parseSnapshot } from "@/lib/quant-board";
@@ -57,6 +57,8 @@ type CitySceneProps = {
   experienceChapter?: number;
   experienceReplayKey?: number;
   onFloorSelect?: (floorIndex: number) => void;
+  /** 08 号楼后台上传的 HTML 页面（3F 起加建楼层）。 */
+  archiveFloors?: readonly ArchiveUploadedFloor[];
   onFlightChange?: (flying: boolean) => void;
   onWorldTimeChange?: (seconds: number) => void;
   onCityLifeChange?: (snapshot: CityLifeSnapshot | null) => void;
@@ -73,6 +75,7 @@ type SceneHandle = {
   view: (view: CityView) => void;
   focus: (point: { x: number; z: number; distance?: number; height?: number }) => void;
   syncFloor: () => void;
+  setArchiveFloors: (floors: readonly ArchiveUploadedFloor[]) => void;
   inspect: (replay?: boolean) => void;
 };
 type CameraFlight = {
@@ -331,7 +334,7 @@ export default function CityScene(props: CitySceneProps) {
 
     // 08号楼 · 技术手稿馆 专属可交互 3D 剖面展厅、升降楼层舱与双开门观光电梯模型
     const slot8Lot = lotById.get("slot-8");
-    const archiveTower = slot8Lot ? buildArchiveTower3D(slot8Lot) : null;
+    const archiveTower = slot8Lot ? buildArchiveTower3D(slot8Lot, current.current.archiveFloors ?? []) : null;
     if (archiveTower) {
       scene.add(archiveTower.group);
       world.pickables.push(...archiveTower.pickables);
@@ -525,8 +528,9 @@ export default function CityScene(props: CitySceneProps) {
       const building = buildingById.get(id);
       if (building?.floors?.length) {
         // 多楼层 3D 展馆特写：拉近镜头直面 3D 建筑剖面、室内高精建模场景与外挂观光电梯，右侧留出 3D 全息投影区
-        const floorIdx = THREE.MathUtils.clamp(current.current.activeFloorIndex ?? 0, 0, building.floors.length - 1);
-        const targetY = floorIdx === 1 ? 18.0 : 9.2;
+        const floorTotal = id === "slot-8" && archiveTower ? archiveTower.floorCount() : building.floors.length;
+        const floorIdx = THREE.MathUtils.clamp(current.current.activeFloorIndex ?? 0, 0, floorTotal - 1);
+        const targetY = id === "slot-8" && archiveTower ? archiveTower.getCameraTargetY(floorIdx) - 0.2 : floorIdx === 1 ? 18.0 : 9.2;
         const target = new THREE.Vector3(anchor.x + (width / height >= 0.8 ? 4.8 : 0), targetY, anchor.z + 2.2);
         const closeDir = new THREE.Vector3(-0.2, 0.14, 0.96).normalize();
         const distance = width / height < 0.8 ? 50 : 31;
@@ -712,7 +716,7 @@ export default function CityScene(props: CitySceneProps) {
         const activeIdx = current.current.activeFloorIndex ?? 0;
         elevatorAnimating = archiveTower.animate(elapsed || 0.016, worldTime, isSlot8Selected, activeIdx);
         if (isSlot8Selected && !flight) {
-          const desiredTargetY = activeIdx === 1 ? 18.2 : 9.4;
+          const desiredTargetY = archiveTower.getCameraTargetY(activeIdx);
           const dy = desiredTargetY - controls.target.y;
           if (Math.abs(dy) > 0.04) {
             const stepY = dy * Math.min(1, (elapsed || 0.016) * 6.5);
@@ -912,7 +916,7 @@ export default function CityScene(props: CitySceneProps) {
     function canvasWheel(event: WheelEvent) {
       if (current.current.selected !== "slot-8" || event.ctrlKey || event.metaKey) return;
       // 当选中 08 号楼且鼠标位于 3D 大楼/场景区域时，滚轮直接上下滑动大楼楼层与 3D 观光电梯
-      const totalFloors = buildingById.get("slot-8")?.floors?.length ?? 2;
+      const totalFloors = archiveTower?.floorCount() ?? 2;
       const curFloor = current.current.activeFloorIndex ?? 0;
       if (Math.abs(event.deltaY) < 12) return;
       const nextFloor = event.deltaY < 0
@@ -1052,6 +1056,17 @@ export default function CityScene(props: CitySceneProps) {
       syncFloor: () => {
         updateHighlight();
       },
+      setArchiveFloors: (floors) => {
+        if (!archiveTower) return;
+        const { removed, added } = archiveTower.setUploadedFloors(floors);
+        const removedSet = new Set(removed);
+        for (let i = world.pickables.length - 1; i >= 0; i--) {
+          if (removedSet.has(world.pickables[i]!)) world.pickables.splice(i, 1);
+        }
+        world.pickables.push(...added);
+        labelsDirty = true;
+        schedule();
+      },
     };
     // 截图与视觉回归用：仅在 URL 带 ?debugCamera 时暴露相机定位接口。
     const debugWindow = window as unknown as {
@@ -1182,6 +1197,15 @@ export default function CityScene(props: CitySceneProps) {
 
   useEffect(() => { sceneRef.current?.update(); }, [props.night, props.timeOfDay, props.tiltShift, props.paused, props.labelsVisible, props.touring, props.locale, props.seasonMode]);
   useEffect(() => { sceneRef.current?.syncFloor(); }, [props.activeFloorIndex]);
+  const archiveFloorsKey = (props.archiveFloors ?? []).map((floor) => `${floor.id}:${floor.code}:${floor.title}`).join("|");
+  const builtArchiveKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (status !== "ready") return;
+    if (builtArchiveKey.current === null) builtArchiveKey.current = "";
+    if (builtArchiveKey.current === archiveFloorsKey) return;
+    builtArchiveKey.current = archiveFloorsKey;
+    sceneRef.current?.setArchiveFloors(current.current.archiveFloors ?? []);
+  }, [archiveFloorsKey, status]);
   useEffect(() => {
     if (props.ambience) {
       ambienceRef.current ??= new CityAmbience();

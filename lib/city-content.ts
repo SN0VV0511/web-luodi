@@ -15,6 +15,8 @@ export type BuildingFloor = Readonly<{
   category: LocalizedText;
   description: LocalizedText;
   href: string;
+  /** 后台上传的第三方 HTML：iframe 必须加 sandbox，且不能与主站同源。 */
+  sandboxed?: boolean;
 }>;
 export type CityPlace = Readonly<{
   id: PlaceId;

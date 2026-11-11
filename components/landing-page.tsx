@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type CSSProperties,
@@ -43,7 +44,14 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { cityBuildings, safeAppUrl, type PlaceId } from "@/lib/city-content";
+import { cityBuildings, safeAppUrl, type CityPlace, type PlaceId } from "@/lib/city-content";
+import {
+  fetchTowerPages,
+  TOWER_POLL_MS,
+  towerPagesToArchiveFloors,
+  towerPagesToFloors,
+  type TowerPage,
+} from "@/lib/html-tower";
 import { CITY_BOUNDS, ROAD_SEGMENTS, cityLots, civicLots, parkLots } from "@/lib/city-map";
 import {
   pickLocale,
@@ -106,6 +114,7 @@ export function LandingPage(): ReactNode {
   const [hologramCollapsed, setHologramCollapsed] = useState(false);
   const [worldSeconds, setWorldSeconds] = useState(0);
   const [cityLife, setCityLife] = useState<CityLifeSnapshot | null>(null);
+  const [towerPages, setTowerPages] = useState<readonly TowerPage[]>([]);
   const elevatorTimersRef = useRef<number[]>([]);
   const wheelCooldownRef = useRef(0);
   const detailRef = useRef<HTMLElement>(null);
@@ -117,14 +126,52 @@ export function LandingPage(): ReactNode {
     if (trigger?.isConnected && !trigger.classList.contains("city-label")) trigger.focus({ preventScroll: true });
     else directoryTriggerRef.current?.focus({ preventScroll: true });
   }, []);
+  // 08 号楼：后台上传的 HTML 页面运行时拉取，接在内置 1F/2F 之后（接口不可用时只显示内置楼层）。
+  useEffect(() => {
+    if (process.env.NODE_ENV === "test" && typeof fetch === "function" && !("mock" in fetch)) return;
+    let controller: AbortController | null = null;
+    let lastKey = "";
+    const load = (): void => {
+      if (document.hidden) return;
+      controller?.abort();
+      const request = new AbortController();
+      controller = request;
+      fetchTowerPages(request.signal)
+        .then((pages) => {
+          const key = pages.map((page) => `${page.id}:${page.title}`).join("|");
+          if (key === lastKey) return;
+          lastKey = key;
+          setTowerPages(pages);
+        })
+        .catch(() => {
+          /* 静态预览或服务未部署：保留内置楼层 */
+        });
+    };
+    load();
+    const timer = window.setInterval(load, TOWER_POLL_MS);
+    document.addEventListener("visibilitychange", load);
+    return () => {
+      controller?.abort();
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", load);
+    };
+  }, []);
+  const archiveFloors = useMemo(() => towerPagesToArchiveFloors(towerPages), [towerPages]);
+  const liveBuildings = useMemo<readonly CityPlace[]>(() => {
+    if (!towerPages.length) return cityBuildings;
+    const uploaded = towerPagesToFloors(towerPages);
+    return cityBuildings.map((building) =>
+      building.id === "slot-8" ? { ...building, floors: [...(building.floors ?? []), ...uploaded] } : building,
+    );
+  }, [towerPages]);
   const zh = locale === "zh";
   const t = (cn: string, en: string): string => (zh ? cn : en);
-  const place = cityBuildings.find((building) => building.id === selected);
+  const place = liveBuildings.find((building) => building.id === selected);
   const experience = place?.floors?.length ? undefined : getBuildingExperience(selected);
   const lot = cityLots.find((building) => building.id === selected);
   const districtName = lot && lot.x < -75 ? t("西岸老城", "West town") : lot && lot.z < -115 ? t("北部新城", "North quarter") : t("东湾城区", "East bay");
-  const occupied = cityBuildings.filter((building) => !building.vacant).length;
-  const buildings = cityBuildings.filter(
+  const occupied = liveBuildings.filter((building) => !building.vacant).length;
+  const buildings = liveBuildings.filter(
     (building) =>
       (filter === "all" ||
         (filter === "vacant" ? building.vacant : !building.vacant)) &&
@@ -303,6 +350,7 @@ export function LandingPage(): ReactNode {
           activeFloorIndex={activeFloorIndex}
           experienceChapter={experienceChapter}
           experienceReplayKey={experienceReplayKey}
+          archiveFloors={archiveFloors}
           onFloorSelect={(floorIdx) => dispatchElevator(floorIdx, place?.floors?.length ?? 2)}
           onFlightChange={setFlightApproaching}
           onWorldTimeChange={setWorldSeconds}
@@ -354,7 +402,7 @@ export function LandingPage(): ReactNode {
           >
             <Building2 size={15} />
             {t("应用目录", "Applications")}
-            <span>{cityBuildings.length}</span>
+            <span>{liveBuildings.length}</span>
           </button>
           <button
             type="button"
@@ -599,10 +647,10 @@ export function LandingPage(): ReactNode {
                     : t("预留空间", "Available")}
                 <span>
                   {value === "all"
-                    ? cityBuildings.length
+                    ? liveBuildings.length
                     : value === "occupied"
                       ? occupied
-                      : cityBuildings.length - occupied}
+                      : liveBuildings.length - occupied}
                 </span>
               </button>
             ))}
@@ -977,7 +1025,7 @@ export function LandingPage(): ReactNode {
                           aria-label={t("上一层", "Upper floor")}
                         >
                           <ArrowUp size={14} />
-                          <span>{t("上滑 2F", "Up 2F")}</span>
+                          <span>{t(`上滑 ${floors[safeIndex + 1]?.floor ?? currentFloor.floor}`, `Up ${floors[safeIndex + 1]?.floor ?? currentFloor.floor}`)}</span>
                         </button>
                         <button
                           type="button"
@@ -986,7 +1034,7 @@ export function LandingPage(): ReactNode {
                           aria-label={t("下一层", "Lower floor")}
                         >
                           <ArrowDown size={14} />
-                          <span>{t("下滑 1F", "Down 1F")}</span>
+                          <span>{t(`下滑 ${floors[safeIndex - 1]?.floor ?? currentFloor.floor}`, `Down ${floors[safeIndex - 1]?.floor ?? currentFloor.floor}`)}</span>
                         </button>
                       </div>
                       <a
@@ -1024,6 +1072,8 @@ export function LandingPage(): ReactNode {
                               {floorUrl && (
                                 <iframe
                                   src={floorUrl}
+                                  sandbox={item.sandboxed ? "allow-scripts allow-forms allow-popups allow-modals" : undefined}
+                                  referrerPolicy={item.sandboxed ? "no-referrer" : undefined}
                                   title={`${item.floor} - ${pickLocale(item.title, locale)}`}
                                   className="tower-html-iframe"
                                   loading="lazy"
@@ -1352,7 +1402,7 @@ export function LandingPage(): ReactNode {
             {String(occupied).padStart(2, "0")}{" "}
             <small>{t("个项目", "PROJECTS")}</small>
             <i />
-            {String(cityBuildings.length - occupied).padStart(2, "0")}{" "}
+            {String(liveBuildings.length - occupied).padStart(2, "0")}{" "}
             <small>{t("处预留空间", "OPEN SPACES")}</small>
           </strong>
         </div>

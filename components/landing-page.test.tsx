@@ -106,6 +106,38 @@ describe("城市主页", () => {
     expect(sceneProps.mock.lastCall?.[0]).toMatchObject({ selected: "slot-8", activeFloorIndex: 1 });
   });
 
+  it("技术手稿馆运行时拉取后台上传的 HTML，接在 2F 之后续楼层并以沙箱 iframe 展示", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        pages: [
+          { id: "a1b2c3d4e5f6", title: "季度复盘", filename: "review.html", size: 2048, createdAt: "2026-11-11T15:00:00+0800", url: "/tower/p/a1b2c3d4e5f6.html" },
+          { id: "bad id", title: "非法条目", filename: "x.html", size: 1, createdAt: "", url: "https://evil.example/" },
+        ],
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      render(<LandingPage />);
+      const directory = openDirectory();
+      fireEvent.click(directory.getByRole("button", { name: "探索 技术手稿馆" }));
+      const detail = screen.getByRole("complementary", { name: "建筑详情" });
+      const floors = within(detail).getByRole("region", { name: "楼层导览" });
+      const uploaded = await within(floors).findByRole("link", { name: "3F 季度复盘" });
+      expect(uploaded).toHaveAttribute("href", "/tower/p/a1b2c3d4e5f6.html");
+      expect(within(floors).getAllByRole("link")).toHaveLength(3);
+      expect(fetchMock).toHaveBeenCalledWith("/tower/api/pages", expect.anything());
+      const frame = detail.querySelector('iframe[src="/tower/p/a1b2c3d4e5f6.html"]');
+      expect(frame).toHaveAttribute("sandbox", "allow-scripts allow-forms allow-popups allow-modals");
+      expect(detail.querySelector('iframe[src="/lora/index.html"]')).not.toHaveAttribute("sandbox");
+      expect(sceneProps.mock.lastCall?.[0]).toMatchObject({
+        archiveFloors: [{ id: "a1b2c3d4e5f6", code: "3F", title: "季度复盘" }],
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("三维建筑与目录共用聚焦详情，空办公室没有伪造应用入口", () => {
     render(<LandingPage />);
     fireEvent.click(screen.getByRole("button", { name: "选择量化建筑" }));

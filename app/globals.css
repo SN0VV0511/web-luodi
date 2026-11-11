@@ -2324,6 +2324,11 @@ button.skylines-metric-pill:hover {
   flex-direction: column;
   padding: 6px;
   gap: 6px;
+  /* 后台不断上传新楼层时列表内部滚动，不把电梯面板撑出屏幕 */
+  max-height: min(46vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 .building-story-row {
   display: grid;

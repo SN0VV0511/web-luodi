@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="referrer" content="no-referrer">
+<title>技术手稿馆 · 后台 | HTML Tower Admin</title>
+<style>
+  :root { --bg:#0b1418; --panel:#122027; --line:#24404a; --text:#e8f3ef; --dim:#8fb0a6; --accent:#5ce0a0; --gold:#ffd175; --danger:#ff7a6b; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.55 system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; background:radial-gradient(1200px 600px at 10% -10%,#16323a,transparent),var(--bg); color:var(--text); min-height:100vh; }
+  header { display:flex; align-items:center; gap:14px; padding:18px 28px; border-bottom:1px solid var(--line); }
+  header .badge { font:800 13px monospace; background:var(--accent); color:#06120e; padding:5px 9px; border-radius:6px; }
+  header h1 { font-size:18px; margin:0; flex:1; }
+  header small { color:var(--dim); display:block; font-weight:400; font-size:12px; }
+  button, .btn { font:inherit; border:1px solid var(--line); background:#173039; color:var(--text); padding:7px 13px; border-radius:8px; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:6px; }
+  button:hover, .btn:hover { border-color:var(--accent); }
+  button.primary { background:var(--accent); color:#06120e; border-color:var(--accent); font-weight:700; }
+  button.danger { color:var(--danger); }
+  button.danger:hover { border-color:var(--danger); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  main { max-width:1080px; margin:0 auto; padding:26px 22px 60px; }
+  .card { background:rgba(18,32,39,.86); border:1px solid var(--line); border-radius:14px; padding:22px; margin-bottom:20px; }
+  .card h2 { margin:0 0 14px; font-size:16px; }
+  input[type=text], input[type=password] { font:inherit; width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:#0c181d; color:var(--text); }
+  input:focus { outline:2px solid var(--accent); outline-offset:1px; }
+  label { display:block; color:var(--dim); font-size:12px; margin:0 0 6px; }
+  .login { max-width:380px; margin:12vh auto 0; }
+  .login form { display:grid; gap:12px; }
+  .msg { min-height:20px; font-size:13px; color:var(--dim); }
+  .msg.err { color:var(--danger); } .msg.ok { color:var(--accent); }
+  .drop { border:2px dashed var(--line); border-radius:12px; padding:28px; text-align:center; color:var(--dim); cursor:pointer; transition:.15s; }
+  .drop.over, .drop:hover { border-color:var(--accent); color:var(--text); background:rgba(92,224,160,.06); }
+  .drop strong { display:block; color:var(--text); font-size:15px; margin-bottom:4px; }
+  .row { display:grid; grid-template-columns:1fr auto; gap:12px; align-items:end; margin-top:14px; }
+  .queue { margin-top:12px; display:grid; gap:8px; }
+  .qitem { display:grid; grid-template-columns:1fr 160px 70px; gap:10px; align-items:center; font-size:13px; }
+  progress { width:100%; height:8px; accent-color:var(--accent); }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:10px 8px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  th { color:var(--dim); font-weight:500; font-size:12px; }
+  td.floor { font:800 14px monospace; color:var(--gold); white-space:nowrap; }
+  td .file { color:var(--dim); font-size:12px; word-break:break-all; }
+  td.actions { white-space:nowrap; text-align:right; }
+  td.actions > * { margin-left:4px; }
+  .empty { color:var(--dim); text-align:center; padding:26px; }
+  .muted { color:var(--dim); font-size:12px; }
+  dialog { width:min(1100px,94vw); height:86vh; border:1px solid var(--line); border-radius:14px; padding:0; background:var(--panel); color:var(--text); }
+  dialog::backdrop { background:rgba(0,0,0,.6); }
+  dialog header { padding:10px 16px; }
+  dialog iframe { width:100%; height:calc(86vh - 58px); border:0; background:#fff; }
+  .lang { font-size:12px; }
+  @media (max-width:720px){ .hide-sm{display:none;} .qitem{grid-template-columns:1fr;} header{padding:14px;} }
+</style>
+</head>
+<body>
+<header>
+  <span class="badge">08</span>
+  <h1><span data-i18n="title">技术手稿馆 · 楼层后台</span><small data-i18n="subtitle">上传的 HTML 页面会自动变成 3D 大楼的新楼层</small></h1>
+  <button class="lang" id="lang" type="button">EN</button>
+  <button id="logout" type="button" hidden data-i18n="logout">退出登录</button>
+</header>
+
+<main>
+  <section class="card login" id="loginCard" hidden>
+    <h2 data-i18n="loginTitle">管理员登录</h2>
+    <form id="loginForm" autocomplete="on">
+      <div><label for="pw" data-i18n="password">密码</label>
+        <input id="pw" type="password" name="password" autocomplete="current-password" required autofocus></div>
+      <button class="primary" type="submit" data-i18n="login">登录</button>
+      <div class="msg" id="loginMsg" role="status" aria-live="polite"></div>
+    </form>
+  </section>
+
+  <div id="app" hidden>
+    <section class="card">
+      <h2 data-i18n="uploadTitle">上传新楼层</h2>
+      <div class="drop" id="drop" tabindex="0" role="button">
+        <strong data-i18n="dropHere">拖拽 HTML 文件到这里，或点击选择</strong>
+        <span data-i18n="dropHint">支持 .html / .htm，单个不超过 5MB，可一次选多个；每个文件一层楼</span>
+      </div>
+      <input id="file" type="file" accept=".html,.htm,text/html" multiple hidden>
+      <div class="row">
+        <div><label for="titleInput" data-i18n="titleLabel">楼层标题（可选，只用于单个文件；留空则用页面 &lt;title&gt;）</label>
+          <input id="titleInput" type="text" maxlength="80"></div>
+        <button class="primary" id="uploadBtn" type="button" disabled data-i18n="upload">上传</button>
+      </div>
+      <div class="queue" id="queue"></div>
+      <div class="msg" id="uploadMsg" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="card">
+      <h2><span data-i18n="listTitle">全部楼层</span> <span class="muted" id="count"></span></h2>
+      <p class="muted" data-i18n="listHint">1F、2F 是网站内置的两层（Biglink、LoRA），这里上传的页面从 3F 往上排。</p>
+      <table>
+        <thead><tr>
+          <th data-i18n="colFloor">楼层</th><th data-i18n="colTitle">标题 / 文件</th>
+          <th class="hide-sm" data-i18n="colSize">大小</th><th class="hide-sm" data-i18n="colTime">上传时间</th><th></th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </section>
+  </div>
+</main>
+
+<dialog id="preview">
+  <header><strong id="previewTitle"></strong><span style="flex:1"></span>
+    <a class="btn" id="previewOpen" target="_blank" rel="noopener noreferrer" data-i18n="openTab">新标签页打开</a>
+    <button type="button" id="previewClose" data-i18n="close">关闭</button></header>
+  <iframe id="previewFrame" sandbox="allow-scripts allow-forms allow-popups allow-modals" referrerpolicy="no-referrer" title="preview"></iframe>
+</dialog>
+
+<script>
+(() => {
+  const API = "/tower-admin/api";
+  const BUILTIN_FLOORS = 2;
+  const I18N = {
+    zh: {}, en: {
+      title: "Archive Tower · Floor Admin", subtitle: "Every uploaded HTML page becomes a new floor of the 3D tower",
+      logout: "Log out", loginTitle: "Admin login", password: "Password", login: "Log in",
+      uploadTitle: "Upload new floors", dropHere: "Drop HTML files here, or click to choose",
+      dropHint: ".html / .htm, up to 5 MB each, multiple allowed — one floor per file",
+      titleLabel: "Floor title (optional, single file only; blank = page <title>)", upload: "Upload",
+      listTitle: "All floors", listHint: "1F and 2F are the site's built-in floors (Biglink, LoRA); uploads stack from 3F up.",
+      colFloor: "Floor", colTitle: "Title / file", colSize: "Size", colTime: "Uploaded", openTab: "Open in new tab", close: "Close",
+    },
+  };
+  const T = {
+    zh: { empty: "还没有上传的楼层", preview: "预览", open: "打开", rename: "改名", del: "删除",
+      confirmDel: (t) => `确定删除「${t}」？这层楼会从大楼上消失。`, renamePrompt: "新的楼层标题：",
+      uploaded: (n) => `已上传 ${n} 个页面，大楼长高了 ${n} 层`, wrongType: (n) => `${n} 不是 .html/.htm 文件`,
+      tooBig: (n) => `${n} 超过 5MB`, count: (n) => `（共 ${n} 层上传楼层）`, failed: "失败", done: "完成", net: "网络错误，请重试",
+      checking: "登录中…", deleted: "已删除" },
+    en: { empty: "No uploaded floors yet", preview: "Preview", open: "Open", rename: "Rename", del: "Delete",
+      confirmDel: (t) => `Delete “${t}”? This floor will disappear from the tower.`, renamePrompt: "New floor title:",
+      uploaded: (n) => `Uploaded ${n} page(s) — the tower grew ${n} floor(s)`, wrongType: (n) => `${n} is not .html/.htm`,
+      tooBig: (n) => `${n} is larger than 5 MB`, count: (n) => `(${n} uploaded floors)`, failed: "failed", done: "done",
+      net: "Network error, please retry", checking: "Logging in…", deleted: "Deleted" },
+  };
+  let lang = localStorage.getItem("tower-admin-lang") || (navigator.language.startsWith("zh") ? "zh" : "en");
+  const $ = (id) => document.getElementById(id);
+  const zhDefaults = {};
+  document.querySelectorAll("[data-i18n]").forEach((el) => { zhDefaults[el.dataset.i18n] = el.textContent; });
+  function applyLang() {
+    document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+    document.querySelectorAll("[data-i18n]").forEach((el) => {
+      const key = el.dataset.i18n; el.textContent = lang === "en" ? (I18N.en[key] ?? zhDefaults[key]) : zhDefaults[key];
+    });
+    $("lang").textContent = lang === "zh" ? "EN" : "中文";
+    if (pages) render();
+  }
+  $("lang").onclick = () => { lang = lang === "zh" ? "en" : "zh"; localStorage.setItem("tower-admin-lang", lang); applyLang(); };
+  const t = (k, ...a) => { const v = T[lang][k]; return typeof v === "function" ? v(...a) : v; };
+  const errText = (data) => (lang === "en" ? data?.errorEn : data?.error) || t("net");
+  const fmtSize = (b) => b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 1024).toFixed(1)} KB` : `${(b / 1048576).toFixed(2)} MB`;
+  const fmtTime = (s) => { const d = new Date(s); return isNaN(d) ? s : d.toLocaleString(lang === "zh" ? "zh-CN" : "en-GB", { hour12: false }); };
+
+  let pages = null;
+  async function api(path, opts = {}) {
+    const res = await fetch(API + path, { credentials: "same-origin", ...opts });
+    let data = null; try { data = await res.json(); } catch {}
+    if (res.status === 401 && path !== "/login") showLogin();
+    return { ok: res.ok, status: res.status, data };
+  }
+  function showLogin() { $("loginCard").hidden = false; $("app").hidden = true; $("logout").hidden = true; $("pw").focus(); }
+  async function showApp() { $("loginCard").hidden = true; $("app").hidden = false; $("logout").hidden = false; await refresh(); }
+  async function refresh() { const r = await api("/pages"); if (r.ok) { pages = r.data.pages; render(); } }
+
+  function render() {
+    const tbody = $("rows"); tbody.textContent = "";
+    $("count").textContent = t("count", pages.length);
+    if (!pages.length) { const tr = tbody.insertRow(); const td = tr.insertCell(); td.colSpan = 5; td.className = "empty"; td.textContent = t("empty"); return; }
+    [...pages].reverse().forEach((p) => {
+      const tr = tbody.insertRow();
+      const f = tr.insertCell(); f.className = "floor"; f.textContent = `${p.floor + BUILTIN_FLOORS}F`;
+      const c = tr.insertCell(); const strong = document.createElement("strong"); strong.textContent = p.title;
+      const file = document.createElement("div"); file.className = "file"; file.textContent = p.filename; c.append(strong, file);
+      const s = tr.insertCell(); s.className = "hide-sm"; s.textContent = fmtSize(p.size);
+      const tm = tr.insertCell(); tm.className = "hide-sm"; tm.textContent = fmtTime(p.createdAt);
+      const a = tr.insertCell(); a.className = "actions";
+      const pv = document.createElement("button"); pv.type = "button"; pv.textContent = t("preview"); pv.onclick = () => openPreview(p);
+      const op = document.createElement("a"); op.className = "btn"; op.href = p.url; op.target = "_blank"; op.rel = "noopener noreferrer"; op.textContent = t("open");
+      const rn = document.createElement("button"); rn.type = "button"; rn.textContent = t("rename"); rn.onclick = () => rename(p);
+      const del = document.createElement("button"); del.type = "button"; del.className = "danger"; del.textContent = t("del"); del.onclick = () => remove(p);
+      a.append(pv, op, rn, del);
+    });
+  }
+  function openPreview(p) { $("previewTitle").textContent = `${p.floor + BUILTIN_FLOORS}F · ${p.title}`; $("previewFrame").src = p.url; $("previewOpen").href = p.url; $("preview").showModal(); }
+  $("previewClose").onclick = () => { $("preview").close(); };
+  $("preview").addEventListener("close", () => { $("previewFrame").src = "about:blank"; });
+  async function rename(p) {
+    const title = prompt(t("renamePrompt"), p.title); if (!title || title === p.title) return;
+    const r = await api(`/pages/${p.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }) });
+    if (r.ok) refresh(); else alert(errText(r.data));
+  }
+  async function remove(p) {
+    if (!confirm(t("confirmDel", p.title))) return;
+    const r = await api(`/pages/${p.id}`, { method: "DELETE" });
+    if (r.ok) { pages = r.data.pages; render(); setMsg("uploadMsg", t("deleted"), "ok"); } else alert(errText(r.data));
+  }
+  function setMsg(id, text, kind = "") { const el = $(id); el.textContent = text; el.className = `msg ${kind}`; }
+
+  // ---- login
+  $("loginForm").onsubmit = async (e) => {
+    e.preventDefault(); setMsg("loginMsg", t("checking"));
+    const r = await api("/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: $("pw").value }) });
+    $("pw").value = "";
+    if (r.ok) { setMsg("loginMsg", ""); showApp(); } else setMsg("loginMsg", errText(r.data), "err");
+  };
+  $("logout").onclick = async () => { await api("/logout", { method: "POST" }); pages = null; showLogin(); };
+
+  // ---- upload
+  let chosen = [];
+  const drop = $("drop"), input = $("file");
+  drop.onclick = () => input.click();
+  drop.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); } };
+  input.onchange = () => choose([...input.files]);
+  ["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+  ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+  drop.addEventListener("drop", (e) => choose([...e.dataTransfer.files]));
+  function choose(files) {
+    const errors = [];
+    chosen = files.filter((f) => {
+      if (!/\.html?$/i.test(f.name)) { errors.push(t("wrongType", f.name)); return false; }
+      if (f.size > 5 * 1024 * 1024) { errors.push(t("tooBig", f.name)); return false; }
+      return true;
+    });
+    $("queue").textContent = "";
+    chosen.forEach((f) => {
+      const row = document.createElement("div"); row.className = "qitem";
+      const name = document.createElement("span"); name.textContent = `${f.name} · ${fmtSize(f.size)}`;
+      const bar = document.createElement("progress"); bar.max = 100; bar.value = 0;
+      const st = document.createElement("span"); st.className = "muted";
+      row.append(name, bar, st); $("queue").append(row); f._ui = { bar, st };
+    });
+    $("titleInput").disabled = chosen.length > 1;
+    $("uploadBtn").disabled = !chosen.length;
+    setMsg("uploadMsg", errors.join("；"), errors.length ? "err" : "");
+  }
+  function uploadOne(file, title) {
+    return new Promise((resolve) => {
+      const form = new FormData(); form.append("file", file); if (title) form.append("title", title);
+      const xhr = new XMLHttpRequest(); xhr.open("POST", API + "/pages"); xhr.withCredentials = true;
+      xhr.upload.onprogress = (e) => { if (e.lengthComputable) file._ui.bar.value = Math.round((e.loaded / e.total) * 100); };
+      xhr.onload = () => { let data = null; try { data = JSON.parse(xhr.responseText); } catch {}
+        if (xhr.status === 401) showLogin();
+        resolve({ ok: xhr.status >= 200 && xhr.status < 300, data }); };
+      xhr.onerror = () => resolve({ ok: false, data: null });
+      xhr.send(form);
+    });
+  }
+  $("uploadBtn").onclick = async () => {
+    $("uploadBtn").disabled = true; let okCount = 0; const errors = [];
+    const title = chosen.length === 1 ? $("titleInput").value.trim() : "";
+    for (const f of chosen) {
+      f._ui.st.textContent = "…";
+      const r = await uploadOne(f, title);
+      if (r.ok) { okCount++; f._ui.bar.value = 100; f._ui.st.textContent = t("done"); }
+      else { f._ui.st.textContent = t("failed"); errors.push(`${f.name}: ${errText(r.data)}`); }
+    }
+    chosen = []; input.value = ""; $("titleInput").value = ""; $("titleInput").disabled = false;
+    setMsg("uploadMsg", [okCount ? t("uploaded", okCount) : "", ...errors].filter(Boolean).join("；"), errors.length ? "err" : "ok");
+    refresh();
+  };
+
+  applyLang();
+  api("/session").then((r) => (r.data?.authenticated ? showApp() : showLogin()));
+})();
+</script>
+</body>
+</html>

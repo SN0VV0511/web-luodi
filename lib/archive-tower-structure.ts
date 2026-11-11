@@ -2,6 +2,10 @@ import * as THREE from "three";
 import type { FloorInteriorContext } from "./archive-tower-interiors";
 
 export type SuperstructureRig = {
+  /** 屋顶设备组（停机坪/雷达/风机/尖塔），position.y 为相对原屋顶的抬升量。 */
+  roofGroup: THREE.Group;
+  roofY: number;
+  columnCorners: readonly (readonly [number, number])[];
   update: (worldTime: number, isSelected: boolean) => void;
 };
 
@@ -173,6 +177,11 @@ export function buildTowerSuperstructure3D(
     structGroup.add(spinePipe);
   }
 
+  // 屋顶总成独立成组：上传楼层增加时整体抬升（见 archive-tower-3d.ts setUploadedFloors）。
+  const roofGroup = new THREE.Group();
+  roofGroup.name = "ArchiveTowerRoof";
+  structGroup.add(roofGroup);
+
   // 4. 屋顶综合机电甲板、直升机停机坪、太阳能阵列、旋转雷达与双冷却塔
   const roofDeck = new THREE.Mesh(ctx.unitBox, ctx.darkSteelMat);
   roofDeck.scale.set(spanW + 1.0, 0.75, spanD + 1.0);
@@ -180,19 +189,19 @@ export function buildTowerSuperstructure3D(
   roofDeck.castShadow = true;
   roofDeck.receiveShadow = true;
   ctx.tagPickable(roofDeck, 1);
-  structGroup.add(roofDeck);
+  roofGroup.add(roofDeck);
 
   const roofRimGlow = new THREE.Mesh(ctx.unitBox, ctx.cyanGlowMat);
   roofRimGlow.scale.set(spanW + 1.25, 0.16, spanD + 1.25);
   roofRimGlow.position.set(centerX, roofY + 0.78, centerZ);
-  structGroup.add(roofRimGlow);
+  roofGroup.add(roofRimGlow);
 
   // 屋顶玻璃护栏
   for (const sz of [-1, 1]) {
     const rail = new THREE.Mesh(ctx.unitBox, ctx.glassMat);
     rail.scale.set(spanW + 0.4, 0.85, 0.08);
     rail.position.set(centerX, roofY + 1.15, centerZ + sz * (spanD / 2 + 0.25));
-    structGroup.add(rail);
+    roofGroup.add(rail);
   }
 
   // 屋顶右侧：发光直升机停机坪 (Helipad with H Mark)
@@ -202,25 +211,25 @@ export function buildTowerSuperstructure3D(
   helipadDisc.scale.set(3.4, 0.22, 3.4);
   helipadDisc.position.set(helipadX, roofY + 0.85, helipadZ);
   ctx.tagPickable(helipadDisc, 1);
-  structGroup.add(helipadDisc);
+  roofGroup.add(helipadDisc);
 
   const helipadRing = new THREE.Mesh(ctx.unitTorus, ctx.goldGlowMat);
   helipadRing.rotation.x = Math.PI / 2;
   helipadRing.scale.set(3.05, 3.05, 0.75);
   helipadRing.position.set(helipadX, roofY + 0.98, helipadZ);
-  structGroup.add(helipadRing);
+  roofGroup.add(helipadRing);
 
   // H 字母 3D 标识
   for (const hx of [-0.75, 0.75]) {
     const hLeg = new THREE.Mesh(ctx.unitBox, ctx.cyanGlowMat);
     hLeg.scale.set(0.32, 0.08, 1.9);
     hLeg.position.set(helipadX + hx, roofY + 0.98, helipadZ);
-    structGroup.add(hLeg);
+    roofGroup.add(hLeg);
   }
   const hCross = new THREE.Mesh(ctx.unitBox, ctx.cyanGlowMat);
   hCross.scale.set(1.5, 0.08, 0.32);
   hCross.position.set(helipadX, roofY + 0.98, helipadZ);
-  structGroup.add(hCross);
+  roofGroup.add(hCross);
 
   // 屋顶后排：4 块倾角光伏阵列板 (Solar Array)
   for (let s = 0; s < 4; s++) {
@@ -228,7 +237,7 @@ export function buildTowerSuperstructure3D(
     panel.scale.set(1.9, 0.08, 1.35);
     panel.position.set(centerX - 5.2 + s * 2.25, roofY + 1.35, centerZ - 4.2);
     panel.rotation.x = 0.42;
-    structGroup.add(panel);
+    roofGroup.add(panel);
   }
 
   // 屋顶左侧：双组工业级 HVAC 液冷散热风机组 (带旋转扇叶)
@@ -240,13 +249,13 @@ export function buildTowerSuperstructure3D(
     housing.scale.set(2.4, 1.45, 2.4);
     housing.position.set(fx, roofY + 1.45, fz);
     ctx.tagPickable(housing, 1);
-    structGroup.add(housing);
+    roofGroup.add(housing);
 
     const shroud = new THREE.Mesh(ctx.unitTorus, ctx.brushedSteelMat);
     shroud.rotation.x = Math.PI / 2;
     shroud.scale.set(0.88, 0.88, 1.2);
     shroud.position.set(fx, roofY + 2.22, fz);
-    structGroup.add(shroud);
+    roofGroup.add(shroud);
 
     const rotor = new THREE.Group();
     rotor.position.set(fx, roofY + 2.2, fz);
@@ -257,7 +266,7 @@ export function buildTowerSuperstructure3D(
       blade.rotation.x = 0.25;
       rotor.add(blade);
     }
-    structGroup.add(rotor);
+    roofGroup.add(rotor);
     hvacFans.push(rotor);
   }
 
@@ -265,11 +274,11 @@ export function buildTowerSuperstructure3D(
   const radarPedestal = new THREE.Mesh(ctx.unitCyl, ctx.brushedSteelMat);
   radarPedestal.scale.set(0.45, 1.8, 0.45);
   radarPedestal.position.set(centerX + 5.8, roofY + 1.6, centerZ - 3.8);
-  structGroup.add(radarPedestal);
+  roofGroup.add(radarPedestal);
 
   const radarHead = new THREE.Group();
   radarHead.position.set(centerX + 5.8, roofY + 2.75, centerZ - 3.8);
-  structGroup.add(radarHead);
+  roofGroup.add(radarHead);
 
   const dishRing = new THREE.Mesh(ctx.unitTorus, ctx.goldGlowMat);
   dishRing.scale.set(1.15, 1.15, 0.8);
@@ -288,14 +297,17 @@ export function buildTowerSuperstructure3D(
   const spireMast = new THREE.Mesh(ctx.unitCyl, ctx.brushedSteelMat);
   spireMast.scale.set(0.14, 6.2, 0.14);
   spireMast.position.set(spireX, roofY + 3.8, spireZ);
-  structGroup.add(spireMast);
+  roofGroup.add(spireMast);
 
   const beaconOrb = new THREE.Mesh(ctx.unitSphere, ctx.goldGlowMat);
   beaconOrb.scale.setScalar(0.32);
   beaconOrb.position.set(spireX, roofY + 7.0, spireZ);
-  structGroup.add(beaconOrb);
+  roofGroup.add(beaconOrb);
 
   return {
+    roofGroup,
+    roofY,
+    columnCorners: corners,
     update(worldTime: number, isSelected: boolean) {
       const mult = isSelected ? 1.8 : 0.9;
       radarHead.rotation.y = worldTime * 0.95 * mult;

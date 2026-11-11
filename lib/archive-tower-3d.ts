@@ -6,6 +6,15 @@ import {
   type FloorInteriorRig,
 } from "./archive-tower-interiors";
 import { buildTowerSuperstructure3D } from "./archive-tower-structure";
+import {
+  ANNEX_FLOOR_HEIGHT,
+  annexFloorBaseY,
+  buildArchiveAnnex,
+  type ArchiveAnnex,
+  type ArchiveUploadedFloor,
+} from "./archive-tower-annex";
+
+export type { ArchiveUploadedFloor } from "./archive-tower-annex";
 
 export type ArchiveTower3D = {
   group: THREE.Group;
@@ -21,6 +30,15 @@ export type ArchiveTower3D = {
     floorStageWorld: THREE.Vector3;
     cameraTargetY: number;
   };
+  /** 用后台上传的页面重建 3F 以上的加建楼层；返回需要从拾取索引移除/加入的对象。 */
+  setUploadedFloors: (floors: readonly ArchiveUploadedFloor[]) => {
+    removed: THREE.Object3D[];
+    added: THREE.Object3D[];
+  };
+  /** 楼层总数（2 层内置 + 上传楼层）。 */
+  floorCount: () => number;
+  /** 镜头对准该楼层时的目标高度。 */
+  getCameraTargetY: (floorIndex: number) => number;
   dispose: () => void;
 };
 
@@ -47,7 +65,10 @@ type FloorModule = {
 /**
  * 08号楼 · 技术手稿馆 专属高精度 3D 建筑结构、机械展开立面、室内微缩沙盘与外挂观光电梯模型。
  */
-export function buildArchiveTower3D(lot: CityLot): ArchiveTower3D {
+export function buildArchiveTower3D(
+  lot: CityLot,
+  initialUploadedFloors: readonly ArchiveUploadedFloor[] = [],
+): ArchiveTower3D {
   const group = new THREE.Group();
   group.name = "ArchiveTower3D_Slot8";
   group.position.set(lot.x, 0, lot.z);
@@ -620,29 +641,33 @@ export function buildArchiveTower3D(lot: CityLot): ArchiveTower3D {
     elevatorGroup.add(cable);
   }
 
+  // 曳引机房独立成组：上传楼层增加时随井道一起抬升。
+  const machineGroup = new THREE.Group();
+  elevatorGroup.add(machineGroup);
+
   // 屋顶透明玻璃曳引机房 + 3D 永磁同步电机 + 双辐条曳引轮
   const machineFloor = new THREE.Mesh(unitBox, darkSteelMat);
   machineFloor.scale.set(shaftW + 0.8, 0.38, shaftD + 0.8);
   machineFloor.position.set(0, shaftH + 0.19, 0);
   tagPickable(machineFloor, undefined, true);
-  elevatorGroup.add(machineFloor);
+  machineGroup.add(machineFloor);
 
   const machineGlass = new THREE.Mesh(unitBox, cabGlassMat);
   machineGlass.scale.set(shaftW + 0.6, 2.5, shaftD + 0.6);
   machineGlass.position.set(0, shaftH + 1.6, 0);
   tagPickable(machineGlass, undefined, true);
-  elevatorGroup.add(machineGlass);
+  machineGroup.add(machineGlass);
 
   const machineRoof = new THREE.Mesh(unitBox, darkSteelMat);
   machineRoof.scale.set(shaftW + 0.9, 0.34, shaftD + 0.9);
   machineRoof.position.set(0, shaftH + 2.95, 0);
-  elevatorGroup.add(machineRoof);
+  machineGroup.add(machineRoof);
 
   const tractionMotor = new THREE.Mesh(unitCyl, cyanGlowMat);
   tractionMotor.rotation.z = Math.PI / 2;
   tractionMotor.scale.set(0.55, 1.35, 0.55);
   tractionMotor.position.set(0, shaftH + 1.55, -0.35);
-  elevatorGroup.add(tractionMotor);
+  machineGroup.add(tractionMotor);
 
   const makePulleyWheel = (xOffset: number) => {
     const wheelGroup = new THREE.Group();
@@ -657,7 +682,7 @@ export function buildArchiveTower3D(lot: CityLot): ArchiveTower3D {
       spoke.rotation.x = (s * Math.PI) / 6;
       wheelGroup.add(spoke);
     }
-    elevatorGroup.add(wheelGroup);
+    machineGroup.add(wheelGroup);
     return wheelGroup;
   };
   const pulleyWheelA = makePulleyWheel(-0.58);
@@ -684,7 +709,8 @@ export function buildArchiveTower3D(lot: CityLot): ArchiveTower3D {
   const cabW = 3.4;
   const cabH = 4.85;
   const cabD = 3.0;
-  const getFloorElevatorY = (idx: number) => (idx === 0 ? 4.8 : 18.6);
+  const getFloorElevatorY = (idx: number) =>
+    idx === 0 ? 4.8 : idx === 1 ? 18.6 : annexFloorBaseY(superstructureRig.roofY, idx - 2) + 2.9;
   let currentCabY = getFloorElevatorY(0);
   let startCabY = currentCabY;
   let targetCabY = currentCabY;
@@ -830,8 +856,52 @@ export function buildArchiveTower3D(lot: CityLot): ArchiveTower3D {
   doorTrimRight.position.set(-0.46, 0, 0);
   doorRight.add(doorTrimRight);
 
+  // ==================== 4b. 上传页面加建楼层（3F 起，每个 HTML 一层） ====================
+  const annexLight = new THREE.PointLight(0xffe2a8, 0, 18, 1.4);
+  group.add(annexLight);
+  let annex: ArchiveAnnex | null = null;
+  const tagUserData = (obj: THREE.Object3D, floorIndex?: number, isElevator?: boolean) => {
+    obj.userData.place = "slot-8";
+    if (floorIndex !== undefined) obj.userData.floorIndex = floorIndex;
+    if (isElevator) obj.userData.isElevator = true;
+  };
+  function setUploadedFloors(floors: readonly ArchiveUploadedFloor[]) {
+    const removed = annex?.pickables ?? [];
+    annex?.dispose();
+    annex = buildArchiveAnnex(floors, {
+      unitBox,
+      unitCyl,
+      darkSteelMat,
+      brushedSteelMat,
+      slabConcreteMat,
+      glassMat: curtainGlassMat,
+      cyanGlowMat,
+      blueGlowMat,
+      baseY: superstructureRig.roofY,
+      centerX: floorCenterX,
+      centerZ: floorCenterZ,
+      floorW,
+      floorD,
+      spanW: 16.8,
+      spanD: 12.8,
+      columnCorners: superstructureRig.columnCorners,
+      spineZ: floorCenterZ - 12.8 / 2 - 0.28,
+      shaft: { x: shaftX, z: shaftZ, w: shaftW, d: shaftD, topY: shaftH },
+      tag: tagUserData,
+    });
+    group.add(annex.group);
+    superstructureRig.roofGroup.position.y = annex.height;
+    machineGroup.position.y = annex.height;
+    return { removed, added: annex.pickables };
+  }
+  setUploadedFloors(initialUploadedFloors);
+  const floorCount = () => floorModules.length + (annex?.modules.length ?? 0);
+  const getCameraTargetY = (idx: number) =>
+    idx <= 0 ? 9.4 : idx === 1 ? 18.2 : annexFloorBaseY(superstructureRig.roofY, idx - 2) + ANNEX_FLOOR_HEIGHT * 0.5;
+
   // ==================== 5. 电梯、机械立面与楼层 3D 状态机动画 ====================
   let lastTargetFloor = 0;
+  const floorLabel = (idx: number) => `${String(idx + 1).padStart(2, "0")}F`;
   let elevatorPhase: "open" | "closing" | "moving" | "opening" = "open";
   let phaseTimer = 0;
   let doorOpenRatio = 1;
@@ -844,7 +914,7 @@ export function buildArchiveTower3D(lot: CityLot): ArchiveTower3D {
     activeFloorIndex: number,
   ): boolean {
     const safeDt = Math.min(Math.max(dt, 0.008), 0.06);
-    const clampedFloor = Math.max(0, Math.min(floorModules.length - 1, activeFloorIndex));
+    const clampedFloor = Math.max(0, Math.min(floorCount() - 1, activeFloorIndex));
     let stillAnimating = false;
 
     // 屋顶雷达、双散热风机与信标灯持续运行
@@ -870,7 +940,7 @@ export function buildArchiveTower3D(lot: CityLot): ArchiveTower3D {
       }
     } else if (elevatorPhase === "moving") {
       phaseTimer += safeDt;
-      const p = Math.min(1, phaseTimer / 0.62);
+      const p = Math.min(1, phaseTimer / (0.62 + Math.min(1.6, Math.abs(targetCabY - startCabY) / 45)));
       const eased = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
       currentCabY = THREE.MathUtils.lerp(startCabY, targetCabY, eased);
       doorOpenRatio = 0;
@@ -880,7 +950,7 @@ export function buildArchiveTower3D(lot: CityLot): ArchiveTower3D {
       pulleyWheelB.rotation.x -= spinDir * safeDt * 12;
       tractionMotor.rotation.x += spinDir * safeDt * 16;
       updateLedSign(
-        goingUp ? `▲ UP -> 0${clampedFloor + 1}F` : `▼ DN -> 0${clampedFloor + 1}F`,
+        goingUp ? `▲ UP -> ${floorLabel(clampedFloor)}` : `▼ DN -> ${floorLabel(clampedFloor)}`,
         "#ffd175",
       );
       stillAnimating = true;
@@ -893,7 +963,7 @@ export function buildArchiveTower3D(lot: CityLot): ArchiveTower3D {
       phaseTimer += safeDt;
       const p = Math.min(1, phaseTimer / 0.26);
       doorOpenRatio = p;
-      updateLedSign(`0${clampedFloor + 1}F ● OPEN`, "#5ce0a0");
+      updateLedSign(`${floorLabel(clampedFloor)} ● OPEN`, "#5ce0a0");
       stillAnimating = true;
       if (p >= 1) {
         doorOpenRatio = 1;
@@ -906,11 +976,13 @@ export function buildArchiveTower3D(lot: CityLot): ArchiveTower3D {
         stillAnimating = true;
       }
       doorOpenRatio = THREE.MathUtils.lerp(doorOpenRatio, isSelected ? 1 : 0, safeDt * 8);
-      updateLedSign(`0${clampedFloor + 1}F ● OPEN`, "#5ce0a0");
+      updateLedSign(`${floorLabel(clampedFloor)} ● OPEN`, "#5ce0a0");
     }
 
     cabGroup.position.y = currentCabY + currentDeckOffsetY;
-    counterweightGroup.position.y = 26.8 - currentCabY * 0.85;
+    const topCabY = getFloorElevatorY(Math.max(1, floorCount() - 1));
+    const cwTravel = THREE.MathUtils.clamp((currentCabY - 4.8) / Math.max(1, topCabY - 4.8), 0, 1);
+    counterweightGroup.position.y = THREE.MathUtils.lerp(shaftH + (annex?.height ?? 0) - 9, 3.2, cwTravel);
     cabLight.intensity = THREE.MathUtils.lerp(cabLight.intensity, isSelected ? 2.4 : 0, safeDt * 6);
     visitorGroup.rotation.y = Math.sin(worldTime * 1.4) * 0.25;
 
@@ -918,7 +990,7 @@ export function buildArchiveTower3D(lot: CityLot): ArchiveTower3D {
     doorLeft.position.x = -doorW / 2 - slideOffset;
     doorRight.position.x = doorW / 2 + slideOffset;
 
-    const targetDeckOffsetY = isSelected ? (clampedFloor === 1 ? -3.2 : 1.2) : 0;
+    const targetDeckOffsetY = isSelected && clampedFloor < 2 ? (clampedFloor === 1 ? -3.2 : 1.2) : 0;
     if (Math.abs(currentDeckOffsetY - targetDeckOffsetY) > 0.015) {
       currentDeckOffsetY = THREE.MathUtils.lerp(
         currentDeckOffsetY,
@@ -995,13 +1067,33 @@ export function buildArchiveTower3D(lot: CityLot): ArchiveTower3D {
       mod.interiorRig.update(worldTime, isFloorActive);
     }
 
+    // 上传楼层：选中层前推、发光带与室内灯增强，共享一盏跟随点光源
+    let activeAnnexY: number | null = null;
+    for (const mod of annex?.modules ?? []) {
+      const isFloorActive = isSelected && mod.floorIndex === clampedFloor;
+      const targetSlide = isFloorActive ? 1.6 : 0;
+      if (Math.abs(mod.slideZ - targetSlide) > 0.01) {
+        mod.slideZ = THREE.MathUtils.lerp(mod.slideZ, targetSlide, safeDt * 7);
+        mod.group.position.z = floorCenterZ + mod.slideZ;
+        stillAnimating = true;
+      }
+      mod.glowMat.emissiveIntensity = isFloorActive ? 2.4 : 0.9 + Math.sin(worldTime * 1.3 + mod.floorIndex) * 0.12;
+      mod.roomMat.emissiveIntensity = isFloorActive ? 0.9 : isSelected ? 0.45 : 0.32;
+      if (isFloorActive) activeAnnexY = mod.baseY;
+    }
+    if (activeAnnexY !== null) annexLight.position.set(floorCenterX, activeAnnexY + 2.8, floorCenterZ + 4.5);
+    annexLight.intensity = THREE.MathUtils.lerp(annexLight.intensity, activeAnnexY !== null ? 5 : 0, safeDt * 6);
+
     return stillAnimating;
   }
 
   function getSpatialAnchors(activeFloorIndex: number) {
-    const clamped = Math.max(0, Math.min(floorModules.length - 1, activeFloorIndex));
-    const activeMod = floorModules[clamped] ?? floorModules[0]!;
-    const floorWorldY = activeMod.baseY + currentDeckOffsetY + floorH * 0.52;
+    const clamped = Math.max(0, Math.min(floorCount() - 1, activeFloorIndex));
+    const annexMod = clamped >= 2 ? annex?.modules[clamped - 2] : undefined;
+    const activeMod = floorModules[Math.min(clamped, floorModules.length - 1)] ?? floorModules[0]!;
+    const floorWorldY = annexMod
+      ? annexMod.baseY + ANNEX_FLOOR_HEIGHT * 0.5
+      : activeMod.baseY + currentDeckOffsetY + floorH * 0.52;
     const elevatorWorld = new THREE.Vector3(
       lot.x + shaftX - 2.6,
       currentCabY + currentDeckOffsetY + 1.2,
@@ -1010,7 +1102,7 @@ export function buildArchiveTower3D(lot: CityLot): ArchiveTower3D {
     const floorStageWorld = new THREE.Vector3(
       lot.x + floorCenterX + floorW * 0.52,
       floorWorldY,
-      lot.z + floorCenterZ + activeMod.currentSlideZ + 2.2,
+      lot.z + floorCenterZ + (annexMod ? annexMod.slideZ : activeMod.currentSlideZ) + 2.2,
     );
     return {
       elevatorWorld,
@@ -1020,6 +1112,8 @@ export function buildArchiveTower3D(lot: CityLot): ArchiveTower3D {
   }
 
   function dispose() {
+    annex?.dispose();
+    annex = null;
     geometries.forEach((g) => g.dispose());
     materials.forEach((m) => m.dispose());
     textures.forEach((t) => t.dispose());
@@ -1030,6 +1124,9 @@ export function buildArchiveTower3D(lot: CityLot): ArchiveTower3D {
     pickables,
     animate,
     getSpatialAnchors,
+    setUploadedFloors,
+    floorCount,
+    getCameraTargetY,
     dispose,
   };
 }

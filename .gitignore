@@ -3,3 +3,7 @@ node_modules/
 *.tsbuildinfo
 npm-debug.log*
 .env*.local
+
+# html-tower runtime data
+tower/data/
+__pycache__/

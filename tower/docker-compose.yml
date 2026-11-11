@@ -1,0 +1,21 @@
+# HTML Tower — runs on its own (project "html-tower"), independent of the root compose file.
+# On the server: /opt/html-tower/{app,data,.env}; .env (chmod 600) holds ADMIN_PASSWORD_HASH and SESSION_SECRET.
+services:
+  html-tower:
+    build: ./app
+    image: html-tower:latest
+    container_name: html-tower
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /app/data
+      PORT: "3004"
+      TZ: CST-8
+    ports:
+      - "127.0.0.1:3004:3004"
+    volumes:
+      - ./data:/app/data
+    mem_limit: 64m
+    read_only: true
+    tmpfs:
+      - /tmp
