@@ -75,6 +75,8 @@ export type WaterOptions = {
   treeLine?: boolean;
   deep?: string;
   shallow?: string;
+  /** 离岸白浪（海面 1，湖面 0）。 */
+  whitecaps?: number;
 };
 const glslColour = (hex: string) => { const c = new THREE.Color(hex); return `vec3(${c.r.toFixed(3)}, ${c.g.toFixed(3)}, ${c.b.toFixed(3)})`; };
 
@@ -119,7 +121,22 @@ uniform sampler2D uWaveMap;
 float lakeShore;      // 0 = 湖心, 1 = 岸线
 float lakeFoam;
 vec3 lakeWorldNormal;
-vec3 waveSample(vec2 uv) { return texture2D(uWaveMap, uv).xyz * 2.0 - 1.0; }`)
+float lakeWind;       // 0..1 大尺度风区（猫爪风斑），打破平铺
+vec3 waveSample(vec2 uv) { return texture2D(uWaveMap, uv).xyz * 2.0 - 1.0; }
+float waterHash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+float waterNoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(waterHash(i), waterHash(i + vec2(1.0, 0.0)), u.x), mix(waterHash(i + vec2(0.0, 1.0)), waterHash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+float waterFbm(vec2 p) { return waterNoise(p) * 0.55 + waterNoise(p * 2.13 + 7.1) * 0.3 + waterNoise(p * 4.37 + 3.9) * 0.15; }
+mat2 waterRot(float a) { float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }
+// 旋转采样 + 把法线斜率转回世界方向：各层周期方向不再对齐，平铺纹样被打散。
+vec2 waveSlope(vec2 p, float angle, float scale, vec2 drift) {
+  mat2 r = waterRot(angle);
+  vec2 n = waveSample(r * p / scale + drift).xy;
+  return n * r;
+}`)
       .replace("#include <color_fragment>", `#include <color_fragment>
 {
   ${profile}
@@ -137,22 +154,50 @@ vec3 waveSample(vec2 uv) { return texture2D(uWaveMap, uv).xyz * 2.0 - 1.0; }`)
   float pulse = 0.55 + 0.45 * sin(q * 260.0 - t * 1.7 + breakup * 6.0);
   lakeFoam = smoothstep(0.962, 0.992, edge) * pulse + smoothstep(0.985, 1.0, q) * 0.6;
   lakeFoam = clamp(lakeFoam, 0.0, 1.0) * (1.0 - uNight * 0.55);
+  float slick = waterFbm(vLakeWorld.xz * 0.006 + vec2(-t * 0.002, t * 0.0015));
+  water *= mix(0.8, 1.18, slick);
+  ${options.whitecaps ? `{
+    // 离岸白浪：大尺度风区内，波高峰值处出现零星、随时间生灭的白浪花。
+    float wind = smoothstep(0.35, 0.8, waterFbm(vLakeWorld.xz * 0.0045 / ${ws.toFixed(2)} + vec2(t * 0.0035, -t * 0.002)));
+    vec2 wp = waterRot(0.5) * vLakeWorld.xz;
+    float crest = texture2D(uWaveMap, vLakeWorld.xz / (9.0 * ${ws.toFixed(2)}) + vec2(t * 0.021, t * 0.013)).a;
+    float spot = waterNoise(wp * vec2(0.42, 0.16) + vec2(t * 0.09, -t * 0.05));
+    float life = 0.5 + 0.5 * sin(t * 0.7 + waterHash(floor(wp * vec2(0.42, 0.16))) * 6.28);
+    float footprintCap = length(fwidth(vLakeWorld.xz));
+    float cap = smoothstep(0.86, 0.95, spot) * smoothstep(0.55, 0.68, crest) * life * wind * smoothstep(0.85, 0.4, q) * ${options.whitecaps.toFixed(2)};
+    cap *= mix(1.0, 0.25, smoothstep(0.3, 1.2, footprintCap));
+    lakeFoam = max(lakeFoam, cap * (1.0 - uNight * 0.6));
+  }` : ""}
   diffuseColor.rgb = mix(water * (1.0 - uNight * 0.7), vec3(0.9, 0.93, 0.92), lakeFoam);
   diffuseColor.a = mix(0.9, 0.74, smoothstep(0.9, 1.0, q)) + lakeFoam * 0.2;
 }`)
       .replace("#include <roughnessmap_fragment>", `#include <roughnessmap_fragment>
 roughnessFactor = mix(roughnessFactor, 0.6, lakeFoam);`)
+      .replace("#include <lights_physical_fragment>", `roughnessFactor = max(roughnessFactor, mix(0.02, 0.09, lakeWind));
+#include <lights_physical_fragment>`)
       .replace("#include <normal_fragment_maps>", `#include <normal_fragment_maps>
 {
   vec2 p = vLakeWorld.xz;
   float t = uTime;
   float dist = length(vViewPosition);
   float fade = 1.0 - smoothstep(60.0, 260.0, dist) * 0.65;
-  vec3 n1 = waveSample(p / (9.0 * ${ws.toFixed(2)}) + vec2(t * 0.021, t * 0.013));
-  vec3 n2 = waveSample(p / (3.7 * ${ws.toFixed(2)}) + vec2(-t * 0.031, t * 0.026));
-  vec3 n3 = waveSample(p / (23.0 * ${ws.toFixed(2)}) + vec2(t * 0.008, -t * 0.011));
-  vec3 n4 = waveSample(p / (1.3 * ${ws.toFixed(2)}) + vec2(t * 0.05, t * 0.043));
-  vec2 slope = (n1.xy * 0.9 + n2.xy * 0.75 + n3.xy * 0.6 + n4.xy * 0.35 * (1.0 - smoothstep(10.0, 40.0, dist))) * fade;
+  // 低频域扭曲：位置先被两层噪声推移，消除法线贴图的规则周期。
+  vec2 warp = vec2(waterFbm(p * 0.011 + vec2(t * 0.006, 0.0)), waterFbm(p * 0.011 + vec2(17.3, -t * 0.005))) - 0.5;
+  vec2 pw = p + warp * 11.0 * ${ws.toFixed(2)};
+  lakeWind = smoothstep(0.28, 0.78, waterFbm(p * 0.0045 * ${(1 / ws).toFixed(3)} + vec2(t * 0.0035, -t * 0.002)));
+  // 像素足迹：小于 ~3 个像素的波长逐渐淡出，远景 / 航拍不再出现细碎重复的“布纹”。
+  float footprint = max(length(fwidth(p)), 1e-4);
+  float s1 = 9.0 * ${ws.toFixed(2)}, s2 = 3.7 * ${ws.toFixed(2)}, s3 = 23.0 * ${ws.toFixed(2)}, s4 = 1.3 * ${ws.toFixed(2)}, s5 = 61.0 * ${ws.toFixed(2)};
+  float w1 = 1.0 - smoothstep(s1 * 0.2, s1 * 0.7, footprint);
+  float w2 = 1.0 - smoothstep(s2 * 0.2, s2 * 0.7, footprint);
+  float w3 = 1.0 - smoothstep(s3 * 0.2, s3 * 0.7, footprint);
+  float w4 = (1.0 - smoothstep(s4 * 0.12, s4 * 0.45, footprint)) * (1.0 - smoothstep(10.0, 40.0, dist));
+  vec2 slope = waveSlope(pw, 0.0, s1, vec2(t * 0.021, t * 0.013)) * 0.9 * w1
+    + waveSlope(pw, 1.13, s2, vec2(-t * 0.031, t * 0.026)) * 0.75 * w2
+    + waveSlope(pw, 2.41, s3, vec2(t * 0.008, -t * 0.011)) * 0.6 * w3
+    + waveSlope(p, 0.57, s4, vec2(t * 0.05, t * 0.043)) * 0.35 * w4
+    + waveSlope(pw * 0.83, 4.02, s5, vec2(-t * 0.004, t * 0.003)) * 0.75;
+  slope *= mix(0.55, 1.3, lakeWind) * fade;
   // 同心涟漪（浮漂、船桨、跃鱼）
   for (int i = 0; i < ${LAKE_RINGS}; i++) {
     vec4 ring = uRings[i];
@@ -187,7 +232,7 @@ roughnessFactor = mix(roughnessFactor, 0.6, lakeFoam);`)
 }
 #include <opaque_fragment>`);
   };
-  const key = `v3-water-2-${ws}-${options.treeLine === false ? 0 : 1}-${profile.length}-${options.deep ?? ""}`;
+  const key = `v3-water-3-${ws}-${options.whitecaps ?? 0}-${options.treeLine === false ? 0 : 1}-${profile.length}-${options.deep ?? ""}`;
   material.customProgramCacheKey = () => key;
   material.addEventListener("dispose", () => normalMap.dispose());
   return {

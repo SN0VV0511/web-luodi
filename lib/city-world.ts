@@ -908,7 +908,7 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
   // v3 海面：与中央湖共用物理水面着色（环境反射 + 菲涅尔 + 多层法线波纹 + 太阳高光），
   // 岸线剖面取沙滩曲线：近岸翡翠浅滩、浪花白沫，离岸 60 m 过渡到深海蓝。
   const seaWater = createLakeWater({ cx: 0, cz: 0, rx: 1, rz: 1 }, {
-    waveScale: 2.6, treeLine: false, deep: "#06263f", shallow: "#1f6e6e",
+    waveScale: 2.6, treeLine: false, whitecaps: 1, deep: "#06263f", shallow: "#1f6e6e",
     profile: `
   float sx = vLakeWorld.x;
   float sp = clamp((-77.0 - sx) / 151.0, 0.0, 1.0);
