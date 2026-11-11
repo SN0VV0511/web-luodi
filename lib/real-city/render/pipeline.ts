@@ -183,14 +183,14 @@ export class CityRenderPipeline {
         this.output.uniforms.tBloomFar.value = this.black;
       }
       this.output.uniforms.occlusionEnabled.value = quality.contactShadows ? 1 : 0;
-      const wet = night && quality.bloom && this.wet;
+      const wet = night && quality.wetReflections && this.wet;
       if (wet && this.wet) {
         this.wet.render(renderer, this.screen, this.color.texture, this.color.depthTexture!, camera, 0.9,
           scene.fog?.color ?? (scene.background instanceof THREE.Color ? scene.background : undefined), look?.sunDirection);
         this.output.uniforms.tReflection.value = this.wet.texture;
       }
       this.output.uniforms.reflectionEnabled.value = wet ? 1 : 0;
-      const rayStrength = this.rays && look?.sunDirection && !night
+      const rayStrength = this.rays && quality.godRays && look?.sunDirection && !night
         ? this.rays.render(renderer, this.screen, this.color.texture, this.color.depthTexture!, camera, look.sunDirection, look.godRays ?? 0, look.sunTint)
         : 0;
       this.output.uniforms.godRayStrength.value = rayStrength > 0 ? 1 : 0;

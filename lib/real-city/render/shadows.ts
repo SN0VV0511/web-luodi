@@ -12,8 +12,17 @@ export class CityShadowController {
   private radius = 305;
   private initialized = false;
   private force = true;
+  /** 动态阴影刷新间隔倍率：中/低画质下远景阴影刷新得更慢（静态阴影本来就不重绘）。 */
+  intervalScale = 1;
 
-  constructor(readonly light: THREE.DirectionalLight, readonly resolution: number) {}
+  constructor(readonly light: THREE.DirectionalLight, private resolution: number) {}
+
+  setResolution(resolution: number): void {
+    if (resolution === this.resolution) return;
+    this.resolution = resolution;
+    this.initialized = false;
+    this.force = true;
+  }
 
   update(camera: THREE.PerspectiveCamera, target: THREE.Vector3, sunOffset: THREE.Vector3, now: number, moving: boolean): { radius: number; needsUpdate: boolean } {
     const distance = camera.position.distanceTo(target);
@@ -40,7 +49,7 @@ export class CityShadowController {
     this.focus.addScaledVector(this.up, snappedUp - upCoordinate);
     const moved = this.focus.distanceToSquared(this.previousFocus) > texel * texel * 0.5;
     const sunChanged = this.direction.distanceToSquared(this.previousDirection) > 0.00002;
-    const interval = this.radius < 60 ? 100 : 250;
+    const interval = (this.radius < 60 ? 100 : 250) * (this.radius < 60 ? 1 : this.intervalScale);
     const elapsed = now - this.lastUpdate;
     const needsUpdate = this.force || !this.initialized || projectionChanged
       || (moving || moved || sunChanged) && elapsed >= interval;

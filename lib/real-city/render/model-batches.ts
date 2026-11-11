@@ -177,6 +177,7 @@ export class CityModelVisibility {
   private readonly batches: DetailVisibility[] = [];
   private readonly cameraPosition = new THREE.Vector3();
   private lastUpdate = -Infinity;
+  private minimumPixels = 0.85;
 
   constructor(scene: THREE.Object3D) {
     scene.traverse((object) => {
@@ -186,7 +187,15 @@ export class CityModelVisibility {
     });
   }
 
-  update(camera: THREE.PerspectiveCamera, pixelsHigh: number, now: number, force = false): void {
+  /**
+   * minimumPixels：细部的最小屏幕投影尺寸。高档 0.85px 保持原貌；中/低档提高阈值，
+   * 远景中只占一两个像素的窗框、栏杆等细部不再提交绘制（阴影通道同样受益）。
+   */
+  update(camera: THREE.PerspectiveCamera, pixelsHigh: number, now: number, force = false, minimumPixels = 0.85): void {
+    if (minimumPixels !== this.minimumPixels) {
+      this.minimumPixels = minimumPixels;
+      force = true;
+    }
     if (!force && now - this.lastUpdate < 120) return;
     this.lastUpdate = now;
     camera.getWorldPosition(this.cameraPosition);
@@ -201,7 +210,7 @@ export class CityModelVisibility {
       for (const cell of state.cells) {
         const distance = Math.max(0.1, this.cameraPosition.distanceTo(cell.center) - cell.radius);
         const featurePixels = cell.maximumFeature * projection / distance;
-        const threshold = cell.visible ? 0.85 : 1.1;
+        const threshold = cell.visible ? this.minimumPixels : this.minimumPixels * 1.3;
         const visible = featurePixels >= threshold;
         if (visible !== cell.visible) {
           cell.visible = visible;

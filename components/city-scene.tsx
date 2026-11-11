@@ -16,7 +16,7 @@ import { createLedMaterial } from "@/lib/real-city/v3/landmarks/led-screen";
 import type { Locale } from "@/lib/site-content";
 import type { CityLifeSnapshot } from "@/lib/real-city/snapshot";
 import { CityRenderPipeline } from "@/lib/real-city/render/pipeline";
-import { CityRenderQuality } from "@/lib/real-city/render/quality";
+import { CityRenderQuality, frameBudget, shouldRenderFrame, type QualityPreference, type QualityTier } from "@/lib/real-city/render/quality";
 import { CitySkyEnvironment } from "@/lib/real-city/render/sky-environment";
 import { CityShadowController } from "@/lib/real-city/render/shadows";
 import { CityAmbience } from "@/lib/real-city/audio/ambience";
@@ -64,6 +64,9 @@ type CitySceneProps = {
   onCityLifeChange?: (snapshot: CityLifeSnapshot | null) => void;
   onReady?: () => void;
   information?: ReactNode;
+  /** 画质档位（自动/高/中/低）；自动档按设备与实测帧耗时切换。 */
+  quality?: QualityPreference;
+  onQualityTierChange?: (tier: QualityTier) => void;
 };
 
 type SceneHandle = {
@@ -77,6 +80,7 @@ type SceneHandle = {
   syncFloor: () => void;
   setArchiveFloors: (floors: readonly ArchiveUploadedFloor[]) => void;
   inspect: (replay?: boolean) => void;
+  setQuality: (preference: QualityPreference) => void;
 };
 type CameraFlight = {
   from: THREE.Vector3;
@@ -117,7 +121,15 @@ export default function CityScene(props: CitySceneProps) {
 
     let renderer: THREE.WebGLRenderer;
     try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+      // 后期管线在自己的 HDR 目标里做 MSAA + 后处理抗锯齿，最终只往画布画一个全屏三角形：
+      // 画布本身的 4x MSAA 颜色/深度缓冲完全用不上，却要多占几十 MB 显存并每帧解析一次。
+      // 只有不支持浮点渲染目标、走直接绘制回退路径的设备才保留画布 MSAA。
+      renderer = new THREE.WebGLRenderer({ antialias: false, stencil: false, powerPreference: "high-performance" });
+      if (!renderer.extensions.has("EXT_color_buffer_float")) {
+        renderer.dispose();
+        renderer.forceContextLoss();
+        renderer = new THREE.WebGLRenderer({ antialias: true, stencil: false, powerPreference: "high-performance" });
+      }
     } catch {
       setStatus("error");
       return;
@@ -131,7 +143,12 @@ export default function CityScene(props: CitySceneProps) {
     renderer.domElement.setAttribute("aria-label", "Interactive 3D city. Drag to move, right-drag to orbit, scroll to zoom.");
     container.prepend(renderer.domElement);
     const compactDisplay = window.matchMedia("(max-width: 760px)").matches;
-    const renderQuality = new CityRenderQuality(renderer, compactDisplay);
+    const deviceHints = navigator as Navigator & { deviceMemory?: number };
+    const renderQuality = new CityRenderQuality(renderer, compactDisplay, {
+      deviceMemory: deviceHints.deviceMemory,
+      cores: navigator.hardwareConcurrency || undefined,
+    });
+    if (current.current.quality) renderQuality.setPreference(current.current.quality);
     const renderPipeline = new CityRenderPipeline(renderer, compactDisplay);
 
     const scene = new THREE.Scene();
@@ -349,6 +366,25 @@ export default function CityScene(props: CitySceneProps) {
     container.dataset.filteredTextures = String(materialSampling.textures);
     const gpuTimer = new CityGpuTimer(renderer);
     const modelVisibility = new CityModelVisibility(scene);
+    // 远景时人物、头发、轮胎轮毂、街头道具这类细小动态物体的投影小于一两个阴影纹素，
+    // 却占了阴影通道约三分之一的三角形；拉远后暂停它们投射阴影（拉近自动恢复）。
+    const SMALL_CASTER = /residents|resident hair|Street life|Events · actor|events balls|Neighborhood props|Neighborhood · (?:hat|skirts|spectacle|faces)|\b(?:tires?|rims?|wheels?)\b/i;
+    let lastCasterSweep = -Infinity;
+    function setSmallShadowCasters(on: boolean, now: number) {
+      smallCastersOn = on;
+      lastCasterSweep = now;
+      scene.traverse((object) => {
+        const mesh = object as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const record = mesh.userData as { smallCaster?: boolean };
+        if (record.smallCaster === undefined) {
+          if (!mesh.castShadow) return;
+          const material = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+          record.smallCaster = SMALL_CASTER.test(`${mesh.name} ${mesh.geometry?.name ?? ""} ${material?.name ?? ""}`);
+        }
+        if (record.smallCaster) mesh.castShadow = on;
+      });
+    }
     let lastWheelSwitch = 0;
 
     // 左牌(billboardSign)动态轮播: 品牌帧/数据帧10秒切换, 数据60秒拉取。
@@ -383,6 +419,11 @@ export default function CityScene(props: CitySceneProps) {
     let labelsDirty = true;
     let lastHoverCheck = 0;
     let lastControlChange = -Infinity;
+    let lastRenderedAt = 0;
+    let sceneAnimating = false;
+    let appliedShadowSize = renderQuality.state.shadowSize;
+    let reportedTier: QualityTier | null = null;
+    let smallCastersOn = true;
     const occlusion = new Map<PlaceId, boolean>();
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const raycaster = new THREE.Raycaster();
@@ -691,6 +732,15 @@ export default function CityScene(props: CitySceneProps) {
     function render(now: number) {
       frameHandle = null;
       if (disposed || contextUnavailable || !visible || document.hidden) return;
+      // 帧率节流：拖拽、缩放、飞行、航拍和楼宇展示时最高 60fps（120Hz 屏不再翻倍绘制），
+      // 只有环境动画（车流、行人、水面）在跑时降到档位的空闲帧率；窗口失焦时再降到 20fps。
+      const interacting = activePointers.size > 0 || Boolean(flight) || sceneAnimating
+        || Boolean(current.current.touring) || now - lastControlChange < 450;
+      if (hasRendered && !shouldRenderFrame(now, lastRenderedAt, frameBudget(renderQuality.state, interacting, document.hasFocus()))) {
+        frameHandle = requestAnimationFrame(render);
+        return;
+      }
+      lastRenderedAt = now;
       const elapsed = previousFrame ? Math.min((now - previousFrame) / 1000, 0.08) : 0;
       previousFrame = now;
       const moving = !current.current.paused && !reducedMotion.matches;
@@ -765,21 +815,26 @@ export default function CityScene(props: CitySceneProps) {
         }
       }
       // 调整画布会清空缓冲区，必须在本帧绘制前完成。
-      if (renderQuality.observe(now, moving || Boolean(flight) || controlsChanged, gpuTimer.milliseconds)
-        && renderer.getPixelRatio() !== renderQuality.state.pixelRatio) {
-        renderer.setPixelRatio(renderQuality.state.pixelRatio);
-        renderPipeline.resize();
-      }
+      if (renderQuality.observe(now, moving || Boolean(flight) || controlsChanged, gpuTimer.milliseconds))
+        applyQualityState();
       const shadow = shadowController.update(camera, controls.target, seasonSunOffset, now, moving || Boolean(flight) || controlsChanged);
+      const wantSmallCasters = shadow.radius < (renderQuality.state.smallShadowCasters ? 160 : 100);
+      if (wantSmallCasters !== smallCastersOn) {
+        setSmallShadowCasters(wantSmallCasters, now);
+        shadow.needsUpdate = true;
+      } else if (!smallCastersOn && shadow.needsUpdate && now - lastCasterSweep > 2000) {
+        // 居民等资源异步加载后才入场景，定期补一次开关。
+        setSmallShadowCasters(false, now);
+      }
       scene.updateMatrixWorld();
-      modelVisibility.update(camera, renderer.domElement.height, now);
+      modelVisibility.update(camera, renderer.domElement.height, now, false, renderQuality.state.detailPixels);
       if (labelsDirty || controlsChanged || flight || elevatorAnimating || now - lastOcclusionCheck >= 1000)
         projectLabels(now, !cameraInteracting);
       if (shadow.needsUpdate) renderer.shadowMap.needsUpdate = true;
       if (!cameraInteracting) {
         localReflections.update(camera, controls.target, now,
           `${timeOfDay()}:${container?.dataset.season}:${container?.dataset.weather}`,
-          renderQuality.state.bloom);
+          renderQuality.state.localReflections);
       }
       gpuTimer.begin();
       try {
@@ -806,7 +861,31 @@ export default function CityScene(props: CitySceneProps) {
         setStatus("ready");
         current.current.onReady?.();
       }
+      sceneAnimating = elevatorAnimating || mechanismsAnimating;
       if (moving || controlsChanged || cameraInteracting || flight || elevatorAnimating || mechanismsAnimating) schedule();
+    }
+
+    function applyQualityState() {
+      const state = renderQuality.state;
+      if (renderer.getPixelRatio() !== state.pixelRatio) {
+        renderer.setPixelRatio(state.pixelRatio);
+        renderPipeline.resize();
+      }
+      if (state.shadowSize !== appliedShadowSize) {
+        appliedShadowSize = state.shadowSize;
+        sun.shadow.mapSize.setScalar(state.shadowSize);
+        sun.shadow.map?.dispose();
+        sun.shadow.map = null;
+        shadowController.setResolution(state.shadowSize);
+        renderer.shadowMap.needsUpdate = true;
+      }
+      shadowController.intervalScale = state.tier === "low" ? 2 : state.tier === "medium" ? 1.5 : 1;
+      if (container) container.dataset.qualityTier = state.tier;
+      if (reportedTier !== state.tier) {
+        reportedTier = state.tier;
+        current.current.onQualityTierChange?.(state.tier);
+      }
+      labelsDirty = true;
     }
 
     function resize() {
@@ -820,6 +899,7 @@ export default function CityScene(props: CitySceneProps) {
       renderer.setPixelRatio(renderQuality.state.pixelRatio);
       renderer.setSize(width, height);
       renderPipeline.resize();
+      applyQualityState();
       if (!hasRendered) cameraView(activeView, true);
       else if (getBuildingExperience(current.current.selected) && Math.abs(previousAspect - camera.aspect) > .05)
         inspect();
@@ -1056,6 +1136,11 @@ export default function CityScene(props: CitySceneProps) {
       syncFloor: () => {
         updateHighlight();
       },
+      setQuality: (preference) => {
+        if (renderQuality.setPreference(preference)) applyQualityState();
+        lastRenderedAt = 0;
+        schedule();
+      },
       setArchiveFloors: (floors) => {
         if (!archiveTower) return;
         const { removed, added } = archiveTower.setUploadedFloors(floors);
@@ -1197,6 +1282,7 @@ export default function CityScene(props: CitySceneProps) {
 
   useEffect(() => { sceneRef.current?.update(); }, [props.night, props.timeOfDay, props.tiltShift, props.paused, props.labelsVisible, props.touring, props.locale, props.seasonMode]);
   useEffect(() => { sceneRef.current?.syncFloor(); }, [props.activeFloorIndex]);
+  useEffect(() => { sceneRef.current?.setQuality(props.quality ?? "auto"); }, [props.quality]);
   const archiveFloorsKey = (props.archiveFloors ?? []).map((floor) => `${floor.id}:${floor.code}:${floor.title}`).join("|");
   const builtArchiveKey = useRef<string | null>(null);
   useEffect(() => {
