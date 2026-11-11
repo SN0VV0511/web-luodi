@@ -32,7 +32,8 @@ const FRAGMENT = /* glsl */ `
   float kind = vFA.x;
   float floorH = max(vFA.y, 0.5);
   float bay = max(vFA.z, 0.3);
-  float seed = vFA.w;
+  // 种子按 0.01 量化：插值后的顶点属性有微小逐像素误差，经哈希放大会把整格亮窗打碎成噪点。
+  float seed = floor(vFA.w * 100.0 + 0.5) * 0.01;
   float tex = vFB.x;
   float winW = vFB.y;
   float winH = vFB.z;
@@ -178,9 +179,29 @@ const FRAGMENT = /* glsl */ `
         fr = mix(0.05, 0.7, curtain); fm = mix(0.55, 0.0, curtain);
       }
       // 夜间亮窗：每格独立概率与色温。
+      // 整格判定（每个房间一次哈希），保证一扇窗要么亮要么暗，不出现噪点。
       float on = step(r2, litP) * uNight;
-      vec3 warm = mix(vec3(1.0, 0.72, 0.42), vec3(0.75, 0.85, 1.0), step(0.8, r));
-      fe += warm * on * (0.6 + 1.1 * fh21(cell * 2.9 + seed)) * (1.0 - 0.35 * smoothstep(0.7, 1.0, local.y));
+      float r3 = fh21(cell * 4.7 + seed * 0.71);
+      float r4 = fh21(cell * 6.1 + seed * 0.37);
+      vec3 warm = mix(vec3(1.0, 0.66, 0.36), vec3(1.0, 0.84, 0.62), r4);
+      vec3 tint = mix(warm, vec3(0.74, 0.84, 1.0), step(0.8, r));
+      // 少数房间只有电视的蓝光，缓慢闪烁。
+      float tv = step(0.92, r3);
+      tint = mix(tint, vec3(0.42, 0.56, 1.0) * (0.55 + 0.2 * sin(uTime * 9.0 + r4 * 40.0) + 0.1 * sin(uTime * 23.0)), tv);
+      // 灯在房间某一侧：窗内亮度横向渐变，顶部受吊顶灯照亮。
+      float lampX = 0.2 + 0.6 * r4;
+      float pool = mix(1.0, 0.65 + 0.5 * exp(-pow((local.x - lampX) * 2.4, 2.0)), detail);
+      float vertical = 1.0 - 0.35 * smoothstep(0.7, 1.0, local.y) * detail;
+      // 窗帘：拉上的房间透出暖色织物光，中缝留一条亮缝；百叶：上部分条纹。
+      float drawn = step(0.66, r3) * (1.0 - tv);
+      float gapX = 0.35 + 0.3 * r;
+      float slit = smoothstep(0.05, 0.0, abs(local.x - gapX) - 0.04);
+      vec3 fabricGlow = mix(vec3(1.0, 0.58, 0.3), vec3(0.95, 0.78, 0.58), r2) * 0.42;
+      vec3 room = mix(tint * pool, mix(fabricGlow, tint, slit * 0.85), drawn * detail + drawn * (1.0 - detail) * 0.5);
+      float blindTop = 1.0 - r4 * 0.55 * step(0.4, r3) * step(r3, 0.66);
+      float slats = mix(0.75, 0.62 + 0.38 * step(0.5, fract(local.y * 14.0)), detail);
+      room *= mix(1.0, slats * 0.6, step(blindTop, local.y));
+      fe += room * on * (0.65 + 1.0 * fh21(cell * 2.9 + seed)) * vertical;
     }
   }
   // 玻璃：程序化天空 / 街景反射 + 菲涅耳，避免整片黑窗；夜间反射压暗，由亮窗主导。
@@ -310,6 +331,6 @@ vFWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;`);
       .replace("#include <metalnessmap_fragment>", "#include <metalnessmap_fragment>\nmetalnessFactor = facadeMetal;")
       .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += facadeEmit;");
   };
-  material.customProgramCacheKey = () => "v3-facade-2";
+  material.customProgramCacheKey = () => "v3-facade-3";
   return material;
 }

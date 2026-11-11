@@ -11,6 +11,7 @@ uniform float cityNightWindows;
 uniform float cityNightTime;
 varying vec3 vNightWorldPosition;
 varying vec3 vNightWorldNormal;
+varying vec3 vNightObjectOrigin;
 float nightHash(vec3 p) {
   p = fract(p * vec3(0.1031, 0.1030, 0.0973));
   p += dot(p, p.yxz + 33.33);
@@ -24,19 +25,38 @@ vec3 cityWindowGlow() {
   float along = dot(vNightWorldPosition.xz, tangent);
   float storey = vNightWorldPosition.y / 3.3;
   float bay = along / 1.8;
-  vec3 cell = vec3(floor(bay), floor(storey), floor(dot(vNightWorldPosition.xz, vec2(n.x, n.z)) * 0.25));
+  // Room identity comes from the object origin and the facade orientation, never from the
+  // fragment's depth along the normal: a facade lying exactly on a cell boundary used to flip
+  // rooms per pixel and turn lit panes into salt-and-pepper noise.
+  float face = mod(floor(atan(n.z, n.x) * 0.6366 + 0.31), 4.0);
+  vec3 cell = vec3(floor(bay), floor(storey), face + floor(vNightObjectOrigin.x * 0.37) * 7.0 + floor(vNightObjectOrigin.z * 0.29) * 13.0);
   float seed = nightHash(cell + 17.0);
   // About half the rooms are occupied; a slow per-room phase lets lights switch over the evening.
   float occupied = step(0.46 + 0.08 * sin(cityNightTime * 0.02 + seed * 40.0), nightHash(cell + 3.0));
   vec2 inRoom = vec2(fract(bay), fract(storey));
-  float frame = smoothstep(0.04, 0.1, inRoom.x) * smoothstep(0.96, 0.9, inRoom.x)
-    * smoothstep(0.12, 0.2, inRoom.y) * smoothstep(0.94, 0.86, inRoom.y);
-  vec3 warm = mix(vec3(1.0, 0.72, 0.42), vec3(1.0, 0.86, 0.66), nightHash(cell + 9.0));
-  vec3 cool = vec3(0.72, 0.84, 1.0);
-  vec3 tint = mix(warm, cool, step(0.82, seed));
+  // Anti-aliased pane mask; the frame fades to its average once a room is only a few pixels.
+  vec2 span = max(fwidth(vec2(bay, storey)), vec2(1e-4));
+  vec2 lo = vec2(0.07, 0.16), hi = vec2(0.93, 0.9);
+  vec2 inside = smoothstep(lo - span, lo + span, inRoom) * (1.0 - smoothstep(hi - span, hi + span, inRoom));
+  float far = smoothstep(0.18, 0.45, max(span.x, span.y));
+  float frame = mix(inside.x * inside.y, (hi.x - lo.x) * (hi.y - lo.y), far);
+  vec3 warm = mix(vec3(1.0, 0.68, 0.38), vec3(1.0, 0.86, 0.66), nightHash(cell + 9.0));
+  vec3 cool = vec3(0.7, 0.82, 1.0);
+  float tvRoom = step(0.9, nightHash(cell + 21.0));
+  vec3 tint = mix(warm, cool, step(0.8, seed));
+  // Flickering blue TV light in a few rooms.
+  tint = mix(tint, vec3(0.45, 0.6, 1.0) * (0.75 + 0.25 * sin(cityNightTime * 7.0 + seed * 30.0)), tvRoom * 0.7);
+  // Curtains: a drawn fabric panel glows dimmer and warmer, with a soft gap where they meet.
+  float curtainKind = nightHash(cell + 31.0);
+  float gapCentre = 0.3 + 0.4 * nightHash(cell + 41.0);
+  float gap = smoothstep(0.03 + span.x, 0.0, abs(inRoom.x - gapCentre) - 0.06);
+  float curtain = step(0.55, curtainKind) * (1.0 - gap) * (1.0 - far);
+  vec3 fabric = mix(vec3(1.0, 0.62, 0.32), vec3(0.95, 0.8, 0.6), nightHash(cell + 51.0)) * 0.45;
+  tint = mix(tint, fabric, curtain);
   // Ceiling-lit rooms are brighter near the top of the window.
-  float falloff = mix(0.65, 1.0, inRoom.y);
-  return tint * occupied * frame * falloff * (1.4 + seed * 1.6) * cityNightWindows;
+  float falloff = mix(0.65, 1.0, inRoom.y * (1.0 - far) + far * 0.5);
+  float brightness = mix(1.4 + seed * 1.6, 2.2, far * 0.5);
+  return tint * occupied * frame * falloff * brightness * cityNightWindows;
 }
 `;
 
@@ -86,7 +106,8 @@ export class CityNightWindows {
       shader.vertexShader = shader.vertexShader
         .replace("#include <common>", `#include <common>
           varying vec3 vNightWorldPosition;
-          varying vec3 vNightWorldNormal;`)
+          varying vec3 vNightWorldNormal;
+          varying vec3 vNightObjectOrigin;`)
         .replace("#include <project_vertex>", `
           mat4 nightTransform = modelMatrix;
           #ifdef USE_INSTANCING
@@ -97,6 +118,7 @@ export class CityNightWindows {
           #endif
           vNightWorldPosition = (nightTransform * vec4(transformed, 1.0)).xyz;
           vNightWorldNormal = normalize(mat3(nightTransform) * objectNormal);
+          vNightObjectOrigin = nightTransform[3].xyz;
           #include <project_vertex>`);
       shader.fragmentShader = shader.fragmentShader
         .replace("#include <common>", `#include <common>\n${nightWindowFunctions}`)
@@ -106,7 +128,7 @@ export class CityNightWindows {
           // A lit room reads through the glass instead of being washed out by transparency.
           diffuseColor.a = mix(diffuseColor.a, 1.0, clamp(dot(cityWindow, vec3(0.33)) * 0.8, 0.0, 0.85));`);
     };
-    material.customProgramCacheKey = () => `${key}:night-windows-v1`;
+    material.customProgramCacheKey = () => `${key}:night-windows-v2`;
     material.needsUpdate = true;
   }
 }
