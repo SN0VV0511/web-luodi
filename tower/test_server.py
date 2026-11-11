@@ -28,7 +28,10 @@ class TowerServerTest(unittest.TestCase):
     def setUpClass(cls):
         cls.tmp = tempfile.TemporaryDirectory()
         cls.port = free_port()
-        env = dict(os.environ, DATA_DIR=cls.tmp.name, PORT=str(cls.port), INSECURE_COOKIE="1",
+        site = Path(cls.tmp.name) / "site" / "biglink"
+        site.mkdir(parents=True)
+        (site / "index.html").write_text("<h1>biglink</h1>")
+        env = dict(os.environ, DATA_DIR=cls.tmp.name, SITE_ROOT=str(Path(cls.tmp.name) / "site"), PORT=str(cls.port), INSECURE_COOKIE="1",
                    SESSION_SECRET="test", ADMIN_PASSWORD_HASH=server.hash_password("correct horse"))
         cls.proc = subprocess.Popen([sys.executable, str(HERE / "server.py")], env=env,
                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -92,6 +95,10 @@ class TowerServerTest(unittest.TestCase):
         self.assertTrue(headers["Content-Security-Policy"].startswith("sandbox"))
         self.assertNotIn("allow-same-origin", headers["Content-Security-Policy"])
         self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
+        admin_list = json.loads(self.req("GET", "/tower-admin/api/pages", None, {"Cookie": auth["Cookie"]})[2])
+        self.assertEqual([b["code"] for b in admin_list["builtin"]], ["1F", "2F"])
+        self.assertEqual(admin_list["builtin"][0]["size"], len("<h1>biglink</h1>"))
+        self.assertIsNone(admin_list["builtin"][1]["size"])  # missing file -> no size, still listed
         listed = json.loads(self.req("GET", "/tower/api/pages")[2])["pages"]
         self.assertEqual([p["id"] for p in listed], [page["id"]])
         self.assertEqual(self.req("DELETE", f"/tower-admin/api/pages/{page['id']}")[0], 401)

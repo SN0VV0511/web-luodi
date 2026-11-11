@@ -15,6 +15,8 @@ services:
       - "127.0.0.1:3004:3004"
     volumes:
       - ./data:/app/data
+      # 内置 1F/2F 页面所在的网站目录，只读挂载用于在后台显示大小/更新时间
+      - /opt/web-luodi/out:/site:ro
     mem_limit: 64m
     read_only: true
     tmpfs:

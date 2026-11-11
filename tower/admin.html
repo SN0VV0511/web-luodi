@@ -44,6 +44,10 @@
   td .file { color:var(--dim); font-size:12px; word-break:break-all; }
   td.actions { white-space:nowrap; text-align:right; }
   td.actions > * { margin-left:4px; }
+  .tag { display:inline-block; font-size:11px; padding:1px 7px; margin-left:6px; border-radius:999px; border:1px solid var(--accent); color:var(--accent); vertical-align:1px; cursor:help; }
+  tr.builtin td.floor { color:var(--accent); }
+  tr.builtin { background:rgba(92,224,160,.04); }
+  .locked { color:var(--dim); font-size:12px; cursor:help; padding:0 6px; }
   .empty { color:var(--dim); text-align:center; padding:26px; }
   .muted { color:var(--dim); font-size:12px; }
   dialog { width:min(1100px,94vw); height:86vh; border:1px solid var(--line); border-radius:14px; padding:0; background:var(--panel); color:var(--text); }
@@ -92,11 +96,11 @@
 
     <section class="card">
       <h2><span data-i18n="listTitle">全部楼层</span> <span class="muted" id="count"></span></h2>
-      <p class="muted" data-i18n="listHint">1F、2F 是网站内置的两层（Biglink、LoRA），这里上传的页面从 3F 往上排。</p>
+      <p class="muted" data-i18n="listHint">1F、2F 是网站代码里自带的两层（Biglink、LoRA），可以预览和打开，但不能在后台删除或改名；在这里上传的页面会从 3F 往上一层层接。</p>
       <table>
         <thead><tr>
           <th data-i18n="colFloor">楼层</th><th data-i18n="colTitle">标题 / 文件</th>
-          <th class="hide-sm" data-i18n="colSize">大小</th><th class="hide-sm" data-i18n="colTime">上传时间</th><th></th>
+          <th class="hide-sm" data-i18n="colSize">大小</th><th class="hide-sm" data-i18n="colTime">上传 / 更新时间</th><th></th>
         </tr></thead>
         <tbody id="rows"></tbody>
       </table>
@@ -122,20 +126,22 @@
       uploadTitle: "Upload new floors", dropHere: "Drop HTML files here, or click to choose",
       dropHint: ".html / .htm, up to 5 MB each, multiple allowed — one floor per file",
       titleLabel: "Floor title (optional, single file only; blank = page <title>)", upload: "Upload",
-      listTitle: "All floors", listHint: "1F and 2F are the site's built-in floors (Biglink, LoRA); uploads stack from 3F up.",
-      colFloor: "Floor", colTitle: "Title / file", colSize: "Size", colTime: "Uploaded", openTab: "Open in new tab", close: "Close",
+      listTitle: "All floors", listHint: "1F and 2F (Biglink, LoRA) ship with the site code — you can preview and open them, but not delete or rename them here. Uploads stack from 3F up.",
+      colFloor: "Floor", colTitle: "Title / file", colSize: "Size", colTime: "Uploaded / updated", openTab: "Open in new tab", close: "Close",
     },
   };
   const T = {
-    zh: { empty: "还没有上传的楼层", preview: "预览", open: "打开", rename: "改名", del: "删除",
+    zh: { builtin: "内置", builtinTip: "这一层是网站代码自带的页面（public 目录），随网站部署更新，不能在后台删除或改名", locked: "🔒 网站自带",
+      empty: "还没有上传的楼层，选个 HTML 文件上传就会出现 3F", preview: "预览", open: "打开", rename: "改名", del: "删除",
       confirmDel: (t) => `确定删除「${t}」？这层楼会从大楼上消失。`, renamePrompt: "新的楼层标题：",
       uploaded: (n) => `已上传 ${n} 个页面，大楼长高了 ${n} 层`, wrongType: (n) => `${n} 不是 .html/.htm 文件`,
-      tooBig: (n) => `${n} 超过 5MB`, count: (n) => `（共 ${n} 层上传楼层）`, failed: "失败", done: "完成", net: "网络错误，请重试",
+      tooBig: (n) => `${n} 超过 5MB`, count: (b, m) => `（共 ${b + m} 层：内置 ${b} + 上传 ${m}）`, failed: "失败", done: "完成", net: "网络错误，请重试",
       checking: "登录中…", deleted: "已删除" },
-    en: { empty: "No uploaded floors yet", preview: "Preview", open: "Open", rename: "Rename", del: "Delete",
+    en: { builtin: "Built-in", builtinTip: "This floor ships with the site code (public folder) and updates with site deploys; it can't be deleted or renamed here", locked: "🔒 Site code",
+      empty: "No uploaded floors yet — upload an HTML file to add 3F", preview: "Preview", open: "Open", rename: "Rename", del: "Delete",
       confirmDel: (t) => `Delete “${t}”? This floor will disappear from the tower.`, renamePrompt: "New floor title:",
       uploaded: (n) => `Uploaded ${n} page(s) — the tower grew ${n} floor(s)`, wrongType: (n) => `${n} is not .html/.htm`,
-      tooBig: (n) => `${n} is larger than 5 MB`, count: (n) => `(${n} uploaded floors)`, failed: "failed", done: "done",
+      tooBig: (n) => `${n} is larger than 5 MB`, count: (b, m) => `(${b + m} floors: ${b} built-in + ${m} uploaded)`, failed: "failed", done: "done",
       net: "Network error, please retry", checking: "Logging in…", deleted: "Deleted" },
   };
   let lang = localStorage.getItem("tower-admin-lang") || (navigator.language.startsWith("zh") ? "zh" : "en");
@@ -157,6 +163,7 @@
   const fmtTime = (s) => { const d = new Date(s); return isNaN(d) ? s : d.toLocaleString(lang === "zh" ? "zh-CN" : "en-GB", { hour12: false }); };
 
   let pages = null;
+  let builtin = [];
   async function api(path, opts = {}) {
     const res = await fetch(API + path, { credentials: "same-origin", ...opts });
     let data = null; try { data = await res.json(); } catch {}
@@ -165,28 +172,37 @@
   }
   function showLogin() { $("loginCard").hidden = false; $("app").hidden = true; $("logout").hidden = true; $("pw").focus(); }
   async function showApp() { $("loginCard").hidden = true; $("app").hidden = false; $("logout").hidden = false; await refresh(); }
-  async function refresh() { const r = await api("/pages"); if (r.ok) { pages = r.data.pages; render(); } }
+  async function refresh() { const r = await api("/pages"); if (r.ok) { pages = r.data.pages; builtin = r.data.builtin || []; render(); } }
 
-  function render() {
-    const tbody = $("rows"); tbody.textContent = "";
-    $("count").textContent = t("count", pages.length);
-    if (!pages.length) { const tr = tbody.insertRow(); const td = tr.insertCell(); td.colSpan = 5; td.className = "empty"; td.textContent = t("empty"); return; }
-    [...pages].reverse().forEach((p) => {
-      const tr = tbody.insertRow();
-      const f = tr.insertCell(); f.className = "floor"; f.textContent = `${p.floor + BUILTIN_FLOORS}F`;
-      const c = tr.insertCell(); const strong = document.createElement("strong"); strong.textContent = p.title;
-      const file = document.createElement("div"); file.className = "file"; file.textContent = p.filename; c.append(strong, file);
-      const s = tr.insertCell(); s.className = "hide-sm"; s.textContent = fmtSize(p.size);
-      const tm = tr.insertCell(); tm.className = "hide-sm"; tm.textContent = fmtTime(p.createdAt);
-      const a = tr.insertCell(); a.className = "actions";
-      const pv = document.createElement("button"); pv.type = "button"; pv.textContent = t("preview"); pv.onclick = () => openPreview(p);
-      const op = document.createElement("a"); op.className = "btn"; op.href = p.url; op.target = "_blank"; op.rel = "noopener noreferrer"; op.textContent = t("open");
+  function addRow(tbody, p, isBuiltin) {
+    const tr = tbody.insertRow(); if (isBuiltin) tr.className = "builtin";
+    const code = isBuiltin ? p.code : `${p.floor + BUILTIN_FLOORS}F`;
+    const f = tr.insertCell(); f.className = "floor"; f.textContent = code;
+    const c = tr.insertCell(); const strong = document.createElement("strong"); strong.textContent = p.title;
+    if (isBuiltin) { const tag = document.createElement("span"); tag.className = "tag"; tag.textContent = t("builtin"); tag.title = t("builtinTip"); strong.append(tag); }
+    const file = document.createElement("div"); file.className = "file"; file.textContent = p.filename; c.append(strong, file);
+    const s = tr.insertCell(); s.className = "hide-sm"; s.textContent = p.size == null ? "—" : fmtSize(p.size);
+    const tm = tr.insertCell(); tm.className = "hide-sm"; tm.textContent = p.createdAt ? fmtTime(p.createdAt) : "—";
+    const a = tr.insertCell(); a.className = "actions";
+    const pv = document.createElement("button"); pv.type = "button"; pv.textContent = t("preview"); pv.onclick = () => openPreview(p, code);
+    const op = document.createElement("a"); op.className = "btn"; op.href = p.url; op.target = "_blank"; op.rel = "noopener noreferrer"; op.textContent = t("open");
+    a.append(pv, op);
+    if (isBuiltin) {
+      const lock = document.createElement("span"); lock.className = "locked"; lock.textContent = t("locked"); lock.title = t("builtinTip"); a.append(lock);
+    } else {
       const rn = document.createElement("button"); rn.type = "button"; rn.textContent = t("rename"); rn.onclick = () => rename(p);
       const del = document.createElement("button"); del.type = "button"; del.className = "danger"; del.textContent = t("del"); del.onclick = () => remove(p);
-      a.append(pv, op, rn, del);
-    });
+      a.append(rn, del);
+    }
   }
-  function openPreview(p) { $("previewTitle").textContent = `${p.floor + BUILTIN_FLOORS}F · ${p.title}`; $("previewFrame").src = p.url; $("previewOpen").href = p.url; $("preview").showModal(); }
+  function render() {
+    const tbody = $("rows"); tbody.textContent = "";
+    $("count").textContent = t("count", builtin.length, pages.length);
+    builtin.forEach((p) => addRow(tbody, p, true));
+    pages.forEach((p) => addRow(tbody, p, false));
+    if (!pages.length) { const tr = tbody.insertRow(); const td = tr.insertCell(); td.colSpan = 5; td.className = "empty"; td.textContent = t("empty"); }
+  }
+  function openPreview(p, code) { $("previewTitle").textContent = `${code} · ${p.title}`; $("previewFrame").src = p.url; $("previewOpen").href = p.url; $("preview").showModal(); }
   $("previewClose").onclick = () => { $("preview").close(); };
   $("preview").addEventListener("close", () => { $("previewFrame").src = "about:blank"; });
   async function rename(p) {

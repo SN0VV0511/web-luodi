@@ -54,6 +54,12 @@ PASSWORD_HASH = os.environ.get("ADMIN_PASSWORD_HASH", "").strip()
 SESSION_SECRET = (os.environ.get("SESSION_SECRET") or "").encode() or secrets.token_bytes(32)
 INSECURE_COOKIE = os.environ.get("INSECURE_COOKIE") == "1"  # local http testing only
 PAGE_CSP = "sandbox allow-scripts allow-forms allow-popups allow-modals allow-downloads"
+SITE_ROOT = Path(os.environ.get("SITE_ROOT", "/site"))  # /opt/web-luodi/out mounted read-only
+# 1F/2F live in the site code (public/biglink, public/lora); shown read-only in the admin list.
+BUILTIN_PAGES = (
+    {"floor": 1, "code": "1F", "title": "Biglink 财税多智能体系统", "path": "/biglink/index.html"},
+    {"floor": 2, "code": "2F", "title": "LoRA 微调记录课堂", "path": "/lora/index.html"},
+)
 ID_RE = re.compile(r"^[a-f0-9]{12}$")
 ADMIN_HTML = (Path(__file__).with_name("admin.html")).read_text(encoding="utf-8")
 
@@ -89,6 +95,29 @@ def public_page(page: dict, floor: int) -> dict:
         "floor": floor,
         "url": f"/tower/p/{page['id']}.html",
     }
+
+
+def builtin_listing() -> list[dict]:
+    out = []
+    for item in BUILTIN_PAGES:
+        file = SITE_ROOT / item["path"].lstrip("/")
+        try:
+            st = file.stat()
+            size, created = st.st_size, time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(st.st_mtime))
+        except OSError:
+            size, created = None, None
+        out.append({
+            "id": f"builtin-{item['floor']}",
+            "builtin": True,
+            "title": item["title"],
+            "filename": item["path"].lstrip("/"),
+            "size": size,
+            "createdAt": created,
+            "floor": item["floor"],
+            "code": item["code"],
+            "url": item["path"],
+        })
+    return out
 
 
 def listing() -> list[dict]:
@@ -269,7 +298,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == ADMIN_PREFIX + "/api/pages":
             if not self.authed():
                 return self.error(401, "请先登录", "Please log in")
-            return self.send_json(200, {"pages": listing()})
+            return self.send_json(200, {"pages": listing(), "builtin": builtin_listing()})
         self.error(404, "未找到", "Not found")
 
     def do_POST(self) -> None:
