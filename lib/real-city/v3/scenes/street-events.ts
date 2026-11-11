@@ -264,7 +264,7 @@ export function buildStreetEvents(stage: SceneStage) {
   const animatePoliceStop = (t: number) => {
     const C = 84, tau = t % C;
     const cycle = Math.floor(t / C);
-    const roads = [-25, 20, -70];
+    const roads = [-115, -25, 20, -70]; // 首选车流最密的南侧大道，让执法现场与交通产生互动
     const z = roads[cycle % roads.length] - 4.0, x0 = -136 + (cycle % 2) * 45; // 街区中段，避开路口与斑马线
     const heading = Math.PI / 2;
     const arrive = ease(seg(tau, 0, 8)), depart = seg(tau, 66, 76);

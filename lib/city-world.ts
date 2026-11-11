@@ -23,7 +23,7 @@ import { buildSeasonalAtmosphere, sampleSeasonState, type SeasonMode, type Seaso
 import { createCityWeather } from "./city-weather";
 import { createCityTraffic } from "./city-traffic";
 import { collectEventObstacles, clearEventObstacles, type EventObstacle } from "./real-city/traffic/event-obstacles";
-import type { TrafficObstacle } from "./real-city/traffic/types";
+import type { TrafficObstacle, TrafficState } from "./real-city/traffic/types";
 import type { CityLifeSnapshot } from "./real-city/snapshot";
 import { bindWorldScalePbr, createGlassCurtainWallPbr, createAshlarStonePbr, createSidewalkPaverPbr } from "./city-pbr";
 import { applyCitySurface, markCitySurface, type CitySurface } from "./city-surfaces";
@@ -40,6 +40,9 @@ export type CityWorld = {
   animate: (seconds: number, night: boolean, seasonMode?: SeasonMode, seasonState?: SeasonState) => void;
   setNight: (night: boolean) => void;
   getLifeSnapshot?: () => CityLifeSnapshot;
+  /** 调试：当前交通车辆状态（只读）。 */
+  trafficStates?: () => readonly TrafficState[];
+  trafficInspect?: (index: number) => Record<string, number>;
   dispose: () => void;
 };
 type Part = { matrix: THREE.Matrix4; place?: PlaceId };
@@ -1671,6 +1674,9 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
   return {
     group, billboardSign: sign, anchors, pickables, builtSites: architecture.sites, animate, setNight,
     getLifeSnapshot: life.snapshot,
+    /** 调试：当前交通车辆状态（只读）。 */
+    trafficStates: (): readonly TrafficState[] => traffic.states,
+    trafficInspect: (index: number) => traffic.inspect(index),
     dispose: () => {
       treeField.dispose();
       v3Scenes.dispose();

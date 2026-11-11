@@ -1063,7 +1063,21 @@ export default function CityScene(props: CitySceneProps) {
     };
     if (new URLSearchParams(window.location.search).has("debugCamera")) {
       debugWindow.__cityScene = scene;
-      debugWindow.__cityDebug = { renderer, quality: renderQuality, pipeline: renderPipeline, sun, camera, controls };
+      debugWindow.__cityDebug = {
+        renderer, quality: renderQuality, pipeline: renderPipeline, sun, camera, controls,
+        inspectVehicle: (index: number) => world.trafficInspect?.(index),
+        traffic: () => (world.trafficStates?.() ?? []).map((s, i) => ({ x: s.pose.x, z: s.pose.z, dx: s.pose.directionX, dz: s.pose.directionZ, v: s.speed, i })),
+        // 确定性推进模拟（不渲染），用于无头截图：每 0.2 s 调用一次 world.animate。
+        simulate: (seconds: number) => {
+          for (let elapsed = 0; elapsed < seconds; elapsed += 0.2) {
+            worldTime += 0.2;
+            world.animate(worldTime, current.current.night, current.current.seasonMode);
+          }
+          lastAnimatedTime = worldTime;
+          schedule();
+          return worldTime;
+        },
+      };
       debugWindow.__cityAdvance = (seconds) => {
         worldTime += seconds;
         schedule();

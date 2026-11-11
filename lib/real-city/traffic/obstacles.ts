@@ -1,4 +1,5 @@
 import type { TrafficEnvironment, TrafficState, TrafficSpecification } from "./types";
+import { TRAFFIC_LANE_OFFSET } from "./route";
 
 export class TrafficPedestrianAvoidance {
   private readonly maximumSeen: Float32Array;
@@ -22,7 +23,7 @@ export class TrafficPedestrianAvoidance {
     this.obstaclesSeen = new Uint16Array(vehicleCount);
   }
 
-  gap(vehicle: number, state: TrafficState, specification: TrafficSpecification, environment: TrafficEnvironment, seconds: number): number {
+  gap(vehicle: number, state: TrafficState, specification: TrafficSpecification, environment: TrafficEnvironment, seconds: number, others: readonly TrafficState[] = []): number {
     const lookAhead = Math.max(10, state.speed * 2.6 + 7);
     const halfWidth = specification.width * 0.5;
     let gap = Infinity;
@@ -53,8 +54,17 @@ export class TrafficPedestrianAvoidance {
         if (need <= TrafficPedestrianAvoidance.maximumSwerve) {
           const ramp = along > 0 ? 1 - Math.min(1, Math.max(0, (along - 6) / 12)) : 1;
           const amount = -Math.sign(signedLateral || 1) * need * ramp;
-          if (Math.abs(amount) > Math.abs(swerveTarget)) swerveTarget = amount;
-          continue;
+          // 车道左法线 n = (dirZ, -dirX)：道路中线在 -n 方向 TRAFFIC_LANE_OFFSET 处。
+          // 只在本车道内让出时直接绕行；需要压过中线时，对向车道必须空出整个超越距离，否则排队等候。
+          const centreRoom = TRAFFIC_LANE_OFFSET - halfWidth - 0.15;
+          const crossesCentre = amount < 0 && need > centreRoom;
+          const committed = ownSwerve < -centreRoom * 0.85;
+          if (!crossesCentre || committed || this.oncomingClear(vehicle, state, others, laneX, laneZ, Math.max(0, along) + obstacle.radius + specification.length + 2)) {
+            if (Math.abs(amount) > Math.abs(swerveTarget)) swerveTarget = amount;
+            if (crossesCentre) speedCap = Math.min(speedCap, 4.5);
+            continue;
+          }
+          // 对向来车：在本车道内最多让到中线前，并停在事件车辆后方排队。
         }
       }
       if (along < -specification.length * 0.5 || along > lookAhead) continue;
@@ -75,6 +85,26 @@ export class TrafficPedestrianAvoidance {
       gap = Math.max(0, this.heldGap[vehicle] - (state.travelled - this.maximumSeen[vehicle]));
     }
     return gap;
+  }
+
+  /**
+   * 对向车道在超越距离内是否空闲：对向行驶（航向相反）、横向位于中线另一侧的车辆，
+   * 若在「本车完成绕行所需时间」内会进入超越区段，则视为不安全。
+   */
+  oncomingClear(vehicle: number, state: TrafficState, others: readonly TrafficState[], laneX: number, laneZ: number, passLength: number): boolean {
+    const dirX = state.pose.directionX, dirZ = state.pose.directionZ;
+    const passTime = passLength / Math.max(2.5, Math.min(state.speed, 4.5)) + 1.5;
+    for (let index = 0; index < others.length; index++) {
+      if (index === vehicle) continue;
+      const other = others[index];
+      if (other.pose.directionX * dirX + other.pose.directionZ * dirZ > -0.7) continue;
+      const dx = other.pose.x - laneX, dz = other.pose.z - laneZ;
+      const lateral = dx * dirZ - dz * dirX;
+      if (lateral > -TRAFFIC_LANE_OFFSET + 0.3 || lateral < -TRAFFIC_LANE_OFFSET * 3) continue;
+      const along = dx * dirX + dz * dirZ;
+      if (along > -6 && along < passLength + 8 + other.speed * passTime) return false;
+    }
+    return true;
   }
 
   /** 平滑横移并把偏移写入 pose（左法线 = (dirZ, -dirX)），车头随横移速度微微偏转。 */

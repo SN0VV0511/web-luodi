@@ -74,6 +74,20 @@ export class CityTrafficEngine {
     return this.states;
   }
 
+  /** 调试：单车的让行 / 跟车 / 信号状态（无头截图与排障用）。 */
+  inspect(index: number): Record<string, number> {
+    const nearest = this.following.find(index, this.states, 40);
+    return {
+      swerve: this.pedestrians.swerve[index],
+      swerveTarget: this.pedestrians.swerveTarget[index],
+      speedCap: this.pedestrians.speedCap[index],
+      signalGap: this.junctions.stopGap(index),
+      leader: nearest.index,
+      leaderGap: nearest.gap,
+      obstacles: this.environment.obstacles.length,
+    };
+  }
+
   snapshot(): Readonly<TrafficSnapshot> {
     let moving = 0;
     let speed = 0;
@@ -133,7 +147,7 @@ export class CityTrafficEngine {
       const currentCurve = Math.abs(state.pose.curvature) > 0.001
         ? Math.sqrt(lateralLimit / Math.abs(state.pose.curvature))
         : Infinity;
-      const pedestrianGap = this.pedestrians.gap(index, state, specification, this.environment, seconds);
+      const pedestrianGap = this.pedestrians.gap(index, state, specification, this.environment, seconds, this.states);
       const desired = Math.max(0.2, Math.min(route.speed, cornerApproach, currentCurve, this.pedestrians.speedCap[index]));
       const nearest = this.following.find(index, this.states, Math.max(30, state.speed * 4));
       this.leader.index = nearest.index;
