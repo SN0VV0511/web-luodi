@@ -164,8 +164,8 @@ vec2 waveSlope(vec2 p, float angle, float scale, vec2 drift) {
     float spot = waterNoise(wp * vec2(0.42, 0.16) + vec2(t * 0.09, -t * 0.05));
     float life = 0.5 + 0.5 * sin(t * 0.7 + waterHash(floor(wp * vec2(0.42, 0.16))) * 6.28);
     float footprintCap = length(fwidth(vLakeWorld.xz));
-    float cap = smoothstep(0.86, 0.95, spot) * smoothstep(0.55, 0.68, crest) * life * wind * smoothstep(0.85, 0.4, q) * ${options.whitecaps.toFixed(2)};
-    cap *= mix(1.0, 0.25, smoothstep(0.3, 1.2, footprintCap));
+    float cap = smoothstep(0.89, 0.97, spot) * smoothstep(0.58, 0.72, crest) * life * wind * smoothstep(0.85, 0.4, q) * ${options.whitecaps.toFixed(2)};
+    cap *= mix(1.0, 0.12, smoothstep(0.07, 0.45, footprintCap));
     lakeFoam = max(lakeFoam, cap * (1.0 - uNight * 0.6));
   }` : ""}
   diffuseColor.rgb = mix(water * (1.0 - uNight * 0.7), vec3(0.9, 0.93, 0.92), lakeFoam);
@@ -232,7 +232,7 @@ roughnessFactor = mix(roughnessFactor, 0.6, lakeFoam);`)
 }
 #include <opaque_fragment>`);
   };
-  const key = `v3-water-3-${ws}-${options.whitecaps ?? 0}-${options.treeLine === false ? 0 : 1}-${profile.length}-${options.deep ?? ""}`;
+  const key = `v3-water-4-${ws}-${options.whitecaps ?? 0}-${options.treeLine === false ? 0 : 1}-${profile.length}-${options.deep ?? ""}`;
   material.customProgramCacheKey = () => key;
   material.addEventListener("dispose", () => normalMap.dispose());
   return {
