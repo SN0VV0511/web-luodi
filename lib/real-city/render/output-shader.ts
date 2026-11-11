@@ -8,6 +8,8 @@ uniform sampler2D tExposure;
 uniform sampler2D tDepth;
 uniform sampler2D tBlur;
 uniform sampler2D tReflection;
+uniform sampler2D tGodRays;
+uniform float godRayStrength;
 uniform float reflectionEnabled;
 uniform float occlusionEnabled;
 uniform float bloomStrength;
@@ -85,6 +87,9 @@ void main() {
     float haze = 1.0 - exp(-max(distance - hazeStart, 0.0) * hazeDensity);
     color = mix(color, hazeColor, clamp(haze, 0.0, hazeMax));
   }
+
+  // 体积光束：叠加在雾之后，光柱穿过空气透视层。
+  if (godRayStrength > 0.0) color += texture2D(tGodRays, vUv).rgb;
 
   vec3 bloomNear = texture2D(tBloomNear, vUv).rgb;
   vec3 bloomFar = texture2D(tBloomFar, vUv).rgb;

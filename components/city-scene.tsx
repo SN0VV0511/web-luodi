@@ -155,6 +155,9 @@ export default function CityScene(props: CitySceneProps) {
     const hemisphere = new THREE.HemisphereLight("#c5d7ee", "#6d7a58", 1.55);
     const sun = new THREE.DirectionalLight("#fff3d4", 2.35);
     const seasonSunOffset = new THREE.Vector3(-300, 235, 160);
+    const godRaySun = new THREE.Vector3();
+    const goldenRayTint = new THREE.Color(1.0, 0.68, 0.36);
+    const dayRayTint = new THREE.Color(1.0, 0.95, 0.86);
     sun.position.set(-300, 235, 160);
     sun.castShadow = true;
     sun.shadow.mapSize.setScalar(renderQuality.state.shadowSize);
@@ -754,7 +757,12 @@ export default function CityScene(props: CitySceneProps) {
       gpuTimer.begin();
       try {
         renderPipeline.focusTarget = controls.target;
-        renderPipeline.render(scene, camera, renderQuality.state, current.current.night, { grade: TIME_OF_DAY_GRADES[timeOfDay()], tiltShift: Boolean(current.current.tiltShift) });
+        renderPipeline.render(scene, camera, renderQuality.state, current.current.night, {
+          grade: TIME_OF_DAY_GRADES[timeOfDay()], tiltShift: Boolean(current.current.tiltShift),
+          sunDirection: godRaySun.copy(seasonSunOffset).normalize(),
+          godRays: timeOfDay() === "golden" ? 1.0 : timeOfDay() === "day" ? 0.3 : 0,
+          sunTint: timeOfDay() === "golden" ? goldenRayTint : dayRayTint,
+        });
       } finally {
         gpuTimer.end();
       }

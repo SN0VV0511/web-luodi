@@ -8,9 +8,10 @@ import type { RenderQuality } from "./quality";
 import { CityAntialiasPass } from "./antialias";
 import { CityEyeAdaptation } from "./exposure";
 import { CityTiltShiftPass } from "./tilt-shift";
+import { CityGodRayPass } from "./god-rays";
 import { TIME_OF_DAY_GRADES, type CityGrade } from "./time-of-day";
 
-export type CityLook = { grade: CityGrade; tiltShift: boolean };
+export type CityLook = { grade: CityGrade; tiltShift: boolean; sunDirection?: THREE.Vector3; godRays?: number; sunTint?: THREE.Color };
 
 export type RenderStatistics = {
   calls: number;
@@ -33,6 +34,7 @@ export class CityRenderPipeline {
   private readonly adaptation: CityEyeAdaptation | null;
   private readonly tilt: CityTiltShiftPass | null;
   private readonly wet: WetReflectionPass | null;
+  private readonly rays: CityGodRayPass | null;
   private readonly white: THREE.DataTexture;
   private readonly black: THREE.DataTexture;
   private readonly viewport = new THREE.Vector4();
@@ -65,6 +67,7 @@ export class CityRenderPipeline {
       this.adaptation = null;
       this.tilt = null;
       this.wet = null;
+      this.rays = null;
       return;
     }
     this.color = screenTarget("City HDR scene", 1, 1, true);
@@ -81,6 +84,7 @@ export class CityRenderPipeline {
     this.adaptation = new CityEyeAdaptation();
     this.tilt = new CityTiltShiftPass();
     this.wet = compact ? null : new WetReflectionPass();
+    this.rays = new CityGodRayPass();
     this.output = screenMaterial("City photographic output", cityOutputFragment, {
       tColor: { value: this.color.texture },
       tOcclusion: { value: this.white },
@@ -95,6 +99,8 @@ export class CityRenderPipeline {
       tDepth: { value: this.color.depthTexture },
       tBlur: { value: this.black },
       tReflection: { value: this.black },
+      tGodRays: { value: this.black },
+      godRayStrength: { value: 0 },
       reflectionEnabled: { value: 0 },
       cameraNear: { value: 0.8 },
       cameraFar: { value: 4000 },
@@ -126,6 +132,7 @@ export class CityRenderPipeline {
     this.antialias?.resize(width, height);
     this.tilt?.resize(width, height);
     this.wet?.resize(width, height);
+    this.rays?.resize(width, height);
     this.output?.uniforms.resolution.value.set(width, height);
     this.statistics.width = width;
     this.statistics.height = height;
@@ -182,6 +189,11 @@ export class CityRenderPipeline {
         this.output.uniforms.tReflection.value = this.wet.texture;
       }
       this.output.uniforms.reflectionEnabled.value = wet ? 1 : 0;
+      const rayStrength = this.rays && look?.sunDirection && !night
+        ? this.rays.render(renderer, this.screen, this.color.texture, this.color.depthTexture!, camera, look.sunDirection, look.godRays ?? 0, look.sunTint)
+        : 0;
+      this.output.uniforms.godRayStrength.value = rayStrength > 0 ? 1 : 0;
+      if (rayStrength > 0 && this.rays) this.output.uniforms.tGodRays.value = this.rays.texture;
       const grade = look?.grade ?? TIME_OF_DAY_GRADES[night ? "night" : "day"];
       const uniforms = this.output.uniforms;
       uniforms.bloomStrength.value = quality.bloom ? (night ? 0.14 : 0.06) * grade.bloom : 0;
@@ -235,6 +247,7 @@ export class CityRenderPipeline {
     this.adaptation?.dispose();
     this.tilt?.dispose();
     this.wet?.dispose();
+    this.rays?.dispose();
     this.white.dispose();
     this.black.dispose();
   }
