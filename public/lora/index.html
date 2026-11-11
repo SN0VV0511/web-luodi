@@ -34,6 +34,135 @@ body{font-size:16px}.intro{font-size:15px;line-height:2.05;max-width:960px}.main
 @media(max-width:760px){body{font-size:15px}.intro{font-size:13px}.lesson-route{gap:6px;margin-bottom:18px}.lesson-route a{font-size:10px;padding:7px 9px}.lesson-reader{padding-top:19px;margin-top:20px}.lesson-goal{font-size:18px}.lesson-story{font-size:13px;padding:15px 16px;line-height:2.05}.lesson-steps{gap:12px;margin-top:18px}.lesson-step{padding:17px 15px;grid-template-columns:26px minmax(0,1fr);gap:10px}.lesson-step-number{width:25px;height:25px;font-size:11px;margin-top:4px}.lesson-step h3{font-size:16px;margin-bottom:9px}.lesson-step p{font-size:13px;line-height:2.05}.lesson-step .technical{padding:10px 12px}.lesson-step .technical p,.worked-example p{font-size:12px}.worked-example{padding:12px}.lesson-step details p{font-size:12px}.section-marker strong{font-size:17px}.section-marker p{font-size:12px}.code-heading{padding:17px}.code-heading h2{font-size:16px}.code-heading>p{font-size:12px}.code-tabs{padding:0 12px 13px}.code-tab{font-size:10px}.code-reading-toolbar{padding:14px}.code-pre{max-height:490px}.code-pre code{font-size:11px;line-height:2.15}.code-line{padding-left:36px;padding-right:12px}.code-line:before{font-size:9px;left:3px}.code-filebar{gap:7px}.code-filename{font-size:10px}.code-actions{width:100%;justify-content:flex-end}.reading-overview,.reading-explanations{padding:16px}.reading-overview h3{font-size:15px}.reading-overview p{font-size:12px}.reading-explanations p{font-size:12px}.code-notes{padding:15px 17px;font-size:11px}.reading-navigation select{font-size:10px}.reading-mode button{font-size:10px}.glossary-items{grid-template-columns:1fr;padding:0 17px}.glossary-item:nth-child(odd),.glossary-item:nth-child(even){padding:16px 0;border-right:0}.glossary-item p{font-size:12px}.glossary-item small{font-size:11px}.lesson-glossary>div{padding:16px 17px}.lesson-glossary h2{font-size:18px}.connections{padding:17px}.connection-item{font-size:11px;grid-template-columns:minmax(0,1fr) 12px minmax(0,1fr);gap:7px}.connection-item>strong{font-size:11px}.oral-room{padding:18px}.oral-room h2{font-size:18px}.oral-script{font-size:13px;padding:16px;line-height:2.1}.oral-tabs{gap:5px;flex-wrap:wrap}.oral-tabs button{font-size:11px;padding:8px 10px}.oral-followups details{padding:12px 13px}.oral-followups summary{font-size:12px}.lesson-check{padding:18px}.lesson-check h3{font-size:15px}.check-option,.check-feedback{font-size:12px}.chapter-recap{padding:17px}.chapter-recap ul{font-size:12px}.worked-table{padding:18px}.worked-table h2{font-size:18px}.worked-table>p{font-size:12px}.worked-result{padding:13px;font-size:12px}.worked-result pre{font-size:10px}.numeric-details{padding:14px 16px}.numeric-details p{font-size:12px}.numeric-columns{gap:9px}.numeric-fact{padding:13px}.numeric-fact b{font-size:19px}.numeric-fact p{font-size:11px}.question-answer{font-size:12px}.tensor-message{font-size:12px}.tensor-proof p{font-size:10px}.tensor-head p{font-size:11px}.tensor-legend{font-size:10px}}
 @media print{.lesson-route,.reading-mode,.reading-navigation,.code-expand,.check-options,.read-more-code{display:none}.code-pre{max-height:none}.lesson-step,.worked-example,.glossary-item,.oral-script{break-inside:avoid}.lesson-step p,.reading-overview p,.reading-explanations p{color:#111}.lesson-steps{display:block}.lesson-step{margin:12px 0}}
 
+
+/* ===== Interview edition additions (lx-*) ===== */
+.lx-launch{display:grid;gap:8px;margin:14px 0 6px}
+.lx-launch button{all:unset;cursor:pointer;display:block;padding:10px 12px;border-radius:12px;background:#0b2b27;color:#e6fffb;font-size:13px;line-height:1.45;border:1px solid rgba(45,212,191,.35);box-shadow:0 6px 18px rgba(4,30,27,.18)}
+.lx-launch button b{display:block;font-size:14px;color:#5eead4}
+.lx-launch button:hover{background:#114640}
+.lx-banner{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:18px 0 26px}
+.lx-banner button{all:unset;cursor:pointer;border-radius:16px;padding:16px 18px;background:linear-gradient(140deg,#0b2f2b,#06201d);color:#d9fffa;border:1px solid rgba(45,212,191,.4);box-shadow:0 14px 30px rgba(6,40,36,.25);transition:transform .15s}
+.lx-banner button:hover{transform:translateY(-2px)}
+.lx-banner button b{display:block;font-size:17px;color:#5eead4;margin-bottom:4px}
+.lx-banner button span{font-size:13px;color:#a7d8d0;line-height:1.6}
+.lx-banner button i{font-style:normal;display:inline-block;margin-top:8px;font-size:12px;padding:2px 10px;border-radius:20px;background:#2dd4bf;color:#042a26;font-weight:700}
+.lx-ov{position:fixed;inset:0;z-index:9999;background:#04100f;color:#e6fffb;overflow-y:auto;display:none;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;line-height:1.7}
+.lx-ov.open{display:block}
+.lx-ov *{box-sizing:border-box}
+.lx-top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;padding:10px 22px;background:rgba(4,16,15,.94);backdrop-filter:blur(10px);border-bottom:1px solid rgba(94,234,212,.18)}
+.lx-top h2{font-size:16px;margin:0;color:#e6fffb;font-weight:700}
+.lx-top .sp{flex:1}
+.lx-btn{font:inherit;font-size:13px;cursor:pointer;border:1px solid rgba(94,234,212,.38);background:rgba(45,212,191,.09);color:#e6fffb;padding:6px 13px;border-radius:9px}
+.lx-btn:hover{background:rgba(45,212,191,.2)}.lx-btn.on{background:#2dd4bf;color:#032421;border-color:#2dd4bf;font-weight:700}
+.lx-wrap{max-width:1280px;margin:0 auto;padding:22px 24px 80px}
+.lx-wrap h3{font-size:21px;margin:30px 0 8px;color:#e6fffb}
+.lx-wrap h4{font-size:16px;margin:18px 0 6px;color:#e6fffb}
+.lx-wrap p,.lx-wrap li{color:#a9d3cc;font-size:14.5px}
+.lx-wrap p b,.lx-wrap li b{color:#fff}
+.lx-wrap ul{margin:6px 0 6px 20px}
+.lx-wrap code{font-family:"JetBrains Mono",Consolas,Menlo,monospace;font-size:.86em;background:rgba(45,212,191,.1);border:1px solid rgba(94,234,212,.2);padding:1px 6px;border-radius:6px;color:#99f6e4}
+.lx-card{background:rgba(13,40,37,.7);border:1px solid rgba(94,234,212,.16);border-radius:14px;padding:16px 18px}
+.lx-g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}.lx-g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.lx-est{font-size:10.5px;padding:1px 7px;border-radius:20px;background:rgba(251,191,36,.12);color:#fbbf24;border:1px solid rgba(251,191,36,.35);margin-left:6px;white-space:nowrap;vertical-align:middle}
+.lx-note{border-left:3px solid #fbbf24;background:rgba(251,191,36,.07);padding:11px 15px;border-radius:0 10px 10px 0;color:#fde68a;font-size:13.5px;margin:12px 0}
+.lx-note.t{border-color:#2dd4bf;background:rgba(45,212,191,.07);color:#a7f3d0}
+.lx-wrap table{width:100%;border-collapse:collapse;font-size:13px;margin:10px 0}
+.lx-wrap th,.lx-wrap td{border-bottom:1px solid rgba(94,234,212,.14);padding:8px 9px;text-align:left;color:#a9d3cc;vertical-align:top}
+.lx-wrap th{color:#e6fffb;background:rgba(45,212,191,.07)}
+.lx-wrap td b{color:#fff}
+.lx-wrap tr.rec td{background:rgba(45,212,191,.09)}
+.lx-ok{color:#4ade80!important}.lx-bad{color:#fb7185!important}.lx-mid{color:#fbbf24!important}
+/* theater */
+.lx-scenes{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.lx-scenes .lx-btn{font-size:12.5px;padding:5px 10px}
+.lx-th{border:1px solid rgba(94,234,212,.3);border-radius:18px;overflow:hidden;background:#020c0b}
+.lx-prog{height:4px;background:rgba(45,212,191,.12)}.lx-prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,#2dd4bf,#38bdf8);transition:width .3s}
+.lx-stage{position:relative;min-height:440px;padding:22px;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,rgba(45,212,191,.07),transparent 65%);overflow:hidden}
+.lx-narr{display:grid;grid-template-columns:1.2fr 1fr;gap:20px;padding:16px 20px;border-top:1px solid rgba(94,234,212,.16)}
+.lx-narr .no{font-family:Consolas,monospace;font-size:12px;color:#2dd4bf}
+.lx-narr h4{margin:2px 0 6px;font-size:18px}
+.lx-narr .bd{font-size:14px;color:#a9d3cc}
+.lx-narr .bd b{color:#fff}
+.lx-narr .code{background:#010807;border:1px solid rgba(94,234,212,.16);border-radius:10px;padding:10px 12px;font-family:"JetBrains Mono",Consolas,monospace;font-size:12px;color:#a7f3d0;white-space:pre-wrap;max-height:230px;overflow:auto;margin:0}
+.lx-ctrl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 16px;border-top:1px solid rgba(94,234,212,.16);background:rgba(10,32,30,.6)}
+.lx-ctrl .sp{flex:1}
+.lx-ctrl select{background:#062320;color:#e6fffb;border:1px solid rgba(94,234,212,.35);border-radius:8px;padding:4px 8px;font:inherit;font-size:13px}
+.lx-dots{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}.lx-dots span{width:20px;height:6px;border-radius:4px;background:rgba(45,212,191,.15);cursor:pointer}.lx-dots span.d{background:rgba(45,212,191,.5)}.lx-dots span.c{background:#fbbf24}
+/* visual primitives */
+.lx-in{opacity:0;animation:lxIn .6s ease forwards;animation-delay:calc(var(--d,0) * 1s / var(--sp,1))}
+@keyframes lxIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.lx-pop{animation:lxPop .5s ease both;animation-delay:calc(var(--d,0) * 1s / var(--sp,1))}
+@keyframes lxPop{0%{opacity:0;transform:scale(.6)}70%{transform:scale(1.08)}100%{opacity:1;transform:scale(1)}}
+.lx-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center}
+.lx-col{display:flex;flex-direction:column;align-items:center;gap:8px}
+.lx-box{border:1px solid rgba(94,234,212,.4);background:#08221f;border-radius:12px;padding:10px 14px;text-align:center;color:#e6fffb;font-size:14px;min-width:90px}
+.lx-box small{display:block;color:#7fb3ab;font-size:11.5px}
+.lx-box.hot{border-color:#5eead4;background:#0f4741;box-shadow:0 0 22px rgba(45,212,191,.35)}
+.lx-box.frozen{border-color:#60a5fa;background:#0b1d33}
+.lx-box.warn{border-color:#fb7185;background:#2a0f15}
+.lx-box.gold{border-color:#fbbf24;background:#2b230b}
+.lx-arrow{position:relative;width:70px;height:2px;background:rgba(94,234,212,.35)}
+.lx-arrow:after{content:"";position:absolute;right:-1px;top:-4px;border-left:8px solid rgba(94,234,212,.7);border-top:5px solid transparent;border-bottom:5px solid transparent}
+.lx-arrow i{position:absolute;top:-4px;width:10px;height:10px;border-radius:50%;background:#5eead4;box-shadow:0 0 10px #5eead4;animation:lxFlow 1.6s linear infinite;animation-duration:calc(1.6s / var(--sp,1))}
+.lx-arrow.back:after{left:-1px;right:auto;border-left:0;border-right:8px solid rgba(251,191,36,.8)}
+.lx-arrow.back{background:rgba(251,191,36,.35)}
+.lx-arrow.back i{background:#fbbf24;box-shadow:0 0 10px #fbbf24;animation-name:lxFlowB}
+.lx-arrow.block{background:rgba(251,113,133,.35)}
+.lx-arrow.block i{display:none}
+@keyframes lxFlow{from{left:0}to{left:calc(100% - 10px)}}
+@keyframes lxFlowB{from{left:calc(100% - 10px)}to{left:0}}
+.lx-mat{display:inline-grid;gap:3px;padding:6px;border-radius:8px;border:1px solid rgba(94,234,212,.35);background:#061a18}
+.lx-mat span{min-width:34px;height:30px;display:flex;align-items:center;justify-content:center;font-family:Consolas,monospace;font-size:13px;color:#e6fffb;background:#0b2d29;border-radius:5px;transition:all .4s}
+.lx-mat.frozen{border-color:#60a5fa}.lx-mat.frozen span{background:#0c2240;color:#bfdbfe}
+.lx-mat.gold span{background:#3a2e0b;color:#fde68a}
+.lx-mat span.hl{background:#14b8a6;color:#032421;font-weight:700}
+.lx-lbl{font-size:12px;color:#7fb3ab;text-align:center;margin-top:4px}
+.lx-big{font-size:26px;font-weight:800;color:#5eead4;font-family:Consolas,monospace}
+.lx-tok{display:inline-flex;flex-direction:column;align-items:center;margin:3px;padding:6px 8px;border-radius:8px;background:#0b2d29;border:1px solid rgba(94,234,212,.3);font-size:13px;min-width:54px}
+.lx-tok small{font-family:Consolas,monospace;color:#7fb3ab;font-size:11px}
+.lx-tok.ign{opacity:.55;border-style:dashed}
+.lx-tok.sup{border-color:#fbbf24;background:#2b230b}
+.lx-bar{height:16px;border-radius:5px;background:rgba(45,212,191,.12);overflow:hidden}
+.lx-bar i{display:block;height:100%;background:linear-gradient(90deg,#14b8a6,#5eead4);width:0;transition:width 1.2s ease}
+.lx-grid{display:grid;gap:2px}
+.lx-grid i{display:block;width:9px;height:9px;border-radius:2px;background:#0c2240}
+.lx-grid i.on{background:#2dd4bf;animation:lxBlink 1.4s ease infinite}
+@keyframes lxBlink{50%{opacity:.4}}
+.lx-lock{font-size:18px}
+.lx-cap{font-size:13px;color:#a9d3cc;text-align:center;max-width:860px}
+/* gpu calc */
+.lx-calc{display:grid;grid-template-columns:330px 1fr;gap:18px}
+.lx-sl{margin:9px 0}.lx-sl label{display:flex;justify-content:space-between;font-size:13px;color:#a9d3cc}.lx-sl label b{color:#5eead4;font-family:Consolas,monospace}
+.lx-sl input[type=range]{width:100%;accent-color:#2dd4bf}
+.lx-sl select{width:100%;background:#062320;color:#e6fffb;border:1px solid rgba(94,234,212,.35);border-radius:8px;padding:6px 8px;font:inherit;font-size:13px;margin-top:3px}
+.lx-out{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.lx-out div{background:#03100f;border:1px solid rgba(94,234,212,.16);border-radius:10px;padding:10px 12px}
+.lx-out b{display:block;font-family:Consolas,monospace;font-size:19px;color:#fff}
+.lx-out span{font-size:12px;color:#a9d3cc}
+.lx-out small{display:block;font-family:Consolas,monospace;font-size:10.5px;color:#5f8a83;margin-top:3px;word-break:break-all}
+.lx-vram{display:flex;height:42px;border-radius:9px;overflow:hidden;border:1px solid rgba(94,234,212,.35);background:#020a09;position:relative;margin:8px 0 4px}
+.lx-vram div{height:100%;transition:width .7s ease;display:flex;align-items:center;justify-content:center;font-size:11.5px;color:#03201d;font-weight:700;white-space:nowrap;overflow:hidden}
+.lx-vram .w{background:#14b8a6}.lx-vram .a{background:#f472b6}.lx-vram .o{background:#a78bfa}.lx-vram .k{background:#38bdf8}.lx-vram .f{background:rgba(45,212,191,.07);color:#5f8a83}.lx-vram .x{background:#fb7185}
+.lx-vram .lim{position:absolute;top:0;bottom:0;width:0;border-left:2px dashed #fbbf24}
+.lx-legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:#a9d3cc}.lx-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.lx-cards{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px}
+.lx-gpu{width:150px;border:1px solid rgba(94,234,212,.4);border-radius:10px;background:#061a18;padding:8px}
+.lx-gpu.spare{border-style:dashed;opacity:.75}
+.lx-gpu .nm{font-size:12px;color:#e6fffb;font-weight:700}.lx-gpu .sb{font-size:11px;color:#7fb3ab}
+.lx-gpu .streams{display:grid;grid-template-columns:repeat(10,1fr);gap:3px;margin-top:6px}
+.lx-gpu .streams i{height:8px;border-radius:2px;background:rgba(56,189,248,.15)}
+.lx-gpu .streams i.on{background:#38bdf8;animation:lxBlink 1.2s ease infinite}
+.lx-gauge{margin-top:8px}
+.lx-qa details{background:rgba(13,40,37,.7);border:1px solid rgba(94,234,212,.16);border-radius:12px;margin:9px 0}
+.lx-qa summary{cursor:pointer;padding:12px 16px;font-weight:700;color:#e6fffb;list-style:none}
+.lx-qa summary::-webkit-details-marker{display:none}
+.lx-qa details .a{padding:0 18px 14px;color:#a9d3cc;font-size:14px}
+.lx-qa details .a b{color:#fff}
+.lx-pitch{white-space:pre-wrap;background:#03100f;border:1px solid rgba(94,234,212,.16);border-radius:12px;padding:16px 18px;color:#d1faf3;font-size:14.5px;line-height:1.9}
+.lx-formula{font-family:"JetBrains Mono",Consolas,monospace;background:#010807;border:1px solid rgba(94,234,212,.16);border-radius:10px;padding:12px 14px;color:#a7f3d0;font-size:12.5px;white-space:pre-wrap;overflow-x:auto}
+@media (max-width:980px){.lx-banner,.lx-g2,.lx-g3,.lx-calc,.lx-narr{grid-template-columns:1fr}.lx-stage{min-height:360px;padding:14px}.lx-arrow{width:36px}.lx-mat span{min-width:26px;height:24px;font-size:11px}}
+@media (max-width:640px){.lx-top{gap:8px;padding:10px 12px}.lx-top h2{font-size:15px}.lx-top .lx-btn{white-space:nowrap;padding:6px 9px;font-size:12px}.lx-scenes{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:6px}.lx-scenes button{flex:0 0 auto;white-space:nowrap}.lx-wrap{padding:12px}.lx-stage{min-height:300px}.lx-ctrl{flex-wrap:wrap;gap:6px}.lx-top .lx-btn[data-lx-open]{display:none}}
+
 </style>
 <style id="term-learning-style">/* 原词可点；中文提示属于阅读层，不进入复制和下载的源码。 */
 .term-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:13px 0 18px;border-bottom:1px solid var(--line);margin-bottom:24px}
@@ -109,6 +238,7 @@ body{font-size:16px}.intro{font-size:15px;line-height:2.05;max-width:960px}.main
 <div class="app">
 <aside aria-label="课程目录" class="sidebar">
 <div class="brand"><div aria-hidden="true" class="brandmark"><i></i><i></i><i></i><i></i></div><div><strong>沐雪 · LoRA</strong><small>EXPLAINED EDITION / 03</small></div></div>
+<div class="lx-launch" data-no-terms><button type="button" data-lx-open="theater"><b>▶ 全流程动画剧场</b>14 幕：从一条数据到上线推理</button><button type="button" data-lx-open="gpu"><b>🖥 5,000 税号部署多大的卡</b>显存 / 吞吐计算器</button><button type="button" data-lx-open="pitch"><b>🎤 面试速通</b>1 分钟 / 3 分钟口播 + 追问</button></div>
 <div><p class="nav-label">ANIMATION × CODE</p><nav aria-label="选择章节" class="chapters">
 <button aria-current="step" class="chapter active visited" data-chapter="0"><span class="chapter-number">01</span>目标与基线</button>
 <button class="chapter" data-chapter="1"><span class="chapter-number">02</span>SFT 与监督</button>
@@ -122,7 +252,8 @@ body{font-size:16px}.intro{font-size:15px;line-height:2.05;max-width:960px}.main
 <div class="sidebar-foot"><p>概念 → 实现 → 验证。</p><div class="progress-track"><div class="progress-fill" id="reading-progress"></div></div><p class="tiny-note" id="reading-label">已走进 1 / 8 个章节</p><p class="tiny-note" style="margin-top:15px">你的项目<br/>Gemma 4 E2B × 沐雪<br/>RTX 4060 Laptop · 8GB</p></div>
 </aside>
 <main class="main" id="main">
-<header class="topbar"><span class="eyebrow">AI 应用开发工程师 / LoRA 实验课堂</span><div class="topbar-right"><span class="offline"><i class="status-dot"></i>离线也能学</span><button aria-pressed="true" class="quiet-button mode-button" id="engineering-mode">代码实战：开</button><button aria-pressed="false" class="quiet-button" id="motion-toggle">暂停动画</button></div></header><div aria-label="英文翻译与名词查询" class="term-tools"><p><strong>读不懂的词，直接点它。</strong>虚线下划线可打开详细解释；英文旁默认显示中文，公式里的字母也能点。已收录 162 个详细释义，另附代码名称翻译。</p><button class="quiet-button" id="open-term-search" type="button">名词速查</button><button aria-pressed="true" class="quiet-button" id="translation-toggle" type="button">英文旁中文：开</button></div>
+<header class="topbar"><span class="eyebrow">AI 应用开发工程师 / LoRA 实验课堂</span><div class="topbar-right"><span class="offline"><i class="status-dot"></i>离线也能学</span><button aria-pressed="true" class="quiet-button mode-button" id="engineering-mode">代码实战：开</button><button aria-pressed="false" class="quiet-button" id="motion-toggle">暂停动画</button></div></header><div class="lx-banner" data-no-terms><button type="button" data-lx-open="theater"><b>▶ 全流程动画剧场</b><span>数据清洗 → 模板分词 → 冻结 W + A/B 旁路前向 → loss → 梯度只流向 A/B → 梯度累积与 AdamW → QLoRA → 合并 → 部署，逐步播放、可暂停单步。</span><br><i>新 · 推荐先看</i></button><button type="button" data-lx-open="gpu"><b>🖥 微调后的模型部署多大的卡</b><span>按 10 家 ISV、5,000 个税号推算请求量、显存（权重 + KV 缓存）和吞吐，交互计算器对比 4090D / L20 / H20 等卡型。</span><br><i>新 · 面试必问</i></button><button type="button" data-lx-open="pitch"><b>🎤 面试速通</b><span>1 分钟 / 3 分钟项目介绍、和 Biglink 串起来讲、11 道原理追问、一页纸公式。</span><br><i>新</i></button></div>
+<div aria-label="英文翻译与名词查询" class="term-tools"><p><strong>读不懂的词，直接点它。</strong>虚线下划线可打开详细解释；英文旁默认显示中文，公式里的字母也能点。已收录 162 个详细释义，另附代码名称翻译。</p><button class="quiet-button" id="open-term-search" type="button">名词速查</button><button aria-pressed="true" class="quiet-button" id="translation-toggle" type="button">英文旁中文：开</button></div>
 <section aria-labelledby="title-0" class="panel" id="chapter-0">
 <p class="chapter-tag">01 / 08 · 先看结果</p><h1 id="title-0" tabindex="-1">先讲明白为什么，<br/>再逐段读懂代码。</h1>
 <p class="intro">先不要背公式。把你的项目看成一次可重复的工程实验：同一个模型、同一道题、同一份角色说明，只切换是否加载 LoRA，观察回答有没有稳定改善。</p>
@@ -1042,5 +1173,578 @@ function flushTermDecoration() {
 decorateTerms(document.body);translateControlLabels(document.body);startTermObserver();
 // 只读接口用于离线验证，不暴露或更改训练内核。
 window.loraTermLearning={calculateFormulaExample:calculateFormulaExample,resolveTerm:resolveTerm,shortChinese:shortChinese,registry:termRegistry,annotateString:annotateString,openTerm:openTerm,searchTerms:searchTerms};
-</script></body>
+</script><!-- ===== Interview edition overlays ===== -->
+<div data-no-terms class="lx-ov" id="lx-theater" role="dialog" aria-label="LoRA 全流程动画剧场">
+  <div class="lx-top"><h2>▶ LoRA 全流程动画剧场 · 从一条数据到上线推理</h2><span class="sp"></span><button class="lx-btn" data-lx-open="gpu">部署多大的卡 →</button><button class="lx-btn" data-lx-open="pitch">面试速通 →</button><button class="lx-btn" data-lx-close>✕ 关闭</button></div>
+  <div class="lx-wrap">
+    <p>14 个场景、29 步，把整个 LoRA / QLoRA 微调讲成一部连续动画。数字沿用本页的教学例子（x=[1,2,3]、r=1、α=2，最后 y=[5,6]）和你项目记录里的配置（3375 条训练数据、r=8、α=16、学习率 5e-5、batch 1 × 累积 8、3 轮）。<b>动画只解释原理，不是真实训练日志。</b> 键盘：空格 播放/暂停，← → 单步，Esc 关闭。</p>
+    <div class="lx-scenes" id="lx-scenes"></div>
+    <div class="lx-th">
+      <div class="lx-prog"><i id="lx-prog"></i></div>
+      <div class="lx-stage" id="lx-stage"></div>
+      <div class="lx-narr"><div><div class="no" id="lx-no"></div><h4 id="lx-title"></h4><div class="bd" id="lx-body"></div><div class="lx-dots" id="lx-dots"></div></div><pre class="code" id="lx-code"></pre></div>
+      <div class="lx-ctrl"><button class="lx-btn" id="lx-prev">⟨ 上一步</button><button class="lx-btn on" id="lx-play">▶ 播放</button><button class="lx-btn" id="lx-next">下一步 ⟩</button><button class="lx-btn" id="lx-reset">↺ 本场景重播</button><span class="sp"></span><label style="font-size:13px;color:#a9d3cc">速度 <select id="lx-speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option><option value="2">2×</option></select></label><label style="font-size:13px;color:#a9d3cc"><input type="checkbox" id="lx-auto" checked> 自动进入下一场景</label></div>
+    </div>
+  </div>
+</div>
+
+<div data-no-terms class="lx-ov" id="lx-gpu" role="dialog" aria-label="本地模型部署 GPU 选型">
+  <div class="lx-top"><h2>🖥 微调后的本地模型要部署多大的卡？· 10 家 ISV / 5,000 税号</h2><span class="sp"></span><button class="lx-btn" data-lx-open="theater">动画剧场</button><button class="lx-btn" data-lx-open="pitch">面试速通</button><button class="lx-btn" data-lx-close>✕ 关闭</button></div>
+  <div class="lx-wrap">
+    <div class="lx-card" style="border-color:rgba(45,212,191,.45)">
+      <h3 style="margin-top:0">结论先行 <span class="lx-est">估算 · 需压测验证</span></h3>
+      <p id="lx-gpu-headline"></p>
+      <ul>
+        <li><b>推荐配置：</b>Biglink 的本地财税模型（Gemma-2-9B + LoRA，合并后部署）用 <b>vLLM</b>，跑在 <b>2 张 48GB 卡（如 NVIDIA L20）</b>上：每张卡一个完整副本，负载均衡。按估算<b>一张卡就能扛住征期峰值</b>，第二张用于 N+1 高可用和突发余量。</li>
+        <li><b>精度：</b>48GB 卡上 BF16 原精度能放下、速度刚好达标；改成 <b>FP8</b> 权重后速度余量更大（L20 属于 Ada 架构，支持 FP8）。改精度后要用固定评测集回归一遍质量。</li>
+        <li><b>预算版：</b>2 张 24GB 卡（国内常见的是 RTX 4090D）跑 <b>AWQ INT4</b>，也能扛住峰值，但显存余量小，长对话多时要限制上下文长度。BF16 在 24GB 卡上放不下。</li>
+        <li><b>不建议：</b>A100/A800/H20 这类 80–96GB 卡。这个规模用不满，而且对华供应受出口管制影响。</li>
+      </ul>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="lx-btn on" href="#lx-calc-anchor" id="lx-jump-calc">打开计算器</a><a class="lx-btn" href="#lx-why">为什么这么算</a><a class="lx-btn" href="#lx-train">训练需要什么卡</a><a class="lx-btn" href="#lx-gpu-qa">面试怎么答</a></div>
+    </div>
+
+    <h3>① 先算工作量：本地模型每秒要处理多少？</h3>
+    <div class="lx-formula">平常日本地请求数 = 税号数 × 日活比例 × 每个活跃税号每天对话轮数 × 本地承接比例
+                 = 5,000 × 40% × 8 × 60% = 9,600 次/天
+峰值请求率 λ  = 日请求 × 征期倍数 × 峰值小时占比 ÷ 3600 = 9,600 × 2.5 × 15% ÷ 3600 ≈ 1.0 次/秒
+需要的输出速度 = λ × 平均输出长度 = 1.0 × 250 ≈ 250 token/s（预填充 1.0 × 1,200 = 1,200 token/s，算力上很轻）
+同时在途路数 C = λ × (首字延迟 + 输出长度 ÷ 单路速度) = 1.0 × (0.5 + 250 ÷ 20) ≈ 13 路      ← Little 定律</div>
+    <p>这些假设和 1F Biglink 页的<a href="../biglink/index.html#s-cap">容量估算器</a>完全一致。“每路 20 token/s”是体验目标：大约等于每秒 10~15 个汉字，比人的阅读速度快。</p>
+
+    <h3>② 再算显存：权重 + KV 缓存 + 运行开销</h3>
+    <div class="lx-g2">
+      <div class="lx-formula">权重 = 参数量 × 每参数字节
+  Gemma-2-9B（9.24B）：BF16 ≈ 18.5 GB；FP8/INT8 ≈ 9.2 GB；INT4(AWQ/GPTQ) ≈ 5.2 GB
+
+KV 缓存/每 token = 2(K 和 V) × 层数 × KV 头数 × 每头维度 × 字节
+  Gemma-2-9B：2 × 42 × 8 × 256 × 2B = 344,064 B ≈ 0.33 MB
+  Qwen2.5-7B：2 × 28 × 4 × 128 × 2B =  57,344 B ≈ 0.055 MB
+
+KV 总量 = 在途路数 × 每路上下文长度 × 每 token KV
+  Gemma-2-9B：13 × (1,200+250) × 0.33 MB ≈ 6.5 GB
+
+运行开销 ≈ 2.5 GB（CUDA 上下文、激活、CUDA Graph 等，经验值）
+可用显存 = 显存 × 0.9（vLLM 的 gpu_memory_utilization）</div>
+      <div class="lx-card"><p><b>为什么 KV 缓存这么重要？</b>生成每个新 token 时，模型要回看之前所有 token 的 K、V 向量，这些向量缓存在显存里，<b>按“路数 × 上下文长度”增长</b>。权重是固定成本，KV 是随并发增长的成本，决定了一张卡能同时服务多少人。</p><p><b>模型结构差异很大：</b>Gemma-2-9B 的每头维度是 256、有 42 层，每 token 的 KV 是 Qwen2.5-7B 的 6 倍。所以“参数量差不多”不代表“能扛的并发差不多”，选基座时要看 config 里的 <code>num_hidden_layers / num_key_value_heads / head_dim</code>。</p><p>注：Gemma-2 有一半层用 4K 滑动窗口，上下文不超过 4K 时省不了 KV，这里按全量算，偏保守。</p></div>
+    </div>
+
+    <h3>③ 最后算速度：一张卡每秒能生成多少 token？</h3>
+    <div class="lx-g2">
+      <div class="lx-formula">解码阶段是“搬显存”受限：每生成一步，要把全部权重 + 所有在途路的 KV 读一遍
+每步读取量 = 权重 + C × 平均上下文 × 每 token KV
+单路速度 ≈ 显存带宽 × 有效系数 ÷ 每步读取量        （token/s）
+整卡吞吐 ≈ 单路速度 × C
+
+例：L20（864 GB/s），Gemma-2-9B FP8，C=13，平均上下文 1,325
+  每步读取 ≈ 9.2 + 13 × 1,325 × 0.33MB ≈ 15.2 GB
+  单路 ≈ 864 × 0.7 ÷ 15.2 ≈ 40 token/s  → 整卡 ≈ 520 token/s ≥ 需要的 250 ✓</div>
+      <div class="lx-card"><p><b>有效系数 0.7 怎么来的？</b>用公开基准反推：一篇在 L40S（同为 864 GB/s）上用 vLLM 跑 Llama-3.1-8B 的实测，BF16、16 路并发的聊天负载约 <b>633 token/s</b>；代入上面的公式，有效带宽约为标称的 80%。这里取 70%，偏保守。</p><p>vLLM 的<b>连续批处理</b>（continuous batching）是关键：同一篇实测里，并发从 1 提到 256，吞吐从 47 提到 3,415 token/s。所以<b>单路慢 ≠ 整卡慢</b>，要看并发下的总吞吐。</p><p style="font-size:12.5px">来源：<a href="https://pub.towardsai.net/the-vllm-optimization-playbook-for-l40s-backed-by-83-experiments-ae5da228f514" target="_blank" rel="noopener" style="color:#5eead4">vLLM optimization playbook for L40S（83 组实验）</a>；<a href="https://www.redhat.com/en/blog/efficient-and-reproducible-llm-inference-red-hat-mlperf-inference-v51-results" target="_blank" rel="noopener" style="color:#5eead4">Red Hat MLPerf v5.1：L40S 跑 Llama-3.1-8B FP8 约 1,207 token/s（Server）</a>。不同模型、负载差异很大，<b>上线前必须用自己的 prompt 分布压测</b>。</p></div>
+    </div>
+
+    <h3 id="lx-calc-anchor">④ 交互计算器：改假设，看要几张什么卡</h3>
+    <div class="lx-calc lx-card">
+      <div id="lx-gpu-sl"></div>
+      <div>
+        <div class="lx-legend"><span><i style="background:#14b8a6"></i>权重</span><span><i style="background:#f472b6"></i>LoRA 适配器</span><span><i style="background:#a78bfa"></i>运行开销</span><span><i style="background:#38bdf8"></i>KV 缓存（单卡分到的路数）</span><span><i style="background:rgba(45,212,191,.2)"></i>空闲</span><span><i style="background:#fbbf24"></i>0.9 利用率上限</span></div>
+        <div class="lx-vram" id="lx-vram"></div>
+        <div style="font-size:12.5px;color:#a9d3cc" id="lx-vram-txt"></div>
+        <div class="lx-out" id="lx-gpu-out" style="margin-top:12px"></div>
+        <div class="lx-gauge"><div style="font-size:12.5px;color:#a9d3cc;margin:10px 0 4px">需要的输出吞吐 vs 已部署卡的总吞吐（不含冗余卡）</div><div class="lx-bar" style="height:22px;position:relative"><i id="lx-g-need" style="background:#fb7185"></i></div><div class="lx-bar" style="height:22px;margin-top:4px"><i id="lx-g-have"></i></div><div style="font-size:12px;color:#7fb3ab;margin-top:4px" id="lx-g-txt"></div></div>
+        <div class="lx-cards" id="lx-cards"></div>
+        <div class="lx-note t" id="lx-gpu-concl"></div>
+      </div>
+    </div>
+    <h4>同一模型和精度下，各卡型对比 <span class="lx-est">估算</span></h4>
+    <div style="overflow-x:auto"><table id="lx-gpu-table"></table></div>
+    <p style="font-size:12.5px">显存带宽为官方规格的公开值。供货说明只是提醒：RTX 4090、L40S、A100/A800 受美国出口管制影响，国内一般买不到新卡；RTX 4090D、L20、H20 是面向中国市场的型号，但 H20 等的供应也随政策变化。<b>实际以采购时的政策和渠道为准</b>，页面不给价格。</p>
+
+    <h3 id="lx-why">⑤ LoRA 模型怎么上线：合并 vs 多适配器</h3>
+    <div class="lx-g2">
+      <div class="lx-card"><h4 style="margin-top:0">方案 A：合并权重（推荐起步）</h4><p>训练完把 <code>W' = W + (α/r)·B·A</code> 合进基座，导出成一个普通模型，再按需量化（FP8 / AWQ）。推理和普通模型完全一样，<b>没有额外开销</b>，部署最简单。缺点：每换一版适配器都要重新合并、导出、回归。</p></div>
+      <div class="lx-card"><h4 style="margin-top:0">方案 B：vLLM 多 LoRA（按 ISV 定制时用）</h4><p>基座只加载一份，启动时加 <code>--enable-lora --max-loras 10 --max-lora-rank 16</code>，每个请求用 <code>model</code> 字段指定某家 ISV 的适配器。按 r=16、7 个投影层估算，Gemma-2-9B 每个适配器约 <b>5,400 万参数，BF16 约 108 MB</b>，10 家才 1 GB 左右。代价是 LoRA 计算有额外开销、批处理效率略降，要压测。只有当各 ISV 真的需要不同口径或话术时才值得。</p></div>
+    </div>
+    <div class="lx-formula">vllm serve /models/gemma-2-9b-tax-merged-fp8 \
+  --max-model-len 4096 --gpu-memory-utilization 0.90 \
+  --max-num-seqs 32 --enable-prefix-caching          # 系统提示/记忆前缀相同，可复用 KV
+# 多适配器版：vllm serve google/gemma-2-9b-it --enable-lora --max-loras 10 --max-lora-rank 16 \
+#              --lora-modules isv03=/adapters/isv03 isv05=/adapters/isv05 …</div>
+
+    <h3 id="lx-train">⑥ 训练（微调）需要什么卡？</h3>
+    <div style="overflow-x:auto"><table>
+      <tr><th>场景</th><th>显存大头</th><th>估算</th><th>可用卡</th></tr>
+      <tr><td><b>LoRA（BF16 基座），Gemma-2-9B</b></td><td>冻结权重 18.5 GB + 适配器及其梯度、Adam 状态（r=16 约 5,400 万参数 × 16 B ≈ 0.9 GB）+ 激活（序列 2K、batch 1、开梯度检查点约几 GB）</td><td>约 25–32 GB</td><td>48 GB 卡（L20/L40S）较舒适</td></tr>
+      <tr><td><b>QLoRA（4-bit 基座），Gemma-2-9B</b></td><td>NF4 权重约 5.5 GB + 适配器状态 + 激活</td><td>约 10–16 GB</td><td>24 GB 卡（4090D）即可</td></tr>
+      <tr><td><b>QLoRA，Gemma 4 E2B（你的沐雪实验）</b></td><td>4-bit 权重 + 小批量激活</td><td>本页不给数字，以实测为准</td><td>RTX 4060 Laptop 8GB 级（你的记录）</td></tr>
+    </table></div>
+    <div class="lx-formula">训练算力 ≈ 4 × 参数量 × 训练 token 数     （前向 2× + 反向传给激活约 2×；冻结权重不算权重梯度，所以不是全参的 6×）
+例：1.8 万条 × 平均 600 token × 3 轮 ≈ 3,240 万 token
+    4 × 9.24e9 × 3.24e7 ≈ 1.2e18 FLOPs；L20 BF16 约 119 TFLOPS，按 35% 利用率 ≈ 42 TFLOPS → 约 8 小时
+→ 训练是一次性成本，可以租云上 48GB 卡按小时算，不需要专门买训练卡。</div>
+
+    <h3 id="lx-gpu-qa">⑦ 面试追问：“为什么选这张卡？怎么算出来的？”</h3>
+    <div class="lx-qa" id="lx-gpu-qa-list"></div>
+  </div>
+</div>
+
+<div data-no-terms class="lx-ov" id="lx-pitch" role="dialog" aria-label="面试速通">
+  <div class="lx-top"><h2>🎤 面试速通 · LoRA 项目怎么讲</h2><span class="sp"></span><button class="lx-btn" data-lx-open="theater">动画剧场</button><button class="lx-btn" data-lx-open="gpu">部署多大的卡</button><button class="lx-btn" data-lx-close>✕ 关闭</button></div>
+  <div class="lx-wrap">
+    <div class="lx-note"><b>先对齐两个项目的口径：</b>本页的实验是 <b>Gemma 4 E2B + QLoRA 的“沐雪”角色风格微调</b>（RTX 4060 Laptop 8GB、3375 条数据）；1F Biglink 手册里写的是 <b>Gemma-2-9B + LoRA 的财税问答模型</b>（1.8 万条样本、48GB 卡）。这是两件事。面试时建议这样讲：<b>“我用角色风格实验把 LoRA/QLoRA 的完整流程跑通并做了公平对照；Biglink 里的财税本地模型沿用同一套方法，规模和部署方案是按 5,000 税号设计的。”</b>只把真正做过的部分说成“做过”。</div>
+    <div style="display:flex;gap:6px;margin:12px 0" id="lx-pt-tabs"><button class="lx-btn on" data-k="p1">1 分钟版</button><button class="lx-btn" data-k="p3">3 分钟版</button><button class="lx-btn" data-k="link">和 Biglink 串起来讲</button></div>
+    <div class="lx-pitch" id="lx-pt"></div>
+    <h3>高频追问（原理 + 工程）</h3>
+    <div class="lx-qa" id="lx-pt-qa"></div>
+    <h3>一张纸背下来的核心公式</h3>
+    <div class="lx-formula">前向：     y = W·x + (α/r)·B·A·x          W 冻结；A∈R^(r×d_in)，B∈R^(d_out×r)
+参数量：   LoRA = r·(d_in + d_out)   vs   全量 = d_in·d_out      （2048×2048、r=8：32,768 vs 4,194,304，单层 1/128）
+初始化：   A 随机、B = 0  → 一开始 ΔW = 0，不改变原模型；第一步 A 的任务梯度为 0
+梯度：     ∂L/∂B = s·g·(A·x)ᵀ ；∂L/∂A = s·(Bᵀ·g)·xᵀ ；W 不求权重梯度（但误差仍要穿过它往前传）
+损失：     CE = −(1/有效token数)·Σ ln p(正确token)；labels = −100 的位置不计分
+步数：     每轮更新次数 ≈ 样本数 ÷ (batch × 累积) = 3375 ÷ 8 ≈ 422；3 轮 ≈ 1,266 次
+合并：     W' = W + (α/r)·B·A    （合并后推理零额外开销）
+显存：     权重 + KV（2·层·KV头·头维·字节·token·路数）+ 开销  ≤ 显存 × 0.9</div>
+  </div>
+</div>
+
+<script>
+/* LoRA theater scenes */
+const LXH = {
+  box:(t,s,c,d)=>`<div class="lx-box lx-pop ${c||''}" style="--d:${d||0}">${t}${s?`<small>${s}</small>`:''}</div>`,
+  ar:(c,d)=>`<div class="lx-arrow lx-in ${c||''}" style="--d:${d||0}"><i></i></div>`,
+  mat:(rows,c,d,hl)=>{const cols=rows[0].length;let s=`<div class="lx-mat lx-pop ${c||''}" style="grid-template-columns:repeat(${cols},auto);--d:${d||0}">`;rows.forEach((r,i)=>r.forEach((v,j)=>{s+=`<span class="${hl&&hl(i,j)?'hl':''}">${v}</span>`}));return s+'</div>'},
+  lab:(m,t)=>`<div class="lx-col">${m}<div class="lx-lbl">${t}</div></div>`,
+  tok:(w,id,c,d)=>`<div class="lx-tok lx-pop ${c||''}" style="--d:${d||0}">${w}<small>${id}</small></div>`
+};
+const X=[[1],[2],[3]], Wm=[[1,0,2],[0,1,0]], Am=[[1,0,-1]], Bm=[[0.5],[-1]];
+const LX_SCENES = [
+{name:'① 全景：训练一次，推理多次', steps:[
+ {t:'训练链：让模型在示范题上反复“做题—对答案—改参数”', b:'训练时，每条“用户问题 + 参考回答”都会经过：<b>套模板并分词 → 前向计算预测 → 和参考答案比出 loss → 反向传播求梯度 → 优化器更新参数</b>。用 LoRA 时，最后一步只更新新增的小矩阵 A、B，原模型权重 W 不动。', code:`for batch in dataloader:            # 一批示范对话
+    out  = model(**batch)            # 前向：W 和 A、B 一起参与计算
+    loss = out.loss                  # 只对助手回答的 token 计分
+    loss.backward()                  # 反向：只有 A、B 得到梯度
+    optimizer.step()                 # 更新 A、B（W 冻结）
+    optimizer.zero_grad()`,
+  v:()=>`<div class="lx-col" style="gap:18px"><div class="lx-row">${LXH.box('训练数据','3375 条对话','',0)}${LXH.ar('',.3)}${LXH.box('模板 + 分词','input_ids / labels','',.5)}${LXH.ar('',.8)}${LXH.box('前向','W·x + (α/r)·B·A·x','hot',1)}${LXH.ar('',1.3)}${LXH.box('loss','交叉熵','gold',1.5)}${LXH.ar('back',1.8)}${LXH.box('反向','梯度只到 A、B','gold',2)}${LXH.ar('',2.3)}${LXH.box('更新','optimizer.step','hot',2.5)}</div><div class="lx-cap lx-in" style="--d:2.8">训练是<b>一次性</b>的离线过程：3375 条 × 3 轮，大约 1,266 次参数更新，产物是一个几十 MB 的适配器文件。</div></div>`},
+ {t:'推理链：用学好的参数回答新问题', b:'上线后，用户每发一句话都走推理链：<b>同样的模板和分词 → 基座 + 适配器一起前向 → 逐个 token 生成</b>。推理时不算梯度、不更新参数，所以“用户聊得越多，模型越聪明”是误解——模型只在训练时变化。', code:`model = AutoModelForCausalLM.from_pretrained(BASE)
+model = PeftModel.from_pretrained(model, ADAPTER)  # 显式加载适配器
+model.eval()
+with torch.inference_mode():
+    ids = tok.apply_chat_template(messages, add_generation_prompt=True, return_tensors="pt")
+    out = model.generate(ids, max_new_tokens=256)`,
+  v:()=>`<div class="lx-col" style="gap:18px"><div class="lx-row">${LXH.box('用户：今天学习好累','新问题','',0)}${LXH.ar('',.3)}${LXH.box('同一套模板','训练和推理必须一致','',.5)}${LXH.ar('',.8)}${LXH.box('基座 W','冻结','frozen',1)}<div class="lx-big lx-pop" style="--d:1.2">+</div>${LXH.box('适配器 A·B','几十 MB','hot',1.3)}${LXH.ar('',1.6)}${LXH.box('逐 token 生成','先 → 休息 → 一下 → 嘛','',1.9)}</div><div class="lx-row">${['先','休息','一下','嘛','，','别累坏了'].map((w,i)=>LXH.tok(w,'t'+(i+1),'',2.2+i*.35)).join('')}</div></div>`}
+]},
+{name:'② 数据准备：清洗、去重、划分', steps:[
+ {t:'先检查原料，再清洗去重', b:'原始 3376 条对话依次经过：<b>解析 JSON → 检查字段类型和非空 → 统一空白字符 → 按规范化内容去重 → 统计长度</b>。你的记录里没有坏 JSON 和空轮次，删除了 1 条完全重复，剩 3375 条。重复样本会被模型“多学几遍”，所以要去掉。', code:`seen = set(); kept = []
+for rec in records:
+    assert isinstance(rec["human"], str) and rec["human"].strip()
+    key = sha256(normalize(rec["human"]) + "\\x00" + normalize(rec["assistant"]))
+    if key in seen: continue        # 完全重复 → 丢弃
+    seen.add(key); kept.append(rec)
+print(len(records), "→", len(kept))  # 3376 → 3375（项目记录）`,
+  v:()=>`<div class="lx-col" style="gap:16px"><div class="lx-row">${LXH.box('<span class="lx-big">3,376</span>','原始对话','',0)}${LXH.ar('',.4)}${LXH.box('解析 / 校验','0 条坏记录','',.7)}${LXH.ar('',1)}${LXH.box('清洗空白','统一格式','',1.3)}${LXH.ar('',1.6)}${LXH.box('去重','−1 条重复','warn',1.9)}${LXH.ar('',2.2)}${LXH.box('<span class="lx-big">3,375</span>','可训练','hot',2.5)}</div><div class="lx-cap lx-in" style="--d:2.8">数量来自你的项目记录，本页没有重跑清洗脚本。</div></div>`},
+ {t:'划分：练习题、模拟考、最后考试', b:'<b>训练集</b>用来改参数；<b>验证集</b>（你的 100 条）用来选学习率、选 checkpoint；<b>测试集</b>要另外留新题，不参与任何调参，才能证明“对没见过的问题也有效”。同一段原始对话的改写版不能分到两边，否则就是数据泄漏。', code:`groups = group_by_source_dialog(kept)    # 同源对话放一组
+train, val = split_groups(groups, val_size=100, seed=42)
+test = load("held_out_new_questions.json")  # 另行编写，不参与调参
+assert no_near_duplicates(train, val + test)`,
+  v:()=>`<div class="lx-col" style="width:min(760px,100%);gap:12px"><div style="width:100%"><div class="lx-lbl" style="text-align:left">训练集 3,375 · 改参数</div><div class="lx-bar"><i data-w="96"></i></div></div><div style="width:100%"><div class="lx-lbl" style="text-align:left">验证集 100 · 选配置</div><div class="lx-bar"><i data-w="12" style="background:#fbbf24"></i></div></div><div style="width:100%"><div class="lx-lbl" style="text-align:left">测试集 · 另留新题，只在最后用一次</div><div class="lx-bar"><i data-w="10" style="background:#a78bfa"></i></div></div></div>`}
+]},
+{name:'③ 模板与分词：文字怎么变成数字', steps:[
+ {t:'套聊天模板：标出谁在说话', b:'模型不认识“用户/助手”这种概念，只认识特殊标记。聊天模板会在内容前后加上<b>角色标记和结束标记</b>，变成一段模型熟悉的文本。训练和推理必须用<b>同一个</b>模板，否则效果会明显变差。', code:`messages = [{"role":"user","content":"累"},
+            {"role":"assistant","content":"休息吧"}]
+text = tok.apply_chat_template(messages, tokenize=False)
+# 教学示意：<BOS><USER>累<ASSISTANT>休息吧<EOT>`,
+  v:()=>`<div class="lx-col" style="gap:18px"><div class="lx-row">${LXH.box('用户：累','','',0)}${LXH.box('助手：休息吧','','',.3)}</div><div class="lx-big lx-in" style="--d:.6">↓ apply_chat_template</div><div class="lx-row">${['&lt;BOS&gt;','&lt;USER&gt;','累','&lt;ASSISTANT&gt;','休息','吧','&lt;EOT&gt;'].map((w,i)=>LXH.tok(w,'',i==2||i==4||i==5?'':'ign',1+i*.2)).join('')}</div></div>`},
+ {t:'分词：每个片段换成词表编号', b:'分词器把文本切成 token 并查词表得到编号，再补一个 PAD 凑齐长度。本例（人工示意）得到 <code>input_ids = [1, 11, 12, 2, 21, 22, 3, 0]</code>；<code>attention_mask</code> 最后一位是 0，表示 PAD 不是真实内容。', code:`input_ids      = [1, 11, 12, 2, 21, 22, 3, 0]
+attention_mask = [1,  1,  1, 1,  1,  1, 1, 0]   # PAD 位置为 0`,
+  v:()=>`<div class="lx-row">${[['BOS',1],['USER',11],['累',12],['ASSISTANT',2],['休息',21],['吧',22],['EOT',3],['PAD',0]].map(([w,id],i)=>LXH.tok(w,'id '+id,i==7?'ign':'',i*.25)).join('')}</div>`},
+ {t:'labels：只给助手的回答打分', b:'<code>labels</code> 是“评分答案表”：用户问题和角色标记的位置填 <b>-100</b>（不计分），助手回答“休息、吧、EOT”保留编号，PAD 也是 -100。用户的话仍然在输入里，模型能看到，只是不要求模型学会“生成用户的话”。', code:`labels = [-100, -100, -100, -100, 21, 22, 3, -100]
+# 因果移位：logits[3]→labels[4]「休息」，logits[4]→「吧」，logits[5]→EOT
+# 有效监督 3 个，loss 的分母是 3`,
+  v:()=>`<div class="lx-col" style="gap:10px"><div class="lx-row">${[['BOS',-100],['USER',-100],['累',-100],['ASSISTANT',-100],['休息',21],['吧',22],['EOT',3],['PAD',-100]].map(([w,l],i)=>LXH.tok(w,'label '+l,l==-100?'ign':'sup',i*.25)).join('')}</div><div class="lx-cap lx-in" style="--d:2.2">金色 = 计入 loss 的 3 个位置；虚线 = 输入可见但不计分</div></div>`}
+]},
+{name:'④ 前向（上）：冻结的原权重 W', steps:[
+ {t:'原分支：y₀ = W · x', b:'取模型里的一个线性层。输入特征 <code>x = [1, 2, 3]</code>，原权重 <code>W</code> 是 2×3。第一行 [1,0,2]·[1,2,3] = 7，第二行 [0,1,0]·[1,2,3] = 2，所以 <b>Wx = [7, 2]</b>。🔒 表示 W 被冻结：训练中它照样参与计算，只是<b>不更新</b>。', code:`W.requires_grad_(False)     # 冻结：不求权重梯度、不放进优化器
+y0 = W @ x                  # [[1,0,2],[0,1,0]] @ [1,2,3] = [7, 2]`,
+  v:()=>`<div class="lx-row">${LXH.lab(LXH.mat(X,'',0),'x [3×1]')}<div class="lx-big lx-in" style="--d:.4">→</div>${LXH.lab(LXH.mat(Wm,'frozen',.6,(i,j)=>true),'🔒 W [2×3] 冻结')}<div class="lx-big lx-in" style="--d:1.2">=</div>${LXH.lab(LXH.mat([[7],[2]],'',1.6),'W·x [2×1]')}</div>`}
+]},
+{name:'⑤ 前向（下）：LoRA 小分支', steps:[
+ {t:'A 先把输入压到 r 维', b:'LoRA 新增一条旁路：<code>A</code> 的形状是 r×3。这里 r=1，所以 A 把 3 个输入压成 <b>1 个数</b>：[1,0,−1]·[1,2,3] = <b>−2</b>。r 叫秩，是这条旁路的“瓶颈宽度”，决定新增修正最多能有多少个独立方向。', code:`A = nn.Parameter(torch.randn(r, d_in) * 0.01)   # 实际常用随机初始化
+h = A @ x          # [[1,0,-1]] @ [1,2,3] = [-2]   （教学例子里 A 已非零）`,
+  v:()=>`<div class="lx-row">${LXH.lab(LXH.mat(X,'',0),'x')}<div class="lx-big lx-in" style="--d:.3">→</div>${LXH.lab(LXH.mat(Am,'gold',.5),'A [r×3]，r=1')}<div class="lx-big lx-in" style="--d:1">=</div>${LXH.lab(LXH.mat([[-2]],'gold',1.3),'A·x [r×1]')}</div>`},
+ {t:'B 再升回输出维度', b:'<code>B</code> 的形状是 2×r，把这 1 个数展开成 2 维修正：[0.5, −1] × (−2) = <b>[−1, 2]</b>。训练开始时 B 通常初始化为 0，所以一开始这条旁路输出全是 0，<b>模型行为和原来完全一样</b>。', code:`B = nn.Parameter(torch.zeros(d_out, r))   # 常见初始化：B = 0 → 初始 ΔW = 0
+delta = B @ h      # [[0.5],[-1]] @ [-2] = [-1, 2]`,
+  v:()=>`<div class="lx-row">${LXH.lab(LXH.mat([[-2]],'gold',0),'A·x')}<div class="lx-big lx-in" style="--d:.3">→</div>${LXH.lab(LXH.mat(Bm,'gold',.5),'B [2×r]')}<div class="lx-big lx-in" style="--d:1">=</div>${LXH.lab(LXH.mat([[-1],[2]],'gold',1.3),'B·A·x')}</div>`},
+ {t:'乘缩放系数 α/r', b:'修正量还要乘 <code>α/r</code>：这里 α=2、r=1，系数是 2，得到 <b>[−2, 4]</b>。α 控制旁路影响的大小；固定 α/r 时换 r，旁路输出尺度变化较小，调参更方便。你的项目配置是 r=8、α=16，系数同样是 2。', code:`scaling = alpha / r          # 2 / 1 = 2 （项目配置 16 / 8 = 2）
+delta = scaling * delta      # [-2, 4]`,
+  v:()=>`<div class="lx-row">${LXH.lab(LXH.mat([[-1],[2]],'gold',0),'B·A·x')}<div class="lx-big lx-in" style="--d:.4">× α/r = 2 →</div>${LXH.lab(LXH.mat([[-2],[4]],'gold',.9),'(α/r)·B·A·x')}</div>`},
+ {t:'两路相加：y = Wx + (α/r)BAx = [5, 6]', b:'原分支 [7, 2] 加上修正 [−2, 4]，得到这一层的输出 <b>y = [5, 6]</b>。两条路的输出形状都是 2×1，所以能相加。真实模型里，每个被选中的线性层（如 q/k/v/o、gate/up/down）都各自挂一对 A、B。', code:`class LoRALinear(nn.Module):
+    def forward(self, x):
+        return self.base(x) + self.scaling * self.B(self.A(self.dropout(x)))
+# [7, 2] + [-2, 4] = [5, 6]`,
+  v:()=>`<div class="lx-col" style="gap:14px"><div class="lx-row">${LXH.box('x = [1,2,3]','','',0)}${LXH.ar('',.2)}${LXH.box('🔒 W','冻结','frozen',.4)}${LXH.ar('',.6)}${LXH.box('[7, 2]','W·x','',.8)}</div><div class="lx-row">${LXH.box('x','','',1)}${LXH.ar('',1.2)}${LXH.box('A','3→1','gold',1.4)}${LXH.ar('',1.6)}${LXH.box('B','1→2','gold',1.8)}${LXH.ar('',2)}${LXH.box('×2 → [−2, 4]','α/r','gold',2.2)}</div><div class="lx-row">${LXH.box('<span class="lx-big">y = [5, 6]</span>','两路相加','hot',2.6)}</div></div>`}
+]},
+{name:'⑥ 输出与损失：差多少？', steps:[
+ {t:'logits → softmax → 正确答案的概率', b:'很多层之后，模型在每个位置输出整个词表的分数（logits），softmax 把它们变成概率。只看 3 个计分位置：模型给正确 token「休息」0.6、「吧」0.5、「EOT」0.8 的概率（教学示意）。', code:`probs = logits.softmax(-1)
+p_correct = probs[[3,4,5], [21,22,3]]   # 0.6, 0.5, 0.8（示意）`,
+  v:()=>`<div class="lx-col" style="width:min(640px,100%);gap:12px">${[['休息',60],['吧',50],['EOT',80]].map(([w,p],i)=>`<div class="lx-in" style="width:100%;--d:${i*.4}"><div class="lx-lbl" style="text-align:left">位置 ${i+3} 预测「${w}」：p = ${p/100}</div><div class="lx-bar"><i data-w="${p}"></i></div></div>`).join('')}</div>`},
+ {t:'交叉熵：正确答案越不被看好，扣分越多', b:'每个计分位置的 loss = −ln(p)。平均：(−ln0.6 − ln0.5 − ln0.8) / 3 ≈ <b>0.4757</b>。如果模型完全没学过、对 32 个候选一视同仁，loss = ln 32 ≈ 3.4657。训练就是让这个数变小。注意：<b>loss 低只代表更会预测这份参考答案</b>，不等于更会聊天。', code:`loss = F.cross_entropy(shift_logits.view(-1, V), shift_labels.view(-1),
+                       ignore_index=-100)
+# (0.5108 + 0.6931 + 0.2231) / 3 = 0.4757`,
+  v:()=>`<div class="lx-row">${LXH.box('−ln 0.6 = 0.511','','',0)}${LXH.box('−ln 0.5 = 0.693','','',.3)}${LXH.box('−ln 0.8 = 0.223','','',.6)}<div class="lx-big lx-in" style="--d:1">→ 平均</div>${LXH.box('<span class="lx-big">0.4757</span>','loss','gold',1.3)}${LXH.box('对比：瞎猜 ln32 = 3.466','','',1.7)}</div>`}
+]},
+{name:'⑦ 反向传播：梯度只流向 A、B', steps:[
+ {t:'误差信号往回传', b:'<code>loss.backward()</code> 从 loss 出发，沿计算图往回算每个参数“稍微变一下，loss 会怎么变”。金色箭头是梯度：它到达 A、B 并写进 <code>.grad</code>；到 W 时<b>不计算 W 的梯度</b>（冻结），但误差仍然要<b>穿过</b> W 这条路传给更前面的层，否则前面层的 LoRA 学不到东西。', code:`loss.backward()
+assert W.grad is None            # 冻结：没有权重梯度
+assert A.grad is not None and B.grad is not None
+# 注意：不能把基座前向包进 torch.no_grad()，否则多层 LoRA 学不到`,
+  v:()=>`<div class="lx-col" style="gap:14px"><div class="lx-row">${LXH.box('前面的层','也挂着 LoRA','',0)}${LXH.ar('back',.3)}${LXH.box('🔒 W','不求 W.grad<br>但误差穿过','frozen',.5)}${LXH.ar('back',.8)}${LXH.box('y','','',1)}${LXH.ar('back',1.2)}${LXH.box('loss 0.4757','','gold',1.4)}</div><div class="lx-row">${LXH.box('A.grad ✓','','gold',1.8)}${LXH.ar('back',2)}${LXH.box('B.grad ✓','','gold',2.2)}${LXH.ar('back',2.4)}${LXH.box('来自 y 的梯度 g','','',2.6)}</div></div>`},
+ {t:'第一步的小秘密：B=0 时 A 的梯度是 0', b:'梯度公式：<code>∂L/∂B = s·g·(Ax)ᵀ</code>，<code>∂L/∂A = s·(Bᵀg)·xᵀ</code>。B 初始化为 0 时，第一步 <b>A 的任务梯度恰好为 0</b>，只有 B 在动；B 更新成非零后，A 才开始有梯度。所以 A、B 不能都初始化为 0——那样两者都学不动。', code:`# s = alpha / r，g = ∂L/∂y
+dB = s * g @ (A @ x).T      # A 随机 → 非零
+dA = s * (B.T @ g) @ x.T    # B = 0 → 第一步为 0`,
+  v:()=>`<div class="lx-row">${LXH.box('step 1','B = 0','',0)}${LXH.ar('',.3)}${LXH.box('A.grad = 0','','warn',.6)}${LXH.box('B.grad ≠ 0','','gold',.9)}${LXH.ar('',1.2)}${LXH.box('step 2','B ≠ 0','',1.5)}${LXH.ar('',1.8)}${LXH.box('A.grad ≠ 0','','gold',2.1)}${LXH.box('B.grad ≠ 0','','gold',2.3)}</div>`}
+]},
+{name:'⑧ 优化器与梯度累积', steps:[
+ {t:'batch=1，攒 8 次梯度再更新一次', b:'8GB 显卡一次只能放 1 条样本。做法是：每条样本 forward + backward 后<b>先不更新</b>，梯度在 <code>.grad</code> 里累加；攒够 8 条再 <code>optimizer.step()</code> 一次并清零。效果接近 batch=8，但显存只需要放 1 条的激活。', code:`for i, batch in enumerate(loader):
+    loss = model(**batch).loss / accum_steps     # accum_steps = 8
+    loss.backward()                              # 梯度累加
+    if (i + 1) % accum_steps == 0:
+        optimizer.step(); scheduler.step(); optimizer.zero_grad()`,
+  v:()=>`<div class="lx-col" style="gap:14px"><div class="lx-row">${[1,2,3,4,5,6,7,8].map(i=>LXH.box('样本 '+i,'backward','',i*.35)).join('')}</div><div class="lx-row">${LXH.ar('',3)}${LXH.box('optimizer.step()','更新 A、B 一次','hot',3.2)}${LXH.ar('',3.5)}${LXH.box('zero_grad()','清空累积','',3.7)}</div></div>`},
+ {t:'AdamW 只更新 A、B', b:'AdamW 为每个可训练参数保存两份统计量（动量 m、平方梯度 v），所以<b>可训练参数越少，优化器状态越省</b>——这正是 LoRA 省显存的主要来源之一。学习率 5e-5 决定每次挪多远。', code:`optimizer = torch.optim.AdamW(
+    [p for p in model.parameters() if p.requires_grad],   # 只有 A、B
+    lr=5e-5, weight_decay=0.0)
+# m = β1·m + (1-β1)·g ;  v = β2·v + (1-β2)·g² ;  θ -= lr·m̂/(√v̂+ε)`,
+  v:()=>`<div class="lx-row">${LXH.box('梯度 g','A.grad / B.grad','gold',0)}${LXH.ar('',.3)}${LXH.box('m（动量）','','',.6)}${LXH.box('v（二阶）','','',.8)}${LXH.ar('',1.1)}${LXH.box('θ ← θ − lr·m̂/√v̂','lr = 5e-5','hot',1.4)}${LXH.box('🔒 W 不在优化器里','','frozen',1.8)}</div>`}
+]},
+{name:'⑨ 学习率与轮次', steps:[
+ {t:'warmup 10% + cosine：先小步，再慢慢收尾', b:'3375 条 ÷ 8 ≈ 422 次更新/轮，3 轮 ≈ <b>1,266 次</b>。前 10%（约 127 次）学习率从 0 爬到 5e-5，之后按余弦曲线降到接近 0。金点是当前进度，竖线是每轮结束。', code:`num_update_steps = ceil(3375 / (1 * 8)) * 3   # ≈ 1266（以日志为准）
+warmup_steps = int(0.1 * num_update_steps)       # ≈ 127
+scheduler = get_cosine_schedule_with_warmup(optimizer, warmup_steps, num_update_steps)`,
+  v:()=>{let p='';for(let i=0;i<=200;i++){const s=i/200;const lr=s<.1?s/.1:.5*(1+Math.cos(Math.PI*(s-.1)/.9));p+=(i?'L':'M')+(40+s*700)+','+(220-lr*180);}return `<svg viewBox="0 0 780 260" style="width:min(780px,100%)"><path d="${p}" fill="none" stroke="#5eead4" stroke-width="3"/><line x1="40" y1="220" x2="740" y2="220" stroke="rgba(94,234,212,.3)"/>${[1,2].map(k=>`<line x1="${40+k*700/3}" y1="30" x2="${40+k*700/3}" y2="225" stroke="rgba(251,191,36,.4)" stroke-dasharray="4 4"/><text x="${40+k*700/3+4}" y="44" fill="#fbbf24" font-size="12">第 ${k} 轮结束 · ${k*422} 步</text>`).join('')}<text x="44" y="244" fill="#7fb3ab" font-size="12">0</text><text x="680" y="244" fill="#7fb3ab" font-size="12">1266 步</text><text x="70" y="34" fill="#a9d3cc" font-size="12">lr 峰值 5e-5</text><circle r="7" fill="#fbbf24"><animateMotion dur="6s" repeatCount="indefinite" path="${p}"/></circle></svg>`}},
+ {t:'看两条 loss 曲线选 checkpoint（示意）', b:'训练 loss 一般持续下降；验证 loss 先降后可能回升，回升说明开始“背题”（过拟合）。每 200 步保存并评估一次，<b>选验证表现最好的 checkpoint</b>，再用测试新题做最终对比。图是虚构示意，不代表你的训练结果。', code:`eval_steps: 200
+save_steps: 200
+load_best_model_at_end: true      # 按验证指标选最好的 checkpoint
+metric_for_best_model: eval_loss`,
+  v:()=>{const pt=(f)=>{let d='';for(let i=0;i<=60;i++){const x=i/60;d+=(i?'L':'M')+(40+x*700).toFixed(1)+','+(230-f(x)*190).toFixed(1);}return d;};const tr=pt(x=>0.95-0.75*(1-Math.exp(-4*x)));const va=pt(x=>0.9-0.6*(1-Math.exp(-5*x))+0.5*Math.max(0,x-0.5)**2*2.2);return `<svg viewBox="0 0 780 260" style="width:min(780px,100%)"><line x1="40" y1="230" x2="740" y2="230" stroke="rgba(94,234,212,.3)"/><path d="${tr}" fill="none" stroke="#5eead4" stroke-width="3"/><path d="${va}" fill="none" stroke="#fbbf24" stroke-width="3"/><text x="600" y="200" fill="#5eead4" font-size="13">训练 loss</text><text x="600" y="110" fill="#fbbf24" font-size="13">验证 loss（示意）</text><line x1="390" y1="20" x2="390" y2="235" stroke="#fb7185" stroke-dasharray="5 4"/><text x="396" y="34" fill="#fb7185" font-size="12">选这里附近的 checkpoint</text><text x="44" y="252" fill="#7fb3ab" font-size="12">训练步数 →</text></svg>`}}
+]},
+{name:'⑩ 参数量：到底省在哪', steps:[
+ {t:'一个 2048×2048 的层：全量 vs LoRA', b:'全量微调要更新整个 ΔW：2048×2048 = <b>4,194,304</b> 个参数。LoRA（r=8）只更新 A(8×2048) + B(2048×8) = <b>32,768</b> 个，是这一层的 <b>1/128</b>。左边每个格子代表 4,096 个参数，右边亮起的细条就是 LoRA 要训练的部分。', code:`full = d_in * d_out              # 4,194,304
+lora = r * (d_in + d_out)        # 8 × 4096 = 32,768
+print(full / lora)               # 128.0`,
+  v:()=>{let g='';for(let i=0;i<1024;i++)g+='<i></i>';let a='';for(let i=0;i<32;i++)a+='<i class="on"></i>';return `<div class="lx-row" style="gap:40px"><div class="lx-col"><div class="lx-grid lx-pop" style="grid-template-columns:repeat(32,9px)">${g}</div><div class="lx-lbl">全量 ΔW：4,194,304</div></div><div class="lx-col"><div class="lx-row" style="gap:10px"><div class="lx-grid lx-pop" style="grid-template-columns:repeat(32,9px);--d:.8">${a}</div></div><div class="lx-grid lx-pop" style="grid-template-columns:repeat(1,9px);--d:1.2">${a}</div><div class="lx-lbl">LoRA r=8：A 一行 + B 一列 ≈ 32,768</div></div></div>`}},
+ {t:'放到整个模型：可训练参数不到 1%', b:'以 Biglink 手册里的 Gemma-2-9B、r=16、7 个投影层（q/k/v/o/gate/up/down）为例：每层 Σ(d_in+d_out) = 80,384，× 16 × 42 层 ≈ <b>5,400 万</b>，约占 92.4 亿参数的 <b>0.58%</b>。但注意：<b>省的是可训练参数和优化器状态，基座本身仍要完整加载</b>，显存不会少 100 倍。', code:`target_modules = ["q_proj","k_proj","v_proj","o_proj","gate_proj","up_proj","down_proj"]
+# q:3584→4096  k,v:3584→2048  o:4096→3584  gate,up:3584→14336  down:14336→3584
+per_layer = 7680 + 2*5632 + 7680 + 2*17920 + 17920    # 80,384
+trainable = 16 * per_layer * 42                       # ≈ 54.0M（0.58%）`,
+  v:()=>`<div class="lx-col" style="width:min(700px,100%);gap:12px"><div style="width:100%"><div class="lx-lbl" style="text-align:left">Gemma-2-9B 全部参数 9,240,000,000</div><div class="lx-bar"><i data-w="100" style="background:#1e3a5f"></i></div></div><div style="width:100%"><div class="lx-lbl" style="text-align:left">LoRA 可训练 ≈ 54,000,000（0.58%）</div><div class="lx-bar"><i data-w="0.9"></i></div></div><div class="lx-cap lx-in" style="--d:1.4">放大看：可训练部分只是一根细线</div></div>`}
+]},
+{name:'⑪ QLoRA：把冻结的基座压成 4-bit', steps:[
+ {t:'NF4：用 16 个“刻度”近似原权重', b:'4-bit 只有 16 种取值。NF4 按“权重近似正态分布”来摆这 16 个刻度：中间密、两头疏。每 64 个权重一组，存一个缩放系数；把每个权重换成离它最近的刻度编号（0~15）。<b>双重量化</b>再把这些缩放系数本身也压缩一次。', code:`bnb_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_quant_type="nf4",          # 非均匀 16 档
+    bnb_4bit_use_double_quant=True,     # 量化常数再量化
+    bnb_4bit_compute_dtype=torch.bfloat16)`,
+  v:()=>{const lv=[-1,-.696,-.525,-.395,-.284,-.185,-.091,0,.08,.161,.246,.338,.441,.563,.723,1];return `<div class="lx-col" style="gap:14px"><svg viewBox="0 0 760 120" style="width:min(760px,100%)"><line x1="30" y1="60" x2="730" y2="60" stroke="rgba(94,234,212,.35)"/>${lv.map((v,i)=>`<line x1="${380+v*340}" y1="44" x2="${380+v*340}" y2="76" stroke="#5eead4" stroke-width="2" class="lx-in" style="--d:${i*.08}"/><text x="${380+v*340-4}" y="96" fill="#7fb3ab" font-size="10">${i}</text>`).join('')}<circle cx="${380+.137*340}" cy="30" r="6" fill="#fbbf24"><animate attributeName="cx" from="${380+.137*340}" to="${380+.161*340}" dur="1.5s" begin="1.5s" fill="freeze"/></circle><text x="${380+.137*340+10}" y="26" fill="#fbbf24" font-size="12">原值 0.137 → 刻度 9（≈0.161×scale）</text></svg><div class="lx-cap">0.137 被映射到最近的刻度编号；用时按“刻度值 × 本组缩放系数”还原成近似值。<b>有误差</b>，所以量化后要回归评测。</div></div>`}},
+ {t:'计算时临时还原成 BF16，适配器保持高精度', b:'前向时，4-bit 权重在计算核里被<b>临时还原</b>成 BF16 参与矩阵乘法；LoRA 的 A、B 保持 BF16/FP32 并正常训练。所以 QLoRA = <b>“冻结部分存得更省” + “训练部分照常”</b>。以 Gemma-2-9B 为例，权重从 18.5 GB 降到约 5.5 GB，24GB 卡也能微调。', code:`model = AutoModelForCausalLM.from_pretrained(BASE, quantization_config=bnb_config)
+model = prepare_model_for_kbit_training(model)   # 开梯度检查点等
+model = get_peft_model(model, LoraConfig(r=8, lora_alpha=16, lora_dropout=0.05,
+                                         target_modules="all-linear"))`,
+  v:()=>`<div class="lx-col" style="width:min(720px,100%);gap:12px"><div style="width:100%"><div class="lx-lbl" style="text-align:left">LoRA：Gemma-2-9B 权重 BF16 ≈ 18.5 GB</div><div class="lx-bar" style="height:22px"><i data-w="77" style="background:#1e40af"></i></div></div><div style="width:100%"><div class="lx-lbl" style="text-align:left">QLoRA：NF4 + 量化常数 ≈ 5.5 GB</div><div class="lx-bar" style="height:22px"><i data-w="23"></i></div></div><div class="lx-row">${LXH.box('4-bit W','存储','frozen',1)}${LXH.ar('',1.2)}${LXH.box('临时还原 BF16','计算核内','',1.4)}${LXH.ar('',1.6)}${LXH.box('矩阵乘','+ A·B 旁路（BF16）','hot',1.8)}</div></div>`}
+]},
+{name:'⑫ 评估：怎么证明 LoRA 有用', steps:[
+ {t:'公平对照：只改变“是否加载适配器”', b:'A 组：基座 + 角色提示词；B 组：<b>同一基座 + 同一提示词 + LoRA</b>，同样的新问题、同样的生成参数。隐藏来源后盲评：风格像不像、有没有回答问题、多轮会不会复读。只有 B 组在新题上更好、基础能力没退化，才能说 LoRA 有价值。', code:`for q in held_out_questions:
+    a = generate(base, prompt=ROLE, q=q, seed=0)
+    b = generate(base_plus_lora, prompt=ROLE, q=q, seed=0)
+    record_blind(q, shuffle([a, b]))   # 评分者看不到来源`,
+  v:()=>`<div class="lx-col"><div class="lx-row" style="gap:30px">${LXH.box('A 组<br>基座 + 角色提示词','','',0)}<div class="lx-big lx-in" style="--d:.4">VS</div>${LXH.box('B 组<br>同基座 + 同提示词 + LoRA','','hot',.6)}</div><div class="lx-row" style="margin-top:14px">${LXH.box('风格','像不像沐雪','',1)}${LXH.box('内容','有没有答到点上','',1.2)}${LXH.box('稳定','多轮会不会复读','',1.4)}${LXH.box('退化','通用能力有没有变差','warn',1.6)}</div></div>`}
+]},
+{name:'⑬ 合并：把 A·B 加回 W', steps:[
+ {t:'W′ = W + (α/r)·B·A', b:'训练完可以把旁路“合并”进原权重：ΔW = 2 × [[0.5],[−1]] × [[1,0,−1]] = [[1,0,−1],[−2,0,2]]，W′ = W + ΔW = <b>[[2,0,1],[−2,1,2]]</b>。验证：W′·x = [5, 6]，和两路相加的结果<b>完全一样</b>。合并后推理就是普通矩阵乘法，零额外开销。', code:`merged = peft_model.merge_and_unload()   # W' = W + (alpha/r) * B @ A
+merged.save_pretrained("gemma-2-9b-tax-merged")
+# 合并后再量化（FP8/AWQ）并回归评测`,
+  v:()=>`<div class="lx-row">${LXH.lab(LXH.mat(Wm,'frozen',0),'W')}<div class="lx-big lx-in" style="--d:.4">+</div>${LXH.lab(LXH.mat([[1,0,-1],[-2,0,2]],'gold',.7),'ΔW = (α/r)·B·A')}<div class="lx-big lx-in" style="--d:1.2">=</div>${LXH.lab(LXH.mat([[2,0,1],[-2,1,2]],'',1.6,()=>true),'W′')}<div class="lx-big lx-in" style="--d:2.2">· x =</div>${LXH.lab(LXH.mat([[5],[6]],'',2.5),'y 不变')}</div>`},
+ {t:'两种上线方式', b:'<b>合并部署</b>：一个普通模型文件，最简单、最快，适合只有一个版本。<b>多适配器部署</b>：基座只放一份，按请求切换不同适配器（例如每家 ISV 一个），vLLM 支持 <code>--enable-lora</code>。每个适配器只有约一百 MB，但有一定计算开销。', code:`# A. 合并：vllm serve ./merged-fp8
+# B. 多适配器：
+vllm serve google/gemma-2-9b-it --enable-lora --max-loras 10 \\
+     --lora-modules isv03=./adapters/isv03 isv05=./adapters/isv05`,
+  v:()=>`<div class="lx-row" style="gap:40px"><div class="lx-col">${LXH.box('合并模型 W′','一个文件','hot',0)}<div class="lx-lbl">零额外开销 · 换版本要重新导出</div></div><div class="lx-col">${LXH.box('基座 W（一份）','','frozen',.5)}<div class="lx-row">${['ISV-3','ISV-5','ISV-8'].map((n,i)=>LXH.box(n,'适配器 ~108MB','gold',.9+i*.2)).join('')}</div><div class="lx-lbl">按请求切换 · 适合按租户定制</div></div></div>`}
+]},
+{name:'⑭ 上线：5,000 税号要几张卡', steps:[
+ {t:'本地模型峰值约 1 请求/秒、13 路在途', b:'按 Biglink 的假设（5,000 税号、日活 40%、每天 8 轮、本地承接 60%、征期 ×2.5、峰值小时 15%），本地模型峰值约 <b>1 请求/秒</b>，同时在途约 <b>13 路</b>，需要约 <b>250 输出 token/s</b>。一张 48GB 的 L20 跑 FP8 版 Gemma-2-9B，估算能提供约 500 token/s，2 张做 N+1。', code:`λ = 5000 × 0.4 × 8 × 0.6 × 2.5 × 0.15 / 3600 ≈ 1.0 req/s
+C = λ × (0.5 + 250/20) ≈ 13 路
+KV = 13 × 1450 × 0.33MB ≈ 6.5 GB ；权重 FP8 ≈ 9.2 GB
+→ 1 × L20 48GB 够用，2 张做 N+1`,
+  v:()=>`<div class="lx-col" style="width:min(760px,100%);gap:12px"><div class="lx-row">${LXH.box('ISV ×10','5,000 税号','',0)}${LXH.ar('',.3)}${LXH.box('JEV：chat 60%','~1 req/s','',.5)}${LXH.ar('',.8)}${LXH.box('vLLM · L20 #1','13 路 · ~500 tok/s','hot',1)}${LXH.box('L20 #2','N+1 备份','',1.3)}</div><div style="width:100%"><div class="lx-lbl" style="text-align:left">L20 48GB 显存：权重 9.2 | KV 6.5 | 开销 2.5 | 空闲（上限 43.2）</div><div class="lx-vram" style="height:30px"><div class="w" style="width:19%">权重</div><div class="k" style="width:13.5%">KV</div><div class="o" style="width:5.2%"></div><div class="f" style="width:52.3%">空闲</div></div></div><div class="lx-row"><button class="lx-btn on" data-lx-open="gpu">打开交互式卡型计算器 →</button></div></div>`},
+ {t:'和 Biglink 串起来：本地模型在系统里的位置', b:'在 Biglink 里，JEV 分类器把消息分成两类：<b>咨询类</b>（政策解释、操作引导、越权拒答）交给本地 LoRA 模型，数据不出内网、成本固定；<b>办事类</b>交给云端强模型做结构化规划。本地模型<b>没有任何工具权限</b>，就算答错也执行不了操作。', code:`route = jev.classify(msg)              # chat / business
+if route == "chat" and not has_business_verbs(msg):
+    return local_llm.stream(msg)       # 本地 LoRA 模型
+else:
+    return planner.plan(msg)           # 云端模型 → TaskGraph`,
+  v:()=>`<div class="lx-col" style="gap:14px"><div class="lx-row">${LXH.box('会计提问','ISV 产品内','',0)}${LXH.ar('',.3)}${LXH.box('JEV 分流','+ 规则兜底','gold',.5)}</div><div class="lx-row" style="gap:40px"><div class="lx-col">${LXH.ar('',.9)}${LXH.box('本地 LoRA 模型','咨询 · 无工具权限','hot',1.1)}</div><div class="lx-col">${LXH.ar('',1.3)}${LXH.box('云端大模型','办事 · 生成任务图','',1.5)}${LXH.box('main / tools','状态机 · 审批 · 执行','',1.8)}</div></div><div class="lx-row"><a class="lx-btn" href="../biglink/index.html#s-theater">去 1F Biglink 看全链路动画 →</a></div></div>`}
+]}
+];
+
+(function(){
+'use strict';
+const q = s => document.querySelector(s);
+const fmt = (n, d=0) => Number(n).toLocaleString('zh-CN', {maximumFractionDigits:d, minimumFractionDigits:d});
+const OV = {theater:'#lx-theater', gpu:'#lx-gpu', pitch:'#lx-pitch'};
+let current = null;
+function openOv(name, noHash){
+  Object.values(OV).forEach(s => q(s).classList.remove('open'));
+  const o = q(OV[name]); if (!o) return;
+  o.classList.add('open'); o.scrollTop = 0; current = name;
+  document.documentElement.style.overflow = 'hidden';
+  if (!noHash) { try { history.replaceState(null, '', '#' + name); } catch (e) {} }
+  if (name === 'theater') thStart(); else thPause();
+  if (name === 'gpu') gpuCalc();
+}
+function closeOv(){
+  Object.values(OV).forEach(s => q(s).classList.remove('open')); current = null; thPause();
+  document.documentElement.style.overflow = '';
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+}
+document.addEventListener('click', e => {
+  const o = e.target.closest('[data-lx-open]'); if (o) { e.preventDefault(); openOv(o.dataset.lxOpen); return; }
+  if (e.target.closest('[data-lx-close]')) { e.preventDefault(); closeOv(); }
+});
+document.addEventListener('keydown', e => {
+  if (!current) return;
+  if (e.key === 'Escape') { closeOv(); return; }
+  if (current === 'theater' && !e.target.matches('input,select,textarea')) {
+    if (e.code === 'Space') { e.preventDefault(); e.stopPropagation(); q('#lx-play').click(); }
+    else if (e.code === 'ArrowRight') { e.stopPropagation(); q('#lx-next').click(); }
+    else if (e.code === 'ArrowLeft') { e.stopPropagation(); q('#lx-prev').click(); }
+  }
+}, true);
+
+/* ---------- Theater ---------- */
+let sIdx = 0, stIdx = 0, playing = false, timer = null, speed = 1, started = false;
+const stageEl = q('#lx-stage');
+LX_SCENES.forEach((s, i) => { const b = document.createElement('button'); b.className = 'lx-btn'; b.textContent = s.name; b.onclick = () => { sIdx = i; show(0); play(); }; q('#lx-scenes').appendChild(b); });
+function show(i){
+  stIdx = i; const sc = LX_SCENES[sIdx], st = sc.steps[i];
+  stageEl.style.setProperty('--sp', speed);
+  stageEl.innerHTML = st.v();
+  setTimeout(() => stageEl.querySelectorAll('[data-w]').forEach(b => b.style.width = b.dataset.w + '%'), 120 / speed);
+  q('#lx-no').textContent = `${sc.name} · 第 ${i+1}/${sc.steps.length} 步`;
+  q('#lx-title').textContent = st.t; q('#lx-body').innerHTML = st.b; q('#lx-code').textContent = st.code || '';
+  [...q('#lx-scenes').children].forEach((b, k) => b.classList.toggle('on', k === sIdx));
+  { const sc = q('#lx-scenes'), ab = sc.children[sIdx]; if (ab && sc.scrollWidth > sc.clientWidth + 4) sc.scrollLeft = Math.max(0, ab.offsetLeft - sc.offsetLeft - 16); }
+  const total = LX_SCENES.reduce((a, s) => a + s.steps.length, 0); let done = 0; for (let k = 0; k < sIdx; k++) done += LX_SCENES[k].steps.length;
+  q('#lx-prog').style.width = ((done + i + 1) / total * 100) + '%';
+  const dots = q('#lx-dots'); dots.innerHTML = '';
+  sc.steps.forEach((_, k) => { const d = document.createElement('span'); d.className = k < i ? 'd' : k === i ? 'c' : ''; d.onclick = () => { thPause(); show(k); }; dots.appendChild(d); });
+  if (playing) schedule();
+}
+function schedule(){
+  clearTimeout(timer);
+  const st = LX_SCENES[sIdx].steps[stIdx]; const len = st.b.replace(/<[^>]+>/g, '').length;
+  timer = setTimeout(next, Math.min(14000, 3500 + len * 38) / speed);
+}
+function next(){
+  const sc = LX_SCENES[sIdx];
+  if (stIdx < sc.steps.length - 1) show(stIdx + 1);
+  else if (q('#lx-auto').checked && sIdx < LX_SCENES.length - 1) { sIdx++; show(0); }
+  else thPause();
+}
+function play(){ playing = true; q('#lx-play').textContent = '⏸ 暂停'; schedule(); }
+function thPause(){ playing = false; clearTimeout(timer); const b = q('#lx-play'); if (b) b.textContent = '▶ 播放'; }
+function thStart(){ if (!started) { started = true; show(0); } play(); }
+q('#lx-play').onclick = () => playing ? thPause() : play();
+q('#lx-next').onclick = () => { thPause(); next(); };
+q('#lx-prev').onclick = () => { thPause(); if (stIdx > 0) show(stIdx - 1); else if (sIdx > 0) { sIdx--; show(LX_SCENES[sIdx].steps.length - 1); } };
+q('#lx-reset').onclick = () => { show(0); play(); };
+q('#lx-speed').onchange = e => { speed = +e.target.value; show(stIdx); };
+
+/* ---------- GPU calculator ---------- */
+const MODELS = {
+  'gemma2-9b': {n:'Gemma-2-9B（Biglink 手册中的本地财税模型）', P:9.24, L:42, kvh:8, hd:256, h:3584, qd:4096, kvd:2048, inter:14336},
+  'qwen25-7b': {n:'Qwen2.5-7B（对比：GQA，KV 更省）', P:7.62, L:28, kvh:4, hd:128, h:3584, qd:3584, kvd:512, inter:18944},
+  'qwen25-14b': {n:'Qwen2.5-14B（对比：更强、更重）', P:14.7, L:48, kvh:8, hd:128, h:5120, qd:5120, kvd:1024, inter:13824},
+  'qwen25-32b': {n:'Qwen2.5-32B（对比：单卡吃力）', P:32.5, L:64, kvh:8, hd:128, h:5120, qd:5120, kvd:1024, inter:27648}
+};
+const QUANT = {bf16:{n:'BF16 原精度', b:2}, fp8:{n:'FP8 / INT8 权重', b:1}, int4:{n:'INT4（AWQ / GPTQ）', b:0.56}};
+const CARDS = [
+  {id:'4090d', n:'RTX 4090D', mem:24, bw:1008, fp8:true, note:'面向国内的消费级型号'},
+  {id:'4090', n:'RTX 4090', mem:24, bw:1008, fp8:true, note:'对华出口受限'},
+  {id:'l20', n:'L20', mem:48, bw:864, fp8:true, note:'面向国内的数据中心卡'},
+  {id:'l40s', n:'L40S', mem:48, bw:864, fp8:true, note:'受出口管制，国内渠道有限'},
+  {id:'a800', n:'A100 / A800 80GB', mem:80, bw:2039, fp8:false, note:'受出口管制；多为存量或云上租用；无原生 FP8'},
+  {id:'h20', n:'H20', mem:96, bw:4000, fp8:true, note:'面向国内，供应随政策变化'}
+];
+const EFF = 0.7, OVH = 2.5, UTIL = 0.9;
+const SL = [
+  ['N','税号数',500,50000,500,5000,''], ['a','日活税号比例',10,100,5,40,'%'], ['t','每个活跃税号每天对话轮数',1,30,1,8,''],
+  ['ls','本地模型承接比例',10,100,5,60,'%'], ['pf','征期倍数',1,5,0.5,2.5,'×'], ['ph','峰值小时占全天比例',5,30,1,15,'%'],
+  ['lin','平均输入 token（含系统提示/记忆）',200,6000,100,1200,''], ['lout','平均输出 token',50,1500,50,250,''],
+  ['s','单路目标速度（token/s）',8,60,1,20,''], ['ttft','首字延迟目标（秒）',0.2,3,0.1,0.5,'']
+];
+const SEL = [
+  ['model','基座模型', Object.entries(MODELS).map(([k, v]) => [k, v.n]), 'gemma2-9b'],
+  ['quant','权重精度', Object.entries(QUANT).map(([k, v]) => [k, v.n]), 'fp8'],
+  ['kv','KV 缓存精度', [['2','BF16'],['1','FP8（--kv-cache-dtype fp8）']], '2'],
+  ['card','卡型', CARDS.map(c => [c.id, `${c.n} · ${c.mem}GB · ${c.bw} GB/s`]), 'l20'],
+  ['mode','LoRA 上线方式', [['merged','合并权重（单模型）'],['multi','vLLM 多适配器（每家 ISV 一个）']], 'merged'],
+  ['ha','高可用', [['1','N+1（多 1 张冗余）'],['0','不加冗余']], '1']
+];
+const slBox = q('#lx-gpu-sl');
+SEL.forEach(([k, label, opts, v]) => { const d = document.createElement('div'); d.className = 'lx-sl'; d.innerHTML = `<label>${label}</label><select id="g-${k}">${opts.map(([val, t]) => `<option value="${val}"${val === v ? ' selected' : ''}>${t}</option>`).join('')}</select>`; slBox.appendChild(d); d.querySelector('select').onchange = gpuCalc; });
+SL.forEach(([k, label, mn, mx, st, v, u]) => { const d = document.createElement('div'); d.className = 'lx-sl'; d.innerHTML = `<label>${label} <b id="gv-${k}">${v}${u}</b></label><input type="range" id="g-${k}" min="${mn}" max="${mx}" step="${st}" value="${v}">`; slBox.appendChild(d); d.querySelector('input').oninput = gpuCalc; });
+function adapterParams(m, r){ return r * m.L * ((m.h + m.qd) + 2 * (m.h + m.kvd) + (m.qd + m.h) + 2 * (m.h + m.inter) + (m.inter + m.h)); }
+function evalCard(c, m, v){
+  const W = m.P * QUANT[v.quant].b; // GB
+  const kvpt = 2 * m.L * m.kvh * m.hd * v.kv / 1e9; // GB per token
+  const ctx = v.lin + v.lout, avg = v.lin + v.lout / 2;
+  const adapters = v.mode === 'multi' ? 10 * adapterParams(m, 16) * 2 / 1e9 : 0;
+  const usable = c.mem * UTIL;
+  const free = usable - W - OVH - adapters;
+  const Cmem = free > 0 ? Math.floor(free / (ctx * kvpt)) : 0;
+  const Cspd = Math.floor((c.bw * EFF / v.s - W - adapters) / (avg * kvpt));
+  const Ccard = Math.max(0, Math.min(Cmem, Cspd, 256));
+  const fits = free > 0 && Cmem >= 4;
+  const cards = Ccard >= 1 ? Math.ceil(v.C / Ccard) : Infinity;
+  const per = isFinite(cards) ? Math.ceil(v.C / cards) : 0;
+  const spd = c.bw * EFF / (W + adapters + per * avg * kvpt);
+  const cap = isFinite(cards) ? cards * Ccard * (c.bw * EFF / (W + adapters + Ccard * avg * kvpt)) : 0;
+  return {W, kvpt, ctx, adapters, usable, free, Cmem, Cspd, Ccard, fits, cards, per, spd, cap, kvPer: per * ctx * kvpt};
+}
+function gpuCalc(){
+  const v = {};
+  SL.forEach(([k, , , , , , u]) => { v[k] = +q('#g-' + k).value; q('#gv-' + k).textContent = v[k] + u; });
+  SEL.forEach(([k]) => { v[k] = q('#g-' + k).value; }); v.kv = +v.kv;
+  const m = MODELS[v.model]; const c = CARDS.find(x => x.id === v.card);
+  const daily = v.N * v.a / 100 * v.t * v.ls / 100;
+  const lam = daily * v.pf * v.ph / 100 / 3600;
+  const need = lam * v.lout;
+  v.C = Math.max(1, Math.ceil(lam * (v.ttft + v.lout / v.s)));
+  const r = evalCard(c, m, v);
+  const ha = v.ha === '1' ? 1 : 0;
+  // VRAM bar
+  const pct = x => Math.max(0, x / c.mem * 100);
+  const kvShow = Math.min(r.kvPer, Math.max(0, r.free));
+  const overflow = !r.fits;
+  let bar = `<div class="w" style="width:${pct(Math.min(r.W, c.mem))}%">权重 ${r.W.toFixed(1)}G</div>`;
+  if (r.adapters) bar += `<div class="a" style="width:${pct(r.adapters)}%">${r.adapters.toFixed(1)}G</div>`;
+  bar += `<div class="o" style="width:${pct(OVH)}%"></div>`;
+  if (overflow) bar += `<div class="x" style="width:${Math.max(4, 100 - pct(r.W + r.adapters + OVH))}%">KV 放不下</div>`;
+  else { bar += `<div class="k" style="width:${pct(kvShow)}%">KV ${kvShow.toFixed(1)}G</div>`; bar += `<div class="f" style="width:${pct(Math.max(0, r.usable - r.W - r.adapters - OVH - kvShow))}%">空闲</div>`; }
+  bar += `<div class="lim" style="left:${UTIL * 100}%"></div>`;
+  q('#lx-vram').innerHTML = bar;
+  q('#lx-vram-txt').textContent = `${c.n} ${c.mem}GB：可用 ${r.usable.toFixed(1)}G（×0.9）= 权重 ${r.W.toFixed(1)} + ${r.adapters ? '适配器 ' + r.adapters.toFixed(1) + ' + ' : ''}开销 ${OVH} + KV（每卡 ${r.per} 路 × ${r.ctx} token × ${(r.kvpt * 1e3).toFixed(3)} MB = ${r.kvPer.toFixed(1)}G）`;
+  const okc = r.fits && isFinite(r.cards);
+  const out = [
+    ['本地模型峰值', lam.toFixed(2) + ' req/s', `${fmt(daily)} 次/天 × ${v.pf} × ${v.ph}% ÷ 3600`],
+    ['需要的输出吞吐', fmt(need) + ' token/s', `λ × ${v.lout}`],
+    ['同时在途路数 C', v.C + ' 路', `λ × (${v.ttft} + ${v.lout}/${v.s})`],
+    ['每 token KV', (r.kvpt * 1e6).toFixed(0) + ' KB', `2 × ${m.L} × ${m.kvh} × ${m.hd} × ${v.kv}B`],
+    ['单卡最多服务', r.Ccard + ' 路', `min(显存 ${Math.max(0, r.Cmem)}, 速度 ${Math.max(0, r.Cspd)}) 路`],
+    ['当前负载下单路速度', okc ? r.spd.toFixed(0) + ' token/s' : '—', `${c.bw}×${EFF} ÷ 每步读取`],
+    ['需要的卡', okc ? `${r.cards} 张 + ${ha} 冗余` : '不可行', ha ? 'N+1：坏一张仍能扛住峰值' : '无冗余'],
+    ['预填充算力需求', fmt(lam * v.lin) + ' token/s', `≈ ${(2 * m.P * lam * v.lin / 1e3).toFixed(1)} TFLOPS，远低于卡的算力`]
+  ];
+  q('#lx-gpu-out').innerHTML = out.map(([a, b, cc]) => `<div><span>${a} <span class="lx-est">估算</span></span><b>${b}</b><small>${cc}</small></div>`).join('');
+  const maxv = Math.max(need, r.cap, 1) * 1.1;
+  q('#lx-g-need').style.width = (need / maxv * 100) + '%';
+  q('#lx-g-have').style.width = (okc ? r.cap / maxv * 100 : 0) + '%';
+  q('#lx-g-txt').textContent = okc ? `红：需要 ${fmt(need)} token/s；绿：${r.cards} 张卡在“每路 ≥ ${v.s} token/s”约束下的最大吞吐约 ${fmt(r.cap)} token/s${r.cap >= need ? '，满足 ✓' : '，不满足 ✗'}` : `红：需要 ${fmt(need)} token/s；这张卡显存放不下足够的并发路数（< 4 路），不计算吞吐`;
+  // cards viz
+  let cv = '';
+  const nC = okc ? Math.min(r.cards, 12) : 0;
+  for (let i = 0; i < (okc ? nC + ha : 0); i++) {
+    const spare = i >= nC; const busy = spare ? 0 : Math.min(r.per, v.C - i * r.per);
+    let dots = ''; const show = Math.min(40, Math.max(r.Ccard, 1)); const onN = Math.round(busy / Math.max(r.Ccard, 1) * show);
+    for (let k = 0; k < show; k++) dots += `<i class="${k < onN ? 'on' : ''}" style="animation-delay:${(k % 7) * .15}s"></i>`;
+    cv += `<div class="lx-gpu${spare ? ' spare' : ''}"><div class="nm">${c.n} #${i + 1}${spare ? ' · 冗余' : ''}</div><div class="sb">${spare ? '待命 / 征期分流' : busy + ' / ' + r.Ccard + ' 路'}</div><div class="streams">${dots}</div></div>`;
+  }
+  if (okc && r.cards > 12) cv += `<div class="lx-gpu"><div class="nm">… 共 ${r.cards} 张</div></div>`;
+  q('#lx-cards').innerHTML = cv || '<div class="lx-note">这个组合放不下或达不到速度目标：换更大显存的卡、降低精度，或换 KV 更省的模型。</div>';
+  // conclusion
+  let concl;
+  if (!r.fits) concl = `<b>${c.n} 放不下 ${m.n.split('（')[0]} ${QUANT[v.quant].n}</b>：权重 ${r.W.toFixed(1)}G + 开销后，留给 KV 的空间不够 4 路。换 48GB 卡或改用 INT4。`;
+  else if (!isFinite(r.cards)) concl = `显存放得下，但单路速度达不到 ${v.s} token/s（权重太大、每步要读的数据太多）。降低精度或换带宽更高的卡。`;
+  else concl = `<b>结论：${r.cards + ha} 张 ${c.n}</b>（${r.cards} 张承载峰值${ha ? ' + 1 张冗余' : ''}）。峰值 ${v.C} 路，每卡最多约 ${r.Ccard} 路，当前负载下每路约 ${r.spd.toFixed(0)} token/s。${r.cards === 1 && r.Ccard >= v.C * 2 ? '单卡余量超过 2 倍，征期突发也有缓冲。' : ''}${c.fp8 === false && v.quant === 'fp8' ? ' 注意：这张卡没有原生 FP8，可改用 INT8（W8A16）。' : ''}`;
+  q('#lx-gpu-concl').innerHTML = concl + ' <span style="color:#7fb3ab">（估算；上线前必须用真实 prompt 分布压测 TTFT / TPOT 的 P95。）</span>';
+  // comparison table
+  let t = '<tr><th>卡型</th><th>显存 / 带宽</th><th>能否放下</th><th>单卡最多路数</th><th>承载峰值所需</th><th>+冗余合计</th><th>单路速度（当前负载）</th><th>供货提醒</th></tr>';
+  CARDS.forEach(cc => { const e = evalCard(cc, m, v); const ok = e.fits && isFinite(e.cards); t += `<tr class="${cc.id === v.card ? 'rec' : ''}"><td><b>${cc.n}</b></td><td>${cc.mem} GB / ${cc.bw} GB/s</td><td class="${e.fits ? 'lx-ok' : 'lx-bad'}">${e.fits ? '✓ 余 ' + Math.max(0, e.free).toFixed(1) + 'G' : '✗ 显存不足'}</td><td>${e.fits ? e.Ccard : '—'}</td><td>${ok ? e.cards + ' 张' : '—'}</td><td>${ok ? (e.cards + ha) + ' 张' : '—'}</td><td class="${ok ? (e.spd >= v.s ? 'lx-ok' : 'lx-mid') : ''}">${ok ? e.spd.toFixed(0) + ' tok/s' : '—'}</td><td style="font-size:12px">${cc.note}</td></tr>`; });
+  q('#lx-gpu-table').innerHTML = t;
+  if (v.N === 5000 && v.model === 'gemma2-9b') {
+    q('#lx-gpu-headline').innerHTML = `按默认假设，本地模型征期峰值约 <b>${lam.toFixed(1)} 请求/秒</b>，同时在途约 <b>${v.C} 路</b>，需要约 <b>${fmt(need)} 输出 token/s</b>。Gemma-2-9B 用 FP8 部署在一张 48GB 卡上，估算最多能服务约 ${evalCard(CARDS[2], m, Object.assign({}, v, {quant:'fp8', kv:2})).Ccard} 路，<b>一张卡就能扛住峰值</b>。`;
+  }
+}
+if (!q('#lx-gpu-headline').innerHTML) { /* filled on first calc */ }
+gpuCalc();
+
+/* GPU Q&A */
+const GQA = [
+ ['为什么选 L20 48GB？', '三个理由：<b>① 放得下</b>：Gemma-2-9B BF16 权重 18.5 GB，48GB 卡原精度就能放下，还给 KV 留出 20 GB 以上；<b>② 够快</b>：峰值只要约 250 token/s，FP8 下估算单卡约 500 token/s、最多约 46 路；<b>③ 买得到</b>：L20 是面向国内的数据中心卡，支持 FP8，适合 7×24 运行。80GB 级的卡在这个规模用不满。'],
+ ['你是怎么算出要几张卡的？', '四步：<b>① 工作量</b>：5,000 × 40% × 8 × 60% = 9,600 次/天，× 征期 2.5 × 峰值小时 15% ÷ 3600 ≈ 1 次/秒；<b>② 并发</b>：Little 定律 1 × (0.5 + 250/20) ≈ 13 路；<b>③ 显存</b>：权重 + 13 × 1,450 × 0.33 MB 的 KV + 2.5 GB 开销 ≤ 48 × 0.9；<b>④ 速度</b>：显存带宽 × 0.7 ÷ 每步读取量 ≥ 每路 20 token/s。四个条件都满足所需的最少卡数是 1 张，加 N+1 共 2 张。'],
+ ['为什么不用 A100 / H20？', '不是不能用，是<b>不划算</b>：这个规模下 80–96GB 显存和 2–4 TB/s 带宽大部分时间闲着；而且 A100/A800 受出口管制，国内基本只能用存量或租云。规模涨到 10 倍以上，或者要上 32B 级模型时再考虑。'],
+ ['4090 / 4090D 行不行？', '能用，但要量化。24GB 放不下 BF16 的 9B（权重 18.5G 加开销就满了），INT4（AWQ）后权重约 5.2 GB，估算单卡也能扛住峰值。缺点：消费卡不适合机房 7×24 运行（散热、驱动授权），显存余量小，长上下文多时要限制长度。适合做预算版或冷备。'],
+ ['量化会不会影响效果？', '会有一些精度损失，影响多大要<b>实测</b>：用同一套固定评测题（财税问答准确率、拒答是否正确、风格一致性）对比 BF16 和 FP8/INT4 的输出。一般 FP8 损失很小，INT4 可能在长推理上更明显。另外 LoRA 要先在原精度合并，再对合并后的模型量化。'],
+ ['为什么 Gemma-2-9B 的 KV 缓存这么大？换模型会怎样？', 'KV 每 token = 2 × 层数 × KV 头数 × 每头维度 × 字节。Gemma-2-9B 是 42 层、8 个 KV 头、每头 256 维 → 约 0.33 MB/token；Qwen2.5-7B 是 28 层、4 个 KV 头、128 维 → 约 0.055 MB，只有前者的 1/6。所以同一张卡上 Qwen2.5-7B 能扛的并发多得多。选基座时除了效果，也要看这几个结构参数。'],
+ ['征期流量超过估算怎么办？', '分层兜底：<b>① 排队</b>：vLLM 自带请求队列，短时突发只是首字变慢；<b>② 限流</b>：网关对每家 ISV 有令牌桶；<b>③ 冗余卡</b>：N+1 那张卡平时就可以参与负载均衡；<b>④ 降级</b>：本地模型排队过长时，把咨询类请求临时转到云端 API；<b>⑤ 弹性</b>：征期按天租云上 GPU。'],
+ ['估算怎么验证？', '上线前压测：用真实或脱敏的 prompt 长度分布，跑 vLLM 自带的 serving 压测脚本，逐步加并发（1、4、8、16、32…），记录 <b>TTFT、每 token 延迟（TPOT）的 P95</b> 和总吞吐，找到“延迟开始陡升”的拐点，那就是单卡的实际容量。再用它替换页面里的估算值。'],
+ ['本地部署和全用云端 API，怎么取舍？', '这个规模下，云端 API 的花费其实不高。选本地主要是因为：<b>数据不出内网</b>（客户合规要求）、<b>成本固定可预测</b>、<b>可以做垂直微调和拒答边界控制</b>。代价是要运维 GPU 服务。面试时可以说：“按 1 请求/秒的规模，本地方案主要是为了合规和可控，而不是单纯省钱；如果没有合规要求，前期全用 API 也是合理选择。”'],
+ ['10 家 ISV 想要不同的话术怎么办？', '用 vLLM 的多 LoRA：基座只加载一份，每家 ISV 一个适配器（r=16 时每个约 108 MB），请求里指定用哪个适配器。<b>先确认真的有差异化需求</b>再做，否则一个合并模型最简单。']
+];
+q('#lx-gpu-qa-list').innerHTML = GQA.map(([a, b]) => `<details><summary>❓ ${a}</summary><div class="a">${b}</div></details>`).join('');
+
+/* Pitch */
+const PT = {
+ p1:`我做过一个 LoRA 微调的完整实验：用 Gemma 4 E2B 加 QLoRA，在一张 8GB 的笔记本显卡上，把模型微调成“沐雪”这个角色的说话风格。
+
+数据方面，我整理了 3,376 条角色对话，做了格式校验、清洗和去重，留下 3,375 条训练、100 条做验证，用 LLaMA-Factory 转成 ShareGPT 格式，只对助手回答计算 loss。
+
+训练方面，基座 4-bit NF4 量化加载，LoRA 的 rank 是 8、alpha 是 16，batch 1 配合 8 步梯度累积，学习率 5e-5、warmup 加余弦，训练 3 轮，大约 1,266 次更新。
+
+评估方面，我没有只看 loss，而是用“同一基座、同一角色提示词，只切换是否加载 LoRA”的方式，在没见过的新问题上做盲评，同时看风格、回答质量和多轮稳定性。`,
+ p3:`【为什么做】我想搞清楚“提示词、RAG、微调各自改的是什么”，所以选了一个容易观察的目标：让模型稳定地用“沐雪”的风格说话，同时不丢回答质量。
+
+【原理】LoRA 冻结原模型的权重 W，在选中的线性层旁边加两个小矩阵：A 把输入压到 r 维，B 再升回来，输出是 Wx 加上 α/r 乘 BAx。A 随机、B 初始化为 0，所以一开始模型行为不变。训练时梯度只更新 A 和 B。以 2048×2048 的层为例，r=8 只需要训练 3.2 万个参数，是原来的 1/128。QLoRA 再把冻结的基座用 NF4 存成 4-bit，计算时临时还原成 BF16，所以 8GB 显卡也能训。
+
+【数据】3,376 条对话 → 校验、清洗、去重 → 3,375 条训练、100 条验证；套 Gemma 的聊天模板，labels 里用户部分填 -100，只对助手回答计分；检查最长样本，避免回答被截断。
+
+【训练】r=8、alpha=16、dropout 0.05；batch 1 × 梯度累积 8，有效 batch 8；学习率 5e-5，10% warmup 加余弦；3 轮约 1,266 步；开梯度检查点省显存；每 200 步评估和保存。
+
+【评估】loss 只说明模型更会预测这份参考答案，所以我做了公平对照：同一基座、同一角色提示词、同样的生成参数，只切换适配器，在新问题上盲评风格、内容和多轮稳定性，并检查通用能力有没有退化。
+
+【部署和延伸】训练产物是一个几十 MB 的适配器，推理时显式加载，或者合并进基座后再量化。同样的方法用在了 Biglink 的财税本地模型上：按 5,000 个税号估算，峰值大约 1 请求/秒，一张 48GB 的 L20 就能扛住，两张做冗余。
+
+【反思】如果重来，我会更早准备独立测试集和自动化评测脚本，并记录每次实验的峰值显存和耗时。`,
+ link:`“我的两个项目是串起来的。
+
+LoRA 这块，我先用一个小模型的角色风格实验，把数据处理、QLoRA 训练、公平评测、加载和合并这一整套流程跑通，把每一步的原理和坑都弄清楚了。
+
+Biglink 里，JEV 分类器会把政策咨询、操作引导这类请求分给本地模型。这个本地模型就是用同样的 LoRA 方法，在财税问答和拒答样本上微调的（如果你还没真正训练过财税模型，这里要改成：‘方案是用同样的方法微调’）。
+
+部署上我按 10 家 ISV、5,000 个税号算过：本地模型峰值大约 1 请求/秒、13 路并发，Gemma-2-9B 用 FP8 放在一张 48GB 的 L20 上就够，KV 缓存大约 6.5 GB。两张卡做 N+1，征期不够时可以临时降级到云端 API。”`
+};
+const ptBox = q('#lx-pt');
+document.querySelectorAll('#lx-pt-tabs [data-k]').forEach(b => b.onclick = () => { document.querySelectorAll('#lx-pt-tabs [data-k]').forEach(x => x.classList.toggle('on', x === b)); ptBox.textContent = PT[b.dataset.k]; });
+ptBox.textContent = PT.p1;
+const PQA = [
+ ['用一句话讲清 LoRA。', '冻结原权重 W，只训练两个小矩阵 A、B 表示增量 ΔW = (α/r)·B·A，前向是 y = Wx + (α/r)·BAx；可训练参数从 d_in×d_out 降到 r×(d_in+d_out)。'],
+ ['为什么 B 初始化为 0、A 随机？', '这样一开始 ΔW = 0，模型行为和原模型一样，不会一上来就被破坏；同时 B 的梯度 ∂L/∂B = s·g·(Ax)ᵀ 不为 0，训练能启动。第一步 A 的任务梯度是 0，B 更新后 A 才开始学。两者都为 0 就学不动了。'],
+ ['rank 和 alpha 怎么选？', 'r 是旁路的容量，常见 8、16、32；α/r 控制旁路的影响大小，常设 α = 2r。我用 r=8、α=16 作为起点，比较 r 时固定 α/r，并用验证集的生成效果决定，而不是“越大越好”。'],
+ ['LoRA 加在哪些层？', '最常见的是注意力的 q/k/v/o 投影，效果更好时会加上 MLP 的 gate/up/down（all-linear）。加的层越多，可训练参数越多、显存和时间越多，要和效果一起权衡。'],
+ ['QLoRA 和 LoRA 有什么区别？', 'LoRA 省的是可训练参数和优化器状态；QLoRA 进一步把冻结的基座用 NF4 存成 4-bit（加双重量化），计算时临时还原成 BF16，适配器仍是高精度。代价是有量化误差和一点速度损失。'],
+ ['为什么只对助手回答计算 loss？', '我们想让模型学“怎么回答”，而不是学“怎么提问”。用户部分仍然作为输入参与前向，只是 labels 设为 -100 不计分；PAD 也不计分，EOT 要计分，让模型学会何时结束。'],
+ ['梯度累积是不是完全等价于大 batch？', '在样本相同、损失归一化一致时接近，但不同长度样本的 token 权重、尾批处理、dropout 随机性都会带来差异，所以说“近似等效”。它省的是激活显存，不省权重显存。'],
+ ['怎么判断过拟合？', '看多个 checkpoint 的趋势：训练 loss 持续降、验证 loss 持续升，同时新题上开始复读、答非所问。单次波动不算。处理：选更早的 checkpoint、减少轮数、调低学习率或增加数据多样性。'],
+ ['怎么证明 LoRA 真的有用？', '公平对照：同一基座、同一提示词、同样生成参数，只切换适配器；在训练中没出现过的新问题上盲评，分别打风格分和质量分，并检查通用能力回归。只看 loss 或只挑几个好例子都不算证据。'],
+ ['合并后为什么还要回归测试？', '合并在数学上等价，但有限精度下会有误差；合并后再量化（FP8/INT4）误差更大。所以要用同一套固定评测题对比合并前后、量化前后的输出。'],
+ ['Prompt、RAG、微调怎么选？', 'Prompt 改的是单次请求的说明，最便宜，先用它做基线；RAG 补充最新、可追溯的资料，适合知识类；微调改模型参数，适合稳定的风格、格式和任务能力。三者可以组合，先低成本方案，不够再微调。']
+];
+q('#lx-pt-qa').innerHTML = PQA.map(([a, b]) => `<details><summary>❓ ${a}</summary><div class="a">${b}</div></details>`).join('');
+
+/* deep link */
+function fromHash(){ const h = (location.hash || '').replace('#', ''); if (OV[h]) openOv(h, true); }
+addEventListener('hashchange', fromHash);
+fromHash();
+})();
+
+</script>
+</body>
 </html>
