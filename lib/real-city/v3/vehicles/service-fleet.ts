@@ -532,7 +532,8 @@ export class ServiceVehicle {
   private readonly lensB: THREE.MeshStandardMaterial;
   private readonly body: THREE.MeshPhysicalMaterial;
   private readonly meshes: Record<"body" | "glass" | "trim" | "chrome" | "lensA" | "lensB", THREE.Mesh>;
-  private readonly wheels: THREE.Group[] = [];
+  /** 每辆车的全部车轮合并成「一个轮胎网格 + 一个轮毂网格」：原来 4–6 个车轮各 2 次绘制（主通道 + 阴影各一遍）。 */
+  private readonly wheels: THREE.Mesh[] = [];
   private static wheel?: { tire: THREE.BufferGeometry; rim: THREE.BufferGeometry };
 
   constructor(readonly kind: ServiceKind, color = "#ffffff") {
@@ -558,24 +559,30 @@ export class ServiceVehicle {
   }
 
   private buildWheels(): void {
-    for (const w of this.wheels) this.group.remove(w);
+    for (const w of this.wheels) {
+      this.group.remove(w);
+      w.geometry.dispose();
+    }
     this.wheels.length = 0;
     ServiceVehicle.wheel ??= createVehicleWheel();
     const geo = ServiceVehicle.wheel;
     const positions = [...this.shell.wheels];
     if (this.shell.dualRear) for (const w of this.shell.wheels.filter((p) => p.z < 0)) positions.push({ x: w.x - Math.sign(w.x) * 0.3, z: w.z });
-    for (const p of positions) {
-      const g = new THREE.Group();
-      for (const [geometry, material] of [[geo.tire, sharedMaterials.tire], [geo.rim, sharedMaterials.chrome]] as const) {
-        const mesh = new THREE.Mesh(geometry, material);
-        mesh.castShadow = true;
-        mesh.rotation.z = Math.PI / 2;
-        g.add(mesh);
-      }
-      g.position.set(p.x, this.shell.wheelR, p.z);
-      g.scale.setScalar(this.shell.wheelR);
-      this.group.add(g);
-      this.wheels.push(g);
+    const placement = new THREE.Matrix4();
+    const rotation = new THREE.Matrix4().makeRotationZ(Math.PI / 2);
+    for (const [source, material, label] of [[geo.tire, sharedMaterials.tire, "tire"], [geo.rim, sharedMaterials.chrome, "rim"]] as const) {
+      const parts = positions.map((p) => {
+        placement.makeScale(this.shell.wheelR, this.shell.wheelR, this.shell.wheelR).premultiply(new THREE.Matrix4().makeTranslation(p.x, this.shell.wheelR, p.z));
+        return source.clone().applyMatrix4(placement.clone().multiply(rotation));
+      });
+      const merged = mergeGeometries(parts, false);
+      for (const part of parts) part.dispose();
+      if (!merged) continue;
+      merged.name = `v3 service wheels · ${label}`;
+      const mesh = new THREE.Mesh(merged, material);
+      mesh.castShadow = true;
+      this.group.add(mesh);
+      this.wheels.push(mesh);
     }
   }
 
@@ -624,6 +631,7 @@ export class ServiceVehicle {
 
   dispose(): void {
     for (const mesh of Object.values(this.meshes)) mesh.geometry.dispose();
+    for (const mesh of this.wheels) mesh.geometry.dispose();
     this.body.dispose();
     this.lensA.dispose();
     this.lensB.dispose();
