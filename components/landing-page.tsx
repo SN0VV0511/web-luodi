@@ -42,6 +42,7 @@ import {
   Aperture,
   X,
   Volume2,
+  Gauge,
   VolumeX,
 } from "lucide-react";
 import { cityBuildings, safeAppUrl, type CityPlace, type PlaceId } from "@/lib/city-content";
@@ -64,6 +65,10 @@ import { getBuildingExperience } from "@/lib/building-experience";
 import { getCityTimeline } from "@/lib/city-events";
 import { liveCityIncidents, type CityLifeSnapshot } from "@/lib/real-city/snapshot";
 import type { SeasonMode } from "@/lib/city-seasons";
+import type { QualityPreference, QualityTier } from "@/lib/real-city/render/quality";
+
+const QUALITY_ORDER: readonly QualityPreference[] = ["auto", "high", "medium", "low"];
+const QUALITY_STORAGE_KEY = "sn0vv-city-quality";
 
 const CityScene = dynamic(() => import("@/components/city-scene"), {
   ssr: false,
@@ -87,6 +92,8 @@ export function LandingPage(): ReactNode {
   const [golden, setGolden] = useState(false);
   const [tiltShift, setTiltShift] = useState(false);
   const [ambience, setAmbience] = useState(false);
+  const [quality, setQuality] = useState<QualityPreference>("auto");
+  const [qualityTier, setQualityTier] = useState<QualityTier | null>(null);
   const timeOfDay = night ? "night" : golden ? "golden" : "day";
   const [seasonMode, setSeasonMode] = useState<SeasonMode>("auto");
   const [paused, setPaused] = useState(false);
@@ -125,6 +132,12 @@ export function LandingPage(): ReactNode {
     const trigger = informationTriggerRef.current;
     if (trigger?.isConnected && !trigger.classList.contains("city-label")) trigger.focus({ preventScroll: true });
     else directoryTriggerRef.current?.focus({ preventScroll: true });
+  }, []);
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(QUALITY_STORAGE_KEY) as QualityPreference | null;
+      if (saved && QUALITY_ORDER.includes(saved)) setQuality(saved);
+    } catch { /* 隐私模式下不可用，保持自动 */ }
   }, []);
   // 08 号楼：后台上传的 HTML 页面运行时拉取，接在内置 1F/2F 之后（接口不可用时只显示内置楼层）。
   useEffect(() => {
@@ -336,6 +349,8 @@ export function LandingPage(): ReactNode {
           timeOfDay={timeOfDay}
           tiltShift={tiltShift}
           ambience={ambience}
+          quality={quality}
+          onQualityTierChange={setQualityTier}
           seasonMode={seasonMode}
           paused={paused}
           resetKey={resetKey}
@@ -1370,6 +1385,25 @@ export function LandingPage(): ReactNode {
           </button>
           <button
             type="button"
+            className="dock-quality"
+            data-quality={quality}
+            aria-label={t(
+              `画质：${qualityLabel(quality, "zh")}${quality === "auto" && qualityTier ? `（当前${qualityLabel(qualityTier, "zh")}）` : ""}，点击切换`,
+              `Graphics quality: ${qualityLabel(quality, "en")}${quality === "auto" && qualityTier ? ` (now ${qualityLabel(qualityTier, "en")})` : ""}. Click to change`,
+            )}
+            title={t("画质：自动 → 高 → 中 → 低", "Quality: auto → high → medium → low")}
+            onClick={() => {
+              const next = QUALITY_ORDER[(QUALITY_ORDER.indexOf(quality) + 1) % QUALITY_ORDER.length];
+              setQuality(next);
+              try { window.localStorage.setItem(QUALITY_STORAGE_KEY, next); } catch { /* 忽略 */ }
+            }}
+          >
+            <Gauge size={18} />
+            <span>{t("画质", "Quality")}</span>
+            <b aria-hidden="true">{quality === "auto" ? t("自", "A") : t(qualityLabel(quality, "zh"), qualityLabel(quality, "en").slice(0, 1))}</b>
+          </button>
+          <button
+            type="button"
             aria-label={t("自动航拍", "Cinematic tour")}
             aria-pressed={touring}
             onClick={() => {
@@ -1423,4 +1457,11 @@ export function LandingPage(): ReactNode {
        · BUILD 0917-1533</a>
     </main>
   );
+}
+
+function qualityLabel(value: QualityPreference, locale: "zh" | "en"): string {
+  const labels: Record<QualityPreference, [string, string]> = {
+    auto: ["自动", "Auto"], high: ["高", "High"], medium: ["中", "Medium"], low: ["低", "Low"],
+  };
+  return labels[value][locale === "zh" ? 0 : 1];
 }

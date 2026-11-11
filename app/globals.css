@@ -2800,6 +2800,35 @@ button.skylines-metric-pill:hover {
 .dock-scene-controls > button:first-child > svg {
   color: #f0c372;
 }
+.dock-scene-controls > button.dock-quality {
+  position: relative;
+}
+.dock-scene-controls > button.dock-quality > span {
+  white-space: nowrap;
+}
+.dock-scene-controls > button.dock-quality > b {
+  position: absolute;
+  top: 3px;
+  right: 1px;
+  min-width: 12px;
+  height: 12px;
+  padding: 0 2px;
+  border-radius: 6px;
+  font-size: 8px;
+  line-height: 12px;
+  font-weight: 600;
+  color: #10202f;
+  background: #f0c372;
+}
+/* 手机底栏本来就满了：小屏不放画质按钮，交给自动档（小屏默认中档并按帧耗时自适应）。 */
+@media (max-width: 760px) {
+  .dock-scene-controls > button.dock-quality {
+    display: none;
+  }
+}
+.dock-scene-controls > button.dock-quality[data-quality="low"] > svg {
+  color: #9fd3a8;
+}
 .dock-city-state {
   min-width: 159px;
   padding-left: 15px;
