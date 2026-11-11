@@ -185,7 +185,7 @@ export class CityRenderPipeline {
       const wet = night && quality.bloom && this.wet;
       if (wet && this.wet) {
         this.wet.render(renderer, this.screen, this.color.texture, this.color.depthTexture!, camera, 0.9,
-          scene.fog?.color ?? (scene.background instanceof THREE.Color ? scene.background : undefined));
+          scene.fog?.color ?? (scene.background instanceof THREE.Color ? scene.background : undefined), look?.sunDirection);
         this.output.uniforms.tReflection.value = this.wet.texture;
       }
       this.output.uniforms.reflectionEnabled.value = wet ? 1 : 0;

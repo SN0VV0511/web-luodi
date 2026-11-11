@@ -18,6 +18,35 @@ uniform float groundMax;
 uniform float strength;
 uniform vec3 envHorizon;
 uniform vec3 envZenith;
+uniform vec3 moonDirection;
+uniform float uTime;
+
+float waterNoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  float a = fract(sin(dot(i, vec2(127.1, 311.7))) * 43758.5453);
+  float b = fract(sin(dot(i + vec2(1.0, 0.0), vec2(127.1, 311.7))) * 43758.5453);
+  float c = fract(sin(dot(i + vec2(0.0, 1.0), vec2(127.1, 311.7))) * 43758.5453);
+  float d = fract(sin(dot(i + vec2(1.0, 1.0), vec2(127.1, 311.7))) * 43758.5453);
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+// 水面区域（世界坐标解析）：中央湖椭圆（y≈0.37）与南侧海面（y≈-0.65）。
+float waterMask(vec3 W) {
+  vec2 l = (W.xz - vec2(-12.0, -15.0)) / vec2(27.5, 37.5);
+  float lake = step(dot(l, l), 1.0) * step(abs(W.y - 0.37), 0.08);
+  float sea = step(W.y, -0.35) * step(-0.95, W.y) * step(100.0, W.z);
+  return max(lake, sea);
+}
+vec2 waterSlope(vec2 p, float t) {
+  // 细碎波面：两层错向噪声的梯度，夜间灯影据此碎成颤动的光条。
+  vec2 e = vec2(0.15, 0.0);
+  vec2 q = p * vec2(0.9, 0.35) + vec2(t * 0.35, -t * 0.22);
+  vec2 r = p * vec2(0.3, 1.1) + vec2(-t * 0.2, t * 0.3);
+  float h0 = waterNoise(q) + 0.6 * waterNoise(r);
+  float hx = waterNoise(q + e.xy) + 0.6 * waterNoise(r + e.xy);
+  float hz = waterNoise(q + e.yx) + 0.6 * waterNoise(r + e.yx);
+  return vec2(hx - h0, hz - h0) / 0.15;
+}
 
 vec2 project(vec3 p) {
   vec4 clip = projection * vec4(p, 1.0);
@@ -31,20 +60,28 @@ void main() {
   if (depth >= 0.99999 || strength <= 0.0) { gl_FragColor = vec4(0.0); return; }
   vec3 P = viewPosition(vUv);
   vec3 W = (viewToWorld * vec4(P, 1.0)).xyz;
-  if (W.y > groundMax || -P.z > 260.0) { gl_FragColor = vec4(0.0); return; }
+  if (W.y > groundMax || -P.z > 900.0) { gl_FragColor = vec4(0.0); return; }
+  float water = waterMask(W);
+  if (water < 0.5 && -P.z > 260.0) { gl_FragColor = vec4(0.0); return; }
   vec3 N = surfaceNormal(vUv, P);
   float facing = dot(N, upView);
-  if (facing < 0.96) { gl_FragColor = vec4(0.0); return; }
+  if (facing < 0.96 && water < 0.5) { gl_FragColor = vec4(0.0); return; }
   vec3 base = texture2D(tColor, vUv).rgb;
   float hi = max(base.r, max(base.g, base.b));
   float sat = (hi - min(base.r, min(base.g, base.b))) / max(hi, 1e-4);
-  // 草地与彩色标线不反光；沥青与灰色步道才是湿润镜面。
-  float mask = 1.0 - smoothstep(0.18, 0.36, sat);
+  // 草地与彩色标线不反光；沥青与灰色步道才是湿润镜面；湖海水面总是镜面。
+  float mask = max(1.0 - smoothstep(0.18, 0.36, sat), water);
   if (mask <= 0.0) { gl_FragColor = vec4(0.0); return; }
 
   vec3 V = normalize(P);
-  // 地面法线用精确的世界向上方向（深度重建法线有噪声），加一点按像素抖动模拟沥青微粗糙。
-  vec3 R = normalize(reflect(V, upView));
+  // 地面法线用精确的世界向上方向（深度重建法线有噪声）；水面叠加波面斜率，倒影随波颤动成光条。
+  vec3 Nv = upView;
+  if (water > 0.5) {
+    vec2 slope = waterSlope(W.xz, uTime) * 0.045;
+    vec3 Nw = normalize(vec3(-slope.x, 1.0, -slope.y));
+    Nv = normalize(transpose(mat3(viewToWorld)) * Nw);
+  }
+  vec3 R = normalize(reflect(V, Nv));
   float jitter = hash(vUv * 731.0);
   float t = 0.25 + jitter * 0.35;
   vec2 hitUv = vec2(-1.0);
@@ -74,10 +111,15 @@ void main() {
   float cosine = clamp(dot(-V, upView), 0.0, 1.0);
   float fresnel = 0.05 + 0.95 * pow(1.0 - cosine, 5.0);
   float base_weight = strength * mask * mix(0.35, 1.0, fresnel);
+  // 水面：更强的镜面（夜间水体本身很暗，倒影是主要信息）。
+  base_weight = mix(base_weight, strength * mix(0.55, 1.0, fresnel) * 1.1, water);
   // 屏幕外 / 未命中的回退：按世界空间反射方向取天空 + 雾色渐变（近似环境探针），
   // 避免射线一离开画面边缘反射就硬切成黑。
   vec3 Rw = normalize((viewToWorld * vec4(R, 0.0)).xyz);
   vec3 envColor = mix(envHorizon, envZenith, smoothstep(0.02, 0.55, Rw.y));
+  // 月光在水面的碎金（屏幕外的月亮也能反射）。
+  float moonCos = max(dot(Rw, moonDirection), 0.0);
+  envColor += water * (vec3(0.9, 0.93, 1.0) * pow(moonCos, 900.0) * 6.0 + vec3(0.3, 0.38, 0.55) * pow(moonCos, 60.0) * 0.5);
   float hitFade = 0.0;
   vec3 hitColor = envColor;
   if (hitUv.x >= 0.0) {
@@ -86,7 +128,7 @@ void main() {
     hitColor = texture2D(tColor, hitUv).rgb;
   }
   vec3 reflected = mix(envColor, hitColor, hitFade);
-  float weight = base_weight * mix(0.55, 1.0, hitFade);
+  float weight = base_weight * mix(mix(0.55, 0.8, water), 1.0, hitFade);
   gl_FragColor = vec4(reflected * weight, weight);
 }
 `;
@@ -131,6 +173,8 @@ export class WetReflectionPass {
       strength: { value: 0 },
       envHorizon: { value: new THREE.Color("#2a3446") },
       envZenith: { value: new THREE.Color("#0b1020") },
+      moonDirection: { value: new THREE.Vector3(0, 1, 0) },
+      uTime: { value: 0 },
     });
     this.streak = screenMaterial("City wet reflection streaks", streakFragment, {
       tReflection: { value: this.raw.texture },
@@ -146,8 +190,10 @@ export class WetReflectionPass {
     this.streak.uniforms.texel.value.set(1 / w, 1 / h);
   }
 
-  render(renderer: THREE.WebGLRenderer, screen: FullscreenRenderer, color: THREE.Texture, depth: THREE.DepthTexture, camera: THREE.PerspectiveCamera, strength: number, horizon?: THREE.Color): void {
+  render(renderer: THREE.WebGLRenderer, screen: FullscreenRenderer, color: THREE.Texture, depth: THREE.DepthTexture, camera: THREE.PerspectiveCamera, strength: number, horizon?: THREE.Color, moon?: THREE.Vector3): void {
     const u = this.material.uniforms;
+    if (moon) u.moonDirection.value.copy(moon).normalize();
+    u.uTime.value = performance.now() / 1000;
     if (horizon) {
       u.envHorizon.value.copy(horizon);
       u.envZenith.value.copy(horizon).multiplyScalar(0.3);

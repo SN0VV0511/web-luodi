@@ -244,6 +244,18 @@ export default function CityScene(props: CitySceneProps) {
             color = mix(color, cloudCol, cumulus * heightFade * 0.82);
             color = mix(color, cloudCol, wisps * heightFade * 0.28);
           }
+          if (night > 0.01) {
+            // 月亮：沿夜间主光方向的月盘（带月海暗斑）与柔和光晕。
+            float moonCos = dot(direction, sunDirection);
+            vec3 moonAxisX = normalize(cross(sunDirection, vec3(0.0, 1.0, 0.0)) + vec3(1e-4));
+            vec3 moonAxisY = cross(moonAxisX, sunDirection);
+            vec2 moonUv = vec2(dot(direction, moonAxisX), dot(direction, moonAxisY)) / 0.026;
+            float moonDisc = 1.0 - smoothstep(0.92, 1.0, length(moonUv));
+            float maria = 0.78 + 0.22 * smoothstep(0.35, 0.7, noise2(moonUv * 2.6 + 3.0));
+            vec3 moonColor = vec3(0.92, 0.94, 0.98) * maria * 2.4;
+            color = mix(color, moonColor, moonDisc * night * step(0.0, moonCos));
+            color += vec3(0.35, 0.45, 0.65) * pow(max(moonCos, 0.0), 180.0) * 0.5 * night;
+          }
           if (night > 0.01 && altitude > 0.04) {
             vec3 starCell = floor(direction * 320.0);
             float starHash = fract(sin(dot(starCell, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
