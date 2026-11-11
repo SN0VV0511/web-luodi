@@ -133,14 +133,14 @@ export class CityTrafficEngine {
       const currentCurve = Math.abs(state.pose.curvature) > 0.001
         ? Math.sqrt(lateralLimit / Math.abs(state.pose.curvature))
         : Infinity;
-      const desired = Math.max(0.2, Math.min(route.speed, cornerApproach, currentCurve));
+      const pedestrianGap = this.pedestrians.gap(index, state, specification, this.environment, seconds);
+      const desired = Math.max(0.2, Math.min(route.speed, cornerApproach, currentCurve, this.pedestrians.speedCap[index]));
       const nearest = this.following.find(index, this.states, Math.max(30, state.speed * 4));
       this.leader.index = nearest.index;
       this.leader.gap = nearest.gap;
       this.leader.speed = nearest.speed;
       this.leader.stopping = nearest.stopping;
       const signalGap = this.junctions.stopGap(index);
-      const pedestrianGap = this.pedestrians.gap(index, state, specification, this.environment, seconds);
       const obstacleGap = Math.min(signalGap, pedestrianGap);
       if (obstacleGap < this.leader.gap) {
         this.leader.index = -1;
@@ -166,6 +166,7 @@ export class CityTrafficEngine {
       state.speed = this.nextSpeed[index];
       state.acceleration = this.nextAcceleration[index];
       this.geometry[index].sample(state.distance, state.pose);
+      this.pedestrians.applySwerve(index, state, dt);
       this.chassis[index].update(state, dt);
     }
   }

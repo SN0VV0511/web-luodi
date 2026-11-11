@@ -22,6 +22,8 @@ import { buildCommercialAndCurtainWalls } from "./city-mcdonalds";
 import { buildSeasonalAtmosphere, sampleSeasonState, type SeasonMode, type SeasonState } from "./city-seasons";
 import { createCityWeather } from "./city-weather";
 import { createCityTraffic } from "./city-traffic";
+import { collectEventObstacles, clearEventObstacles, type EventObstacle } from "./real-city/traffic/event-obstacles";
+import type { TrafficObstacle } from "./real-city/traffic/types";
 import type { CityLifeSnapshot } from "./real-city/snapshot";
 import { bindWorldScalePbr, createGlassCurtainWallPbr, createAshlarStonePbr, createSidewalkPaverPbr } from "./city-pbr";
 import { applyCitySurface, markCitySurface, type CitySurface } from "./city-surfaces";
@@ -1437,6 +1439,18 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
     };
   });
   const traffic = createCityTraffic(routes, signalIntersections);
+  const eventObstacleScratch: EventObstacle[] = [];
+  const pedestrianObstacles: { x: number; z: number; radius: number; speed?: number; heading?: number }[] = [];
+  const trafficEventObstacles: TrafficObstacle[] = [];
+  const trafficObstaclesWithEvents = (crossing: readonly TrafficObstacle[], seconds: number) => {
+    trafficEventObstacles.length = 0;
+    for (const o of crossing) trafficEventObstacles.push(o);
+    for (const o of eventObstacleScratch) {
+      if (o.zone) continue;
+      trafficEventObstacles.push({ x: o.x, z: o.z, radius: o.radius, until: seconds + 1, passable: true, slow: o.slow });
+    }
+    return trafficEventObstacles;
+  };
   const trafficDetails = buildTrafficDetails(cityKit, routes, shells);
   const trafficObstacles = routes.map((_route, index) => ({
     x: traffic.states[index].pose.x,
@@ -1476,7 +1490,12 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
       obstacle.speed = car.speed;
       obstacle.heading = car.pose.heading;
     }
-    life.setTrafficObstacles(trafficObstacles);
+    // 事件占用的路面 / 人群区域也让行人绕行（静止障碍，不影响过街判断）。
+    collectEventObstacles(eventObstacleScratch);
+    pedestrianObstacles.length = 0;
+    for (const o of trafficObstacles) pedestrianObstacles.push(o);
+    for (const o of eventObstacleScratch) pedestrianObstacles.push({ x: o.x, z: o.z, radius: o.radius, speed: 0, heading: 0 });
+    life.setTrafficObstacles(pedestrianObstacles);
     life.animate(seconds, night, state);
     const doorOccupants = life.getDoorOccupants();
     architecture.setDoorOccupants(doorOccupants);
@@ -1554,7 +1573,7 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
       wetness: state.precipitation,
       snow: state.season === "winter" ? state.precipitation : 0,
       temperature: state.temperatureC,
-      obstacles: life.getCrossingObstacles(),
+      obstacles: trafficObstaclesWithEvents(life.getCrossingObstacles(), seconds),
     });
     trafficDetails.animate(seconds, trafficStates);
     group.userData.traffic = traffic.snapshot();
@@ -1658,6 +1677,7 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
       for (const landmark of v3Landmarks) landmark.dispose();
       life.dispose();
       traffic.dispose();
+      clearEventObstacles();
       trafficDetails.dispose();
       detailedEnvironment.dispose();
       geometries.forEach((geometry) => geometry.dispose());

@@ -9,6 +9,7 @@ import { createHead, createTorso, createUpperArm } from "./city-figure";
 import { SkinnedPeople, createWorldPose } from "./real-city/life/skinned-people";
 import type { Appearance } from "./real-city/life/types";
 import { ServiceVehicle } from "./real-city/v3/vehicles/service-fleet";
+import { publishEventObstacles, type EventObstacle } from "./real-city/traffic/event-obstacles";
 import { canLoadCityAssets, loadCarModelsOnce } from "./real-city/vehicles/car-models";
 
 export type IncidentKind = "fire" | "burglar" | "medical" | "utility" | "cruise" | "traffic" | "life";
@@ -960,6 +961,7 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
     return entry;
   };
   // v3 消防车：与警车 / 救护车同一套整车构件与涂装（乘员室、卷帘器材厢、转台、拉梯、卷盘、警灯排）。
+  const emergencyObstacles: EventObstacle[] = [];
   const fireUnit = new ServiceVehicle("fireengine");
   group.add(fireUnit.track(kit).group);
   const fireEngine = fireUnit.group;
@@ -1370,6 +1372,15 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
     // 市政抢修箱式货车：平头驾驶室与货厢一体、底盘纵梁、双后轮、琥珀灯排与梯架
     utilityUnit.place(util.vanX, 0.42, util.vanZ, util.site.vanHeading);
     utilityUnit.flash(seconds, true, eventNight);
+    // 应急现场占用路面：后方车辆减速、借道绕行，无法通过时排队等待。
+    emergencyObstacles.length = 0;
+    for (const unit of [fireUnit, policeUnit, ambulanceUnit, utilityUnit]) {
+      const { x, z } = unit.group.position, h = unit.group.rotation.y;
+      if (!unit.group.visible || unit.group.position.y < -1) continue;
+      const half = unit.shell.length * 0.5 - unit.shell.width * 0.5;
+      for (const k of [-1, 0, 1]) emergencyObstacles.push({ x: x + Math.sin(h) * half * k, z: z + Math.cos(h) * half * k, radius: unit.shell.width * 0.5, slow: 3 });
+    }
+    publishEventObstacles("emergency incidents", emergencyObstacles);
     for (let slot = 0; slot < 3; slot++) hideInstance(utilityVanBody, slot);
     for (let g = 3; g < 8; g++) hideInstance(emergencyGlass, g);
     for (let a = 0; a < 4; a++) hideInstance(strobeAmber, a);

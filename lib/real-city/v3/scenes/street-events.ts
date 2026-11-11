@@ -7,6 +7,7 @@ import type { SceneStage } from "./props";
 import { mat } from "./props";
 import { shorePoint } from "./lake-life";
 import type { Appearance } from "../../life/types";
+import { publishEventObstacles, type EventObstacle } from "../../traffic/event-obstacles";
 
 /**
  * 城市随机事件导演：一组错峰的循环剧本（快递卸货、交警拦停、出租车接客、餐车排队、集市、
@@ -51,6 +52,16 @@ export function buildStreetEvents(stage: SceneStage) {
     stage.group.add(v.group);
     vehicles.push(v);
     return v;
+  };
+  // 本帧事件占用：交通据此绕行 / 减速 / 排队，行人据此绕开。
+  const occupied: EventObstacle[] = [];
+  const occupy = (x: number, z: number, radius: number, slow?: number, zone = false) => { occupied.push({ x, z, radius, slow, zone }); };
+  /** 车辆沿车身中线放 3 个圆（车头 / 中 / 车尾），比单个大圆更贴合狭长车体。 */
+  const occupyVehicle = (v: ServiceVehicle, slow?: number) => {
+    if (!v.group.visible) return;
+    const { x, z } = v.group.position, h = v.group.rotation.y;
+    const half = v.shell.length * 0.5 - v.shell.width * 0.5;
+    for (const k of [-1, 0, 1]) occupy(x + Math.sin(h) * half * k, z + Math.cos(h) * half * k, v.shell.width * 0.5, slow);
   };
   const deliveryTruck = vehicle("boxtruck", "#2f5f8f");
   const policeStop = vehicle("police");
@@ -254,7 +265,7 @@ export function buildStreetEvents(stage: SceneStage) {
     const C = 84, tau = t % C;
     const cycle = Math.floor(t / C);
     const roads = [-25, 20, -70];
-    const z = roads[cycle % roads.length] - 4.0, x0 = -150 + (cycle % 2) * 25;
+    const z = roads[cycle % roads.length] - 4.0, x0 = -136 + (cycle % 2) * 45; // 街区中段，避开路口与斑马线
     const heading = Math.PI / 2;
     const arrive = ease(seg(tau, 0, 8)), depart = seg(tau, 66, 76);
     const off = -(1 - arrive) * 40 + depart * depart * 55;
@@ -276,6 +287,7 @@ export function buildStreetEvents(stage: SceneStage) {
       const px = lerp(doorL[0], win[0], k), pz = lerp(doorL[1], win[1], k);
       const walking = (tau > 11 && tau < 16) || (tau > 54 && tau < 60);
       const spec = walking ? gaitPose(px, ROAD_Y, pz, back > 0 ? -heading : heading, t * 7, 0) : standPose(px, ROAD_Y, pz, heading + 0.9, t, { left: [-0.9, -1.7, 0.1], right: [-0.8, -1.9, 0.05] });
+      occupy(px, pz, 0.45, 2.5);
       const pose = stage.person(spec, officer);
       if (pose && !walking) props.add(pose.leftHand.x, pose.leftHand.y + 0.05, pose.leftHand.z, heading + 0.9, -0.6, 0, 0.2, 0.02, 0.28, "#f4f1e8");
     } else if (tau <= 10 || tau >= 62) {
@@ -284,7 +296,7 @@ export function buildStreetEvents(stage: SceneStage) {
       stage.person(sitPose(px, ROAD_Y + 0.12, pz, heading, 0.4), officer);
     }
     // 三角警示牌
-    if (tau > 16 && tau < 64) { const [cx, cz] = local(x0 - 7.2, z, heading, 0, -6); props.add(cx, ROAD_Y + 0.25, cz, heading, 0, 0, 0.5, 0.45, 0.04, "#e74c3c"); }
+    if (tau > 16 && tau < 64) { const [cx, cz] = local(x0 - 7.2, z, heading, 0, -6); occupy(cx, cz, 0.4, 3); props.add(cx, ROAD_Y + 0.25, cz, heading, 0, 0, 0.5, 0.45, 0.04, "#e74c3c"); }
   };
 
   const animateTaxi = (t: number) => {
@@ -410,6 +422,23 @@ export function buildStreetEvents(stage: SceneStage) {
       // 摄影师
       const ph = Math.sin(t * 0.2);
       stage.person(standPose(lawn.x + 4.5 + ph, LAWN_Y, lawn.z + 3.5, -Math.PI / 2 - 0.5, t, { left: [-1.5, -2.3, 0.15], right: [-1.5, -2.3, -0.1] }), crowd[51]);
+      // 路过的人被婚礼吸引：在草坪边驻足，有人举手机拍照
+      for (let o = 0; o < 6; o++) {
+        const stopAt = 6 + o * 5 + hash(o + 41) * 4, goAt = 44 + hash(o + 43) * 12;
+        if (tau < stopAt - 8 || tau > goAt + 8) continue;
+        const side = o % 2 ? 1 : -1;
+        const sx = lawn.x + side * (7.5 + (o % 3) * 0.9), sz = lawn.z - 1 + (o % 3) * 1.6;
+        const ex = sx + side * 9, ez = sz - 6;
+        const k = tau < stopAt ? seg(tau, stopAt - 8, stopAt) : tau > goAt ? 1 - seg(tau, goAt, goAt + 8) : 1;
+        const px = lerp(ex, sx, k), pz = lerp(ez, sz, k);
+        const face = Math.atan2(lawn.x - px, lawn.z + 6 - pz);
+        if (k < 1) person(gaitPose(px, LAWN_Y, pz, tau < stopAt ? Math.atan2(sx - ex, sz - ez) : Math.atan2(ex - sx, ez - sz), t * 6 + o, 0), crowd[(o * 11 + 5) % crowd.length], 860 + o, false);
+        else {
+          const film = o % 3 !== 1;
+          const pose = stage.person(standPose(px, LAWN_Y, pz, face, t + o, film ? { right: [-2.2, -2.6, 0.15] } : { left: [-0.4, -1.2, 0.3] }), crowd[(o * 11 + 5) % crowd.length]);
+          if (pose && film) props.add(pose.rightHand.x, pose.rightHand.y + 0.06, pose.rightHand.z, face, 0, 0, 0.08, 0.15, 0.015, "#111111");
+        }
+      }
       // 花瓣
       if (tau > 38 && tau < 50) for (let p = 0; p < 24; p++) {
         const life = fract((t * 0.5 + p / 24));
@@ -439,11 +468,25 @@ export function buildStreetEvents(stage: SceneStage) {
         if (pose && b !== 1) { const h = pose.leftHand; props.add(h.x + 0.15, h.y - 0.1, h.z, Math.PI, 0, 0.9, 0.85, 0.08, 0.3, b ? "#c0392b" : "#f39c12"); }
         if (b === 1) rods.segment(tmpA.set(bx, LAWN_Y + 1, lawn.z + 6.3), tmpB.set(bx, LAWN_Y + 2.5, lawn.z + 6.3), 0.015, "#222");
       }
-      for (let i = 0; i < 22; i++) {
+      // 人群随演出逐渐聚集：前排早到，后排陆续从两侧步道走来；散场时三三两两离开。
+      const show = t % 240;
+      for (let i = 0; i < 40; i++) {
         const cx = lawn.x - 5 + (i % 7) * 1.6 + hash(i) * 0.5, cz = lawn.z + 2.5 - Math.floor(i / 7) * 1.4 - hash(i + 3) * 0.4;
+        const arriveAt = i < 10 ? -20 : 4 + (i - 10) * 3.1 + hash(i + 9) * 3;
+        const leaveAt = 205 + hash(i + 17) * 25;
+        const fromX = lawn.x + (i % 2 ? 1 : -1) * (16 + hash(i) * 6), fromZ = lawn.z - 14 - hash(i + 5) * 8;
+        const inK = seg(show, arriveAt, arriveAt + 11), outK = seg(show, leaveAt, leaveAt + 11);
+        if (show < arriveAt || outK >= 1) continue;
+        if (inK < 1 || outK > 0) {
+          const k = inK < 1 ? inK : 1 - outK;
+          const px = lerp(fromX, cx, k), pz = lerp(fromZ, cz, k);
+          const heading = inK < 1 ? Math.atan2(cx - fromX, cz - fromZ) : Math.atan2(fromX - cx, fromZ - cz);
+          person(gaitPose(px, LAWN_Y, pz, heading, t * 6.5 + i, 0), crowd[i % crowd.length], 800 + i, false);
+          continue;
+        }
         const hop = Math.max(0, Math.sin(t * 2 * Math.PI + i)) * 0.18;
         const raise = i % 3 === 0;
-        stage.person(standPose(cx, LAWN_Y + hop, cz, 0, t + i, raise ? { left: [-2.8, -3.0, 0.25], right: [-2.8, -3.0, 0.25] } : { right: [-2.6 + Math.sin(t * 6 + i) * 0.3, -2.9, 0.2] }), crowd[i]);
+        stage.person(standPose(cx, LAWN_Y + hop, cz, 0, t + i, raise ? { left: [-2.8, -3.0, 0.25], right: [-2.8, -3.0, 0.25] } : { right: [-2.6 + Math.sin(t * 6 + i) * 0.3, -2.9, 0.2] }), crowd[i % crowd.length]);
         if (raise && i % 2 === 0) lights.add(cx + 0.2, LAWN_Y + hop + 2.3, cz, 0, 0, 0, 0.03, 0.05, 0.03, "#cfe9ff");
       }
     }
@@ -629,6 +672,18 @@ export function buildStreetEvents(stage: SceneStage) {
     animateConstruction(seconds, night);
     animateScooters(seconds);
     animateBirds(seconds);
+    occupyVehicle(deliveryTruck, deliveryTruck.group.visible ? 4 : undefined);
+    occupyVehicle(policeStop, 3.5);
+    occupyVehicle(stoppedCar, 3.5);
+    occupyVehicle(taxi, 5);
+    occupyVehicle(foodTruck);
+    // 草坪 / 广场人群区域：只让行人绕开
+    occupy(lawn.x, lawn.z + 2, 8.5, undefined, true);
+    occupy(46, -10.5, 7, undefined, true);
+    for (const [qx, qz] of [local(truckX, truckZ, truckH, 6.4, -2.5)]) occupy(qx, qz, 2.6, undefined, true);
+    occupy(-37.8, 33.1, 3.6, undefined, true);
+    publishEventObstacles("v3 street events", occupied.slice());
+    occupied.length = 0;
   };
   return { animate, vehicles, site, lawn, truck: { x: truckX, z: truckZ } };
 }

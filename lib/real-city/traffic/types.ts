@@ -63,6 +63,9 @@ export type TrafficObstacle = {
   z: number;
   radius: number;
   until: number;
+  /** 路边停靠的事件车辆 / 路中执勤人员：可绕行通过（变道让出空间），并按 slow 限速。 */
+  passable?: boolean;
+  slow?: number;
 };
 
 export type TrafficEnvironment = {
