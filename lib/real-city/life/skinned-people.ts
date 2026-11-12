@@ -13,6 +13,8 @@ import { fetchMeshoptContainer } from "../assets/meshopt-container";
 const BONES = 15;
 const TEXELS_PER_ROW = 64;
 const LOD_DISTANCE = 42;
+/** 超过此距离用约 300 三角形的 LOD2 且省略发壳（头顶仍按发色着色），航拍时居民只有十来个像素高。 */
+const FAR_LOD_DISTANCE = 105;
 const SEG = { hips: 0, chest: 1, head: 2, upperR: 3, upperL: 4, foreR: 5, foreL: 6, handR: 7, handL: 8, thighR: 9, thighL: 10, calfR: 11, calfL: 12, footR: 13, footL: 14 } as const;
 
 /** 运行时世界空间姿态，由 LifeRenderer 按居民朝向与身高换算后传入。 */
@@ -53,6 +55,8 @@ interface BodyAsset {
   geometry: THREE.BufferGeometry;
   lod0: THREE.BufferAttribute;
   lod1: THREE.BufferAttribute;
+  /** 旧版资源没有 LOD2 时回退到 LOD1。 */
+  lod2: THREE.BufferAttribute;
   inverseBind: THREE.Matrix4[];
   min: THREE.Vector3;
   ext: THREE.Vector3;
@@ -251,6 +255,7 @@ async function loadBody(url: string, textureUrl: string, skinRef: THREE.Color): 
   const uvs = view("uv", (b, o, n) => new Uint16Array(b, o, n), 2);
   const lod0 = view("lod0", (b, o, n) => new Uint16Array(b, o, n), 2);
   const lod1 = view("lod1", (b, o, n) => new Uint16Array(b, o, n), 2);
+  const lod2 = streams.has("lod2") ? view("lod2", (b, o, n) => new Uint16Array(b, o, n), 2) : lod1;
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.InterleavedBufferAttribute(new THREE.InterleavedBuffer(positions, 4), 3, 0, true));
   geometry.setAttribute("normal", new THREE.InterleavedBufferAttribute(new THREE.InterleavedBuffer(normals, 4), 3, 0, true));
@@ -258,7 +263,7 @@ async function loadBody(url: string, textureUrl: string, skinRef: THREE.Color): 
   geometry.setAttribute("aJoints", new THREE.BufferAttribute(stream("joints"), 4, false));
   geometry.setAttribute("aWeights", new THREE.BufferAttribute(stream("weights"), 4, true));
   geometry.setAttribute("aCloth", new THREE.BufferAttribute(stream("cloth"), 4, true));
-  return { geometry, lod0: new THREE.BufferAttribute(lod0, 1), lod1: new THREE.BufferAttribute(lod1, 1), inverseBind, min, ext, texture, normal, skinRef };
+  return { geometry, lod0: new THREE.BufferAttribute(lod0, 1), lod1: new THREE.BufferAttribute(lod1, 1), lod2: new THREE.BufferAttribute(lod2, 1), inverseBind, min, ext, texture, normal, skinRef };
 }
 
 export const HAIR_STYLE_NAMES = ["short", "crop", "long", "bun", "ponytail"] as const;
@@ -402,7 +407,7 @@ export class SkinnedPeople {
         return;
       }
       this.bodies.push(...bodies);
-      for (const body of bodies) for (const lod of [body.lod0, body.lod1]) this.groups.push(this.createGroup(body, lod));
+      for (const body of bodies) for (const lod of [body.lod0, body.lod1, body.lod2]) this.groups.push(this.createGroup(body, lod));
       this.hairs.push(maleHair, femaleHair);
       for (const set of this.hairs) this.hairGroups.push(set.map((hair) => [this.createHairGroup(hair, hair.lod0), this.createHairGroup(hair, hair.lod1)]));
       this.ready = true;
@@ -517,8 +522,10 @@ export class SkinnedPeople {
   add(pose: WorldPose, appearance: Appearance): boolean {
     if (!this.ready || this.slot >= this.capacity) return false;
     const female = appearance.skirt === true || appearance.hairStyle >= 2;
-    const far = pose.hips.distanceToSquared(this.viewer) > LOD_DISTANCE * LOD_DISTANCE;
-    const group = this.groups[(female ? 2 : 0) + (far ? 1 : 0)];
+    const distanceSquared = pose.hips.distanceToSquared(this.viewer);
+    const far = distanceSquared > LOD_DISTANCE * LOD_DISTANCE;
+    const veryFar = distanceSquared > FAR_LOD_DISTANCE * FAR_LOD_DISTANCE;
+    const group = this.groups[(female ? 3 : 0) + (veryFar ? 2 : far ? 1 : 0)];
     const body = this.bodies[female ? 1 : 0];
     const slot = this.slot++;
     this.writeBones(slot, pose, appearance, body);
@@ -544,7 +551,7 @@ export class SkinnedPeople {
     const hs = Math.min(4, Math.max(0, appearance.hairStyle | 0));
     const cut = appearance.hat ? 0.5 : hs === 1 ? 0.58 : hs >= 2 ? 0.45 : 0.51;
     group.cut.setXY(i, cut, 0);
-    if (!appearance.hat) {
+    if (!appearance.hat && !veryFar) {
       const hairGroup = this.hairGroups[female ? 1 : 0]?.[hs]?.[far ? 1 : 0];
       if (hairGroup) {
         const h = hairGroup.used++;
