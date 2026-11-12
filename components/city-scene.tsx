@@ -836,6 +836,7 @@ export default function CityScene(props: CitySceneProps) {
           `${timeOfDay()}:${container?.dataset.season}:${container?.dataset.weather}`,
           renderQuality.state.localReflections);
       }
+      world.prepareView?.(camera);
       gpuTimer.begin();
       try {
         renderPipeline.focusTarget = controls.target;

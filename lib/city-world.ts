@@ -29,7 +29,7 @@ import { bindWorldScalePbr, createGlassCurtainWallPbr, createAshlarStonePbr, cre
 import { applyCitySurface, markCitySurface, type CitySurface } from "./city-surfaces";
 import { TreeField, applyTreeWind, type TreePlacement } from "./real-city/vegetation/tree-field";
 import { loadTreeModels } from "./real-city/vegetation/tree-models";
-import { createTreeCanopy, createTreeTrunk, createVehicleShell, createVehicleWheel, paintLeafCluster, type VehicleKind, type VehicleShell } from "./city-forms";
+import { createTreeCanopy, createTreeTrunk, createVehicleShell, createVehicleWheel, paintLeafCluster, thinLeafCards, type VehicleKind, type VehicleShell } from "./city-forms";
 
 export type CityWorld = {
   group: THREE.Group;
@@ -39,6 +39,8 @@ export type CityWorld = {
   builtSites: readonly CityBuiltSite[];
   animate: (seconds: number, night: boolean, seasonMode?: SeasonMode, seasonState?: SeasonState) => void;
   setNight: (night: boolean) => void;
+  /** 渲染前按主相机位置更新与视距相关的 LOD（目前是交通车轮）。 */
+  prepareView?: (camera: THREE.Camera) => void;
   getLifeSnapshot?: () => CityLifeSnapshot;
   /** 调试：当前交通车辆状态（只读）。 */
   trafficStates?: () => readonly TrafficState[];
@@ -476,6 +478,12 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
     geometries.add(crown);
     return { stem, crown };
   });
+  // 林下灌木（缩到约 1/3）与田间作物（约 1/10）沿用乔木叶簇时每株 512 三角形；它们只有一两米高，
+  // 用抽稀后的叶卡（灌木留 1/2、作物留 1/4，叶卡略放大），视觉基本不变，省下约十五万三角形。
+  const shrubCrown = thinLeafCards(trees[0].crown, 2, 1.15, "City asset · shrub canopy");
+  const cropCrown = thinLeafCards(trees[0].crown, 4, 1.2, "City asset · crop canopy");
+  geometries.add(shrubCrown);
+  geometries.add(cropCrown);
   const leafMap = canvasTexture(512, 512, paintLeafCluster);
   leafMap.wrapS = leafMap.wrapT = THREE.ClampToEdgeWrapping;
   const canopyMaterials = ["#d0d5a8", "#a7c393", "#a0b786", "#ddc282"].map((color) => {
@@ -822,7 +830,7 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
       const x = patch.x + Math.cos(angle) * distance, z = patch.z + Math.sin(angle) * distance;
       if (z < -405 || (z > -216 && x > -82)) continue;
       tree(x, z, 0.9 + random() * 0.85, index + i, Math.max(0, terrainHeight(x, z)));
-      if (i % 3 === 0) part(canopyMaterials[(index + 1) % 4], trees[0].crown, x + 2.4, terrainHeight(x + 2.4, z - 1.5) - 0.3, z - 1.5, 0.36, 0.17, 0.28);
+      if (i % 3 === 0) part(canopyMaterials[(index + 1) % 4], shrubCrown, x + 2.4, terrainHeight(x + 2.4, z - 1.5) - 0.3, z - 1.5, 0.36, 0.17, 0.28);
     }
   }
   for (const field of [{ x: -112, z: -225, w: 23, d: 17 }, { x: 8, z: -287, w: 25, d: 15 }, { x: 165, z: -247, w: 21, d: 18 }]) {
@@ -840,7 +848,7 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
     for (let row = 0; row < 6; row++) for (let plant = 0; plant < 18; plant++) {
       const x = field.x - field.w * 0.43 + plant * field.w * 0.05;
       const z = field.z - field.d * 0.4 + row * field.d * 0.16;
-      part(canopyMaterials[row % 3], trees[0].crown, x, Math.max(0.15, terrainHeight(x, z)) - 0.15, z, 0.11, 0.07, 0.09);
+      part(canopyMaterials[row % 3], cropCrown, x, Math.max(0.15, terrainHeight(x, z)) - 0.15, z, 0.11, 0.07, 0.09);
     }
   }
   for (let i = 0; i < 42; i++) {
@@ -1287,6 +1295,45 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
   const mirrors = new THREE.InstancedMesh(boxGeometry, bodyMaterial, carCount * 2);
   const wheels = new THREE.InstancedMesh(tireGeometry, vehicleTrim, carCount * 4);
   const rims = new THREE.InstancedMesh(rimGeometry, railMetal, carCount * 4);
+  // 车轮远景 LOD：车轮整体投影不到十来个像素时，轮胎 + 五辐轮毂（约 600 三角形）换成 10 边形实心轮（40 三角形）。
+  // animate 只把车轮矩阵写进缓存；渲染前 prepareView(camera) 按主相机位置把近处车轮写进细模、远处写进粗模，
+  // 两组实例各自压紧计数（暂停动画时拉近镜头也会重新分配）。
+  const farWheelGeometry = new THREE.CylinderGeometry(1, 1, 0.68, 10, 1);
+  farWheelGeometry.name = "City asset · far wheel";
+  farWheelGeometry.setAttribute("color", new THREE.BufferAttribute(new Float32Array(farWheelGeometry.getAttribute("position").count * 3).fill(0.9), 3));
+  geometries.add(farWheelGeometry);
+  const farWheels = new THREE.InstancedMesh(farWheelGeometry, vehicleTrim, carCount * 4);
+  const FAR_WHEEL_DISTANCE = 110;
+  const wheelCache = new Float32Array(carCount * 4 * 16);
+  let wheelTotal = 0;
+  let wheelsDirty = true;
+  const wheelViewer = new THREE.Vector3();
+  const lastWheelViewer = new THREE.Vector3(Infinity, Infinity, Infinity);
+  const prepareView = (camera: THREE.Camera) => {
+    // 树木近景/远景替身的分配原本只在树叶网格的 onBeforeRender 里触发；当所有树都处在替身档、
+    // LOD 网格计数为 0 而不再绘制时，拉近镜头不会再触发分配。渲染前统一驱动一次（相机移动 <3m 时直接返回）。
+    treeField.update(camera);
+    wheelViewer.setFromMatrixPosition(camera.matrixWorld);
+    if (!wheelsDirty && wheelViewer.distanceToSquared(lastWheelViewer) < 64) return;
+    wheelsDirty = false;
+    lastWheelViewer.copy(wheelViewer);
+    let near = 0, far = 0;
+    for (let i = 0; i < wheelTotal; i++) {
+      const o = i * 16;
+      const target = Math.hypot(wheelCache[o + 12] - wheelViewer.x, wheelCache[o + 13] - wheelViewer.y, wheelCache[o + 14] - wheelViewer.z) > FAR_WHEEL_DISTANCE
+        ? null : near;
+      if (target === null) {
+        farWheels.instanceMatrix.array.set(wheelCache.subarray(o, o + 16), (far++) * 16);
+      } else {
+        wheels.instanceMatrix.array.set(wheelCache.subarray(o, o + 16), target * 16);
+        rims.instanceMatrix.array.set(wheelCache.subarray(o, o + 16), target * 16);
+        near++;
+      }
+    }
+    wheels.count = rims.count = near;
+    farWheels.count = far;
+    wheels.instanceMatrix.needsUpdate = rims.instanceMatrix.needsUpdate = farWheels.instanceMatrix.needsUpdate = true;
+  };
   // Night light pools: soft additive decals under every street lamp and in front of / behind each car.
   const glowTexture = canvasTexture(128, 128, (ctx) => {
     const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
@@ -1326,7 +1373,7 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
     mesh.frustumCulled = false;
     group.add(mesh);
   });
-  const vehicleMeshes = [...Object.values(shellBodies), ...Object.values(shellGlass), ...Object.values(shellTrim), ...Object.values(shellChrome), lights, taillights, roofUnits, mirrors, wheels, rims, headPools, tailPools];
+  const vehicleMeshes = [...Object.values(shellBodies), ...Object.values(shellGlass), ...Object.values(shellTrim), ...Object.values(shellChrome), lights, taillights, roofUnits, mirrors, wheels, rims, farWheels, headPools, tailPools];
   vehicleMeshes.forEach((mesh) => {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -1580,6 +1627,7 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
     });
     trafficDetails.animate(seconds, trafficStates);
     group.userData.traffic = traffic.snapshot();
+    wheelTotal = 0;
     routes.forEach((route, index) => {
       const motion = trafficStates[index];
       const { x, z, heading: angle } = motion.pose;
@@ -1653,10 +1701,10 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
         transform.quaternion.multiply(wheelRotation);
         transform.scale.setScalar(shell.wheelR);
         transform.updateMatrix();
-        wheels.setMatrixAt(index * 4 + wheelIndex, transform.matrix);
-        rims.setMatrixAt(index * 4 + wheelIndex, transform.matrix);
+        transform.matrix.toArray(wheelCache, (wheelTotal++) * 16);
       });
     });
+    wheelsDirty = true;
     vehicleMeshes.forEach((mesh) => { mesh.instanceMatrix.needsUpdate = true; });
     dynamicSceneMeshes.forEach((mesh) => { mesh.instanceMatrix.needsUpdate = true; });
   };
@@ -1672,7 +1720,7 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
   });
   animate(0, false);
   return {
-    group, billboardSign: sign, anchors, pickables, builtSites: architecture.sites, animate, setNight,
+    group, billboardSign: sign, anchors, pickables, builtSites: architecture.sites, animate, setNight, prepareView,
     getLifeSnapshot: life.snapshot,
     /** 调试：当前交通车辆状态（只读）。 */
     trafficStates: (): readonly TrafficState[] => traffic.states,
