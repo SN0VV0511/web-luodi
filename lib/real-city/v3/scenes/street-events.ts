@@ -8,6 +8,7 @@ import { mat } from "./props";
 import { shorePoint } from "./lake-life";
 import type { Appearance } from "../../life/types";
 import { publishEventObstacles, type EventObstacle } from "../../traffic/event-obstacles";
+import { pickDeliverySite, pickPoliceStopSite, pickTaxiSite } from "../../../city-event-sites";
 
 /**
  * 城市随机事件导演：一组错峰的循环剧本（快递卸货、交警拦停、出租车接客、餐车排队、集市、
@@ -205,15 +206,13 @@ export function buildStreetEvents(stage: SceneStage) {
   // ======================================================================
   // 剧本
   // ======================================================================
-  const deliverySites = [
-    { x: -120 + 4.2, z: -52, heading: 0 }, { x: 120 - 4.2, z: -40, heading: Math.PI }, { x: -165 + 4.2, z: 0, heading: 0 }, { x: 165 - 4.2, z: -85, heading: Math.PI },
-  ];
   const tmpA = new THREE.Vector3(), tmpB = new THREE.Vector3();
 
   const animateDelivery = (t: number) => {
     const C = 72;
     const cycle = Math.floor(t / C), tau = t - cycle * C;
-    const s = deliverySites[cycle % deliverySites.length];
+    const picked = pickDeliverySite(cycle);
+    const s = { x: picked.x, z: picked.z, heading: picked.heading };
     const fx = Math.sin(s.heading), fz = Math.cos(s.heading);
     // 进站减速 → 停靠 → 出站
     const arrive = ease(seg(tau, 0, 7)), depart = seg(tau, 60, 68);
@@ -264,45 +263,48 @@ export function buildStreetEvents(stage: SceneStage) {
   const animatePoliceStop = (t: number) => {
     const C = 84, tau = t % C;
     const cycle = Math.floor(t / C);
-    const roads = [-115, -25, 20, -70]; // 首选车流最密的南侧大道，让执法现场与交通产生互动
-    const z = roads[cycle % roads.length] - 4.0, x0 = -136 + (cycle % 2) * 45; // 街区中段，避开路口与斑马线
-    const heading = Math.PI / 2;
+    const picked = pickPoliceStopSite(cycle);
+    const x0 = picked.x, z = picked.z, heading = picked.heading;
+    const fx = Math.sin(heading), fz = Math.cos(heading);
     const arrive = ease(seg(tau, 0, 8)), depart = seg(tau, 66, 76);
     const off = -(1 - arrive) * 40 + depart * depart * 55;
     const vis = tau < 76;
+    const carX = x0 + fx * off, carZ = z + fz * off;
+    const copTravel = off * (tau > 66 ? 0.9 : 1) - 7.2;
+    const copX = x0 + fx * copTravel, copZ = z + fz * copTravel;
     stoppedCar.group.visible = policeStop.group.visible = vis;
-    stoppedCar.place(x0 + off, ROAD_Y, z, heading);
-    policeStop.place(x0 - 7.2 + off * (tau > 66 ? 0.9 : 1), ROAD_Y, z, heading);
+    stoppedCar.place(carX, ROAD_Y, carZ, heading);
+    policeStop.place(copX, ROAD_Y, copZ, heading);
     policeStop.flash(t, tau < 66, false);
     stoppedCar.flash(t, false);
     if (!vis) return;
     // 驾驶员（车内）
-    const [dx, dz] = local(x0 + off, z, heading, -0.38, 0.1);
+    const [dx, dz] = local(carX, carZ, heading, -0.38, 0.1);
     stage.person({ ...sitPose(dx, ROAD_Y + 0.12, dz, heading, 0.4), headYaw: tau > 14 && tau < 60 ? -0.8 : 0 }, crowd[3]);
     // 警察：下车 → 走到驾驶窗 → 开罚单 → 回车
-    const doorL = local(x0 - 7.2, z, heading, -1.3, 0.3), win = local(x0, z, heading, -1.45, 0.4);
+    const doorL = local(x0 - fx * 7.2, z - fz * 7.2, heading, -1.3, 0.3), win = local(x0, z, heading, -1.45, 0.4);
     if (tau > 10 && tau < 62) {
       const go = seg(tau, 11, 16), back = seg(tau, 54, 60);
       const k = go - back;
       const px = lerp(doorL[0], win[0], k), pz = lerp(doorL[1], win[1], k);
       const walking = (tau > 11 && tau < 16) || (tau > 54 && tau < 60);
-      const spec = walking ? gaitPose(px, ROAD_Y, pz, back > 0 ? -heading : heading, t * 7, 0) : standPose(px, ROAD_Y, pz, heading + 0.9, t, { left: [-0.9, -1.7, 0.1], right: [-0.8, -1.9, 0.05] });
+      const spec = walking ? gaitPose(px, ROAD_Y, pz, back > 0 ? heading + Math.PI : heading, t * 7, 0) : standPose(px, ROAD_Y, pz, heading + 0.9, t, { left: [-0.9, -1.7, 0.1], right: [-0.8, -1.9, 0.05] });
       occupy(px, pz, 0.45, 2.5);
       const pose = stage.person(spec, officer);
       if (pose && !walking) props.add(pose.leftHand.x, pose.leftHand.y + 0.05, pose.leftHand.z, heading + 0.9, -0.6, 0, 0.2, 0.02, 0.28, "#f4f1e8");
     } else if (tau <= 10 || tau >= 62) {
       // 坐在警车内
-      const [px, pz] = local(x0 - 7.2 + off, z, heading, -0.38, 0.1);
+      const [px, pz] = local(copX, copZ, heading, -0.38, 0.1);
       stage.person(sitPose(px, ROAD_Y + 0.12, pz, heading, 0.4), officer);
     }
     // 三角警示牌
-    if (tau > 16 && tau < 64) { const [cx, cz] = local(x0 - 7.2, z, heading, 0, -6); occupy(cx, cz, 0.4, 3); props.add(cx, ROAD_Y + 0.25, cz, heading, 0, 0, 0.5, 0.45, 0.04, "#e74c3c"); }
+    if (tau > 16 && tau < 64) { const [cx, cz] = local(x0 - fx * 7.2, z - fz * 7.2, heading, 0, -6); occupy(cx, cz, 0.4, 3); props.add(cx, ROAD_Y + 0.25, cz, heading, 0, 0, 0.5, 0.45, 0.04, "#e74c3c"); }
   };
 
   const animateTaxi = (t: number) => {
     const C = 46, tau = t % C, cycle = Math.floor(t / C);
-    const spots = [{ x: 75 - 4.2, z: 2, heading: Math.PI }, { x: -75 + 4.2, z: -48, heading: 0 }, { x: 210 - 4.2, z: -52, heading: Math.PI }];
-    const s = spots[cycle % spots.length];
+    const picked = pickTaxiSite(cycle);
+    const s = { x: picked.x, z: picked.z, heading: picked.heading };
     const fx = Math.sin(s.heading), fz = Math.cos(s.heading);
     const arrive = ease(seg(tau, 2, 10)), depart = seg(tau, 26, 34);
     const off = -(1 - arrive) * 40 + depart * depart * 50;

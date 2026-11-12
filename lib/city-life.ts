@@ -7,6 +7,7 @@ import {
 import { LEG_LENGTH, sampleWalkingLeg, type WalkingLeg } from "./city-gait";
 import { MCDONALDS_SITE, OFFICE_LOBBY_DOORS } from "./city-mcdonalds";
 import { EARTH_GRAVITY, CITY_DAY_SECONDS, SHOP_ARRIVAL_OFFSETS, sampleCityClock, sampleShopVisit, type SeasonId } from "./city-physics";
+import { getSessionTrafficCrashSite } from "./city-event-sites";
 
 type RouteSegment = {
   x: number;
@@ -417,17 +418,8 @@ export function buildCityLife({
     }
   }
 
-  // ==================== 场景 2：街头追尾撞车现场 (-75, 69) 激烈争吵车主 + 交警 + 围观群众 ====================
-  const crashSitePeople = [
-    // 追尾事故双方车主面对面挥手争执
-    { x: -70.6, z: 68.6, heading: 0.12, activity: "argue" as const, coat: "#d94838", pants: "#2b3642" },
-    { x: -70.4, z: 70.1, heading: Math.PI + 0.12, activity: "argue" as const, coat: "#e6b43c", pants: "#384048" },
-    // 事故处理交警（深蓝警服）与记录员
-    { x: -71.8, z: 69.35, heading: Math.PI / 2, activity: "talk" as const, coat: "#1e3f66", pants: "#162942" },
-    // 路边围观指点的热心市民
-    { x: -68.8, z: 67.8, heading: -1.1, activity: "argue" as const, coat: "#45826b", pants: "#494a47" },
-    { x: -68.6, z: 70.9, heading: -1.9, activity: "talk" as const, coat: "#c97a63", pants: "#324452" },
-  ];
+  // ==================== 场景 2：街头追尾撞车现场（与本次访问抽中的路口同步） ====================
+  const crashSitePeople = getSessionTrafficCrashSite().people;
   for (const person of crashSitePeople) {
     residents.push({
       x: person.x,

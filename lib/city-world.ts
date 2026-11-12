@@ -4,6 +4,7 @@ import { buildV3Scenes } from "./real-city/v3/scenes";
 import { createLakeWater } from "./real-city/v3/water/lake-water";
 import { buildBillboardStructure, buildNewsTower, buildPostOffice } from "./real-city/v3/landmarks/landmarks";
 import { cityLots, ROAD_SEGMENTS, cityBlocks, districts, civicLots, type CityLot } from "./city-map";
+import { getSessionTrafficCrashSite } from "./city-event-sites";
 import type { PlaceId } from "./city-content";
 import { getBuildingExperience } from "./building-experience";
 import { buildCivicDistrict } from "./city-civic";
@@ -998,15 +999,16 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
     box(railMetal, mx - 9.2, 0.95, 86.2, 2.4, 0.9, 1.6);
   }
 
-  // ==================== 社区生活场景 B：十字路口追尾撞车事故与交警勘查现场 (x=-73.8, z=69.5) ====================
+  // ==================== 社区生活场景 B：十字路口追尾撞车事故与交警勘查现场（每访随机路口） ====================
+  const crashSite = getSessionTrafficCrashSite();
   const crashCarRed = solid("#c83e32", 0.25, 0.45);
   const crashCarBlue = solid("#2e5d82", 0.25, 0.45);
   const policeBlue = solid("#1b3b5c", 0.28, 0.4);
-  placeVehicle(shells.sedan, crashCarRed, -73.4, 67.6, 0.32);
-  placeVehicle(shells.suv, crashCarBlue, -74.2, 71.4, -0.22);
-  placeVehicle(shells.sedan, policeBlue, -77.4, 64.2, 0.52);
+  placeVehicle(shells.sedan, crashCarRed, crashSite.carRed.x, crashSite.carRed.z, crashSite.carRed.heading);
+  placeVehicle(shells.suv, crashCarBlue, crashSite.carBlue.x, crashSite.carBlue.z, crashSite.carBlue.heading);
+  placeVehicle(shells.sedan, policeBlue, crashSite.police.x, crashSite.police.z, crashSite.police.heading);
   // 事故现场橙白反光雪糕筒警戒圈
-  for (const [cx, cz] of [[-76.2, 66.8], [-76.0, 69.2], [-75.8, 71.8], [-74.8, 74.2], [-72.2, 73.6], [-71.8, 66.2]] as const) {
+  for (const [cx, cz] of crashSite.cones) {
     part(orange, coneGeometry, cx, 0.68, cz, 0.28, 0.65, 0.28);
     part(roadLine, cylinderGeometry, cx, 0.66, cz, 0.16, 0.14, 0.16);
   }
@@ -1578,12 +1580,12 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
       signalAmberMesh.setMatrixAt(idx, transform.matrix);
     });
 
-    // 追尾事故引擎盖浓烟升腾动画 (-73.9, y, 69.4)
+    // 追尾事故引擎盖浓烟升腾动画
     for (let s = 0; s < smokeCount; s++) {
       const smokeProgress = THREE.MathUtils.euclideanModulo(seconds * 0.55 + s / smokeCount, 1);
       const sy = 1.45 + smokeProgress * 4.2;
-      const sx = -73.9 + Math.sin(smokeProgress * 5 + s) * 0.35;
-      const sz = 69.4 + Math.cos(smokeProgress * 4 + s) * 0.35;
+      const sx = crashSite.smoke.x + Math.sin(smokeProgress * 5 + s) * 0.35;
+      const sz = crashSite.smoke.z + Math.cos(smokeProgress * 4 + s) * 0.35;
       const radius = 0.22 + smokeProgress * 0.65 * (1 - smokeProgress * 0.45);
       transform.position.set(sx, sy, sz);
       transform.rotation.set(seconds + s, seconds * 0.7, 0);
@@ -1594,22 +1596,17 @@ export function buildCityWorld(options: { compact?: boolean } = {}): CityWorld {
 
     // 事故现场警车红蓝交替爆闪顶灯 + 两辆事故车双闪应急灯
     const flashOn = Math.sin(seconds * 12) > 0;
-    // 警车红灯 (-77.4, 1.72, 64.2)
-    transform.position.set(-77.65, flashOn ? 1.96 : -10, 64.05);
-    transform.rotation.set(0, 0.52, 0);
+    transform.position.set(crashSite.strobes.policeRed[0], flashOn ? 1.96 : -10, crashSite.strobes.policeRed[1]);
+    transform.rotation.set(0, crashSite.police.heading, 0);
     transform.scale.set(0.42, 0.14, 0.22);
     transform.updateMatrix();
     strobeRedMesh.setMatrixAt(0, transform.matrix);
-    // 警车蓝灯
-    transform.position.set(-77.15, !flashOn ? 1.96 : -10, 64.35);
+    transform.position.set(crashSite.strobes.policeBlue[0], !flashOn ? 1.96 : -10, crashSite.strobes.policeBlue[1]);
     transform.updateMatrix();
     strobeBlueMesh.setMatrixAt(0, transform.matrix);
     strobeBlueMesh.setMatrixAt(1, transform.matrix);
     // 事故车辆高频双闪警示灯
-    const hazardPositions: [number, number, number][] = [
-      [-72.8, 0.92, 65.6], [-74.0, 0.92, 69.5],
-      [-73.5, 0.98, 73.5], [-74.9, 0.98, 73.4],
-    ];
+    const hazardPositions: [number, number, number][] = crashSite.strobes.hazards.map(([hx, hy, hz]) => [hx, hy, hz]);
     hazardPositions.forEach(([hx, hy, hz], hIdx) => {
       transform.position.set(hx, flashOn ? hy : -10, hz);
       transform.rotation.set(0, 0, 0);

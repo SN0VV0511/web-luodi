@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { CivicKit } from "./city-civic";
 import type { ActiveCityIncident } from "./city-events";
+import { sessionCycleShift } from "./city-event-sites";
 import type { Locale } from "./site-content";
 import {
   createCalf, createForearm, createHair, createHand, createHead,
@@ -185,7 +186,7 @@ export function sampleStreetActivities(seconds: number): StreetActivityState[] {
     const shifted = time + slot * 9.31;
     const cycle = Math.floor(shifted / 74);
     const local = shifted % 74;
-    const seed = cycle * 313 + slot * 117 + 41;
+    const seed = cycle * 313 + slot * 117 + 41 + sessionCycleShift("street", 997) * 17;
     const start = random(seed + 3) * 5;
     const duration = 56 + random(seed + 7) * 12;
     if (local < start || local > start + duration) return [];

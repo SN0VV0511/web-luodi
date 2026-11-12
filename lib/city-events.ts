@@ -11,6 +11,14 @@ import type { Appearance } from "./real-city/life/types";
 import { ServiceVehicle } from "./real-city/v3/vehicles/service-fleet";
 import { publishEventObstacles, type EventObstacle } from "./real-city/traffic/event-obstacles";
 import { canLoadCityAssets, loadCarModelsOnce } from "./real-city/vehicles/car-models";
+import {
+  pickBurglarSite,
+  pickFireSite,
+  pickMedicalSite,
+  pickUtilitySite,
+  getSessionTrafficCrashSite,
+  type FireSiteSpec,
+} from "./city-event-sites";
 
 export type IncidentKind = "fire" | "burglar" | "medical" | "utility" | "cruise" | "traffic" | "life";
 
@@ -62,285 +70,17 @@ export type CityTelemetrySnapshot = {
   };
 };
 
-type FireSiteSpec = {
-  id: string;
-  zhLoc: string;
-  enLoc: string;
-  fireX: number;
-  fireY: number;
-  fireZ: number;
-  truckFromX: number;
-  truckFromZ: number;
-  truckParkX: number;
-  truckParkZ: number;
-  truckHeading: number;
-  crewBaseX: number;
-  crewBaseZ: number;
-};
-
-type BurglarSiteSpec = {
-  id: string;
-  zhLoc: string;
-  enLoc: string;
-  startX: number;
-  startZ: number;
-  endX: number;
-  endZ: number;
-  carFromX: number;
-  carFromZ: number;
-  carStopX: number;
-  carStopZ: number;
-  carHeading: number;
-};
-
-type MedicalSiteSpec = {
-  id: string;
-  zhLoc: string;
-  enLoc: string;
-  patientX: number;
-  patientZ: number;
-  ambFromX: number;
-  ambFromZ: number;
-  ambParkX: number;
-  ambParkZ: number;
-  ambHeading: number;
-};
-
-type UtilitySiteSpec = {
-  id: string;
-  zhLoc: string;
-  enLoc: string;
-  leakX: number;
-  leakZ: number;
-  vanFromX: number;
-  vanFromZ: number;
-  vanParkX: number;
-  vanParkZ: number;
-  vanHeading: number;
-};
-
 const FIRE_CYCLE = 38;
 const BURGLAR_CYCLE = 34;
 const MEDICAL_CYCLE = 32;
 const UTILITY_CYCLE = 36;
 
-const FIRE_SITES: readonly FireSiteSpec[] = [
-  {
-    id: "fire-west-condo",
-    zhLoc: "西城 · 现代高层公寓 3栋",
-    enLoc: "West Town · Modern Condo #3",
-    fireX: -142.5,
-    fireY: 8.6,
-    fireZ: 48.2,
-    truckFromX: -108,
-    truckFromZ: 62.6,
-    truckParkX: -142.5,
-    truckParkZ: 62.6,
-    truckHeading: -Math.PI / 2,
-    crewBaseX: -142.5,
-    crewBaseZ: 57.6,
-  },
-  {
-    id: "fire-east-plaza",
-    zhLoc: "东湾 · 商业综合体与公寓",
-    enLoc: "East Bay · Mixed-Use Plaza",
-    fireX: 142.5,
-    fireY: 7.4,
-    fireZ: 6.2,
-    truckFromX: 176,
-    truckFromZ: 17.6,
-    truckParkX: 142.5,
-    truckParkZ: 17.6,
-    truckHeading: -Math.PI / 2,
-    crewBaseX: 142.5,
-    crewBaseZ: 13.2,
-  },
-  {
-    id: "fire-north-residences",
-    zhLoc: "北城 · 学院青年公寓",
-    enLoc: "North Quarter · Academy Suites",
-    fireX: -52.5,
-    fireY: 8.4,
-    fireZ: -129.5,
-    truckFromX: -18,
-    truckFromZ: -117.4,
-    truckParkX: -52.5,
-    truckParkZ: -117.4,
-    truckHeading: -Math.PI / 2,
-    crewBaseX: -52.5,
-    crewBaseZ: -122.0,
-  },
-  {
-    id: "fire-west-market-block",
-    zhLoc: "西城 · 烘焙商业街区",
-    enLoc: "West Town · Artisan Bakery Row",
-    fireX: -97.5,
-    fireY: 6.8,
-    fireZ: -38.5,
-    truckFromX: -130,
-    truckFromZ: -27.4,
-    truckParkX: -97.5,
-    truckParkZ: -27.4,
-    truckHeading: Math.PI / 2,
-    crewBaseX: -97.5,
-    crewBaseZ: -31.8,
-  },
-];
-
-const BURGLAR_SITES: readonly BurglarSiteSpec[] = [
-  {
-    id: "heist-coastal-villa",
-    zhLoc: "西海岸 · 观海泳池别墅区",
-    enLoc: "West Coast · Ocean Pool Villas",
-    startX: -226.2,
-    startZ: 14,
-    endX: -226.2,
-    endZ: -22,
-    carFromX: -210,
-    carFromZ: 32,
-    carStopX: -212.2,
-    carStopZ: -21,
-    carHeading: Math.PI,
-  },
-  {
-    id: "heist-west-mart",
-    zhLoc: "西城 · 鲜活超市商业街",
-    enLoc: "West Town · Fresh Mart Promenade",
-    startX: -128,
-    startZ: 88.3,
-    endX: -94,
-    endZ: 88.3,
-    carFromX: -146,
-    carFromZ: 92.6,
-    carStopX: -93,
-    carStopZ: 92.6,
-    carHeading: Math.PI / 2,
-  },
-  {
-    id: "heist-east-boutique",
-    zhLoc: "东湾 · 精品买手街铺",
-    enLoc: "East Bay · Boutique Avenue",
-    startX: 81.7,
-    startZ: -18,
-    endX: 81.7,
-    endZ: 14,
-    carFromX: 77.4,
-    carFromZ: -34,
-    carStopX: 77.4,
-    carStopZ: 15,
-    carHeading: 0,
-  },
-  {
-    id: "heist-north-villa",
-    zhLoc: "北城 · 林荫联排花园宅邸",
-    enLoc: "North Quarter · Garden Townhouses",
-    startX: 70,
-    startZ: -121.7,
-    endX: 104,
-    endZ: -121.7,
-    carFromX: 52,
-    carFromZ: -117.4,
-    carStopX: 105,
-    carStopZ: -117.4,
-    carHeading: Math.PI / 2,
-  },
-];
-
-const MEDICAL_SITES: readonly MedicalSiteSpec[] = [
-  {
-    id: "med-park-plaza",
-    zhLoc: "中央公园 · 南门滨海广场",
-    enLoc: "Central Park · South Gate Plaza",
-    patientX: 18,
-    patientZ: 88.2,
-    ambFromX: 54,
-    ambFromZ: 92.6,
-    ambParkX: 18,
-    ambParkZ: 92.6,
-    ambHeading: -Math.PI / 2,
-  },
-  {
-    id: "med-east-promenade",
-    zhLoc: "东湾 · 海滨慢跑绿道",
-    enLoc: "East Bay · Jogging Promenade",
-    patientX: 118,
-    patientZ: 102.2,
-    ambFromX: 154,
-    ambFromZ: 97.4,
-    ambParkX: 118,
-    ambParkZ: 97.4,
-    ambHeading: -Math.PI / 2,
-  },
-  {
-    id: "med-stadium-gate",
-    zhLoc: "北城 · 社区体育场南门",
-    enLoc: "North Quarter · Stadium South Gate",
-    patientX: 37.5,
-    patientZ: -121.8,
-    ambFromX: 72,
-    ambFromZ: -117.4,
-    ambParkX: 37.5,
-    ambParkZ: -117.4,
-    ambHeading: -Math.PI / 2,
-  },
-];
-
-const UTILITY_SITES: readonly UtilitySiteSpec[] = [
-  {
-    id: "util-port-watermain",
-    zhLoc: "东港大道 · 市政供水主干管",
-    enLoc: "Port Ave · Municipal Water Main",
-    leakX: 171.6,
-    leakZ: 74,
-    vanFromX: 167.4,
-    vanFromZ: 92,
-    vanParkX: 167.4,
-    vanParkZ: 76,
-    vanHeading: Math.PI,
-  },
-  {
-    id: "util-west-conduit",
-    zhLoc: "西城中路 · 地埋高压环网柜",
-    enLoc: "West Ave · Underground Grid Box",
-    leakX: -113.4,
-    leakZ: 12,
-    vanFromX: -117.6,
-    vanFromZ: 34,
-    vanParkX: -117.6,
-    vanParkZ: 14,
-    vanHeading: Math.PI,
-  },
-  {
-    id: "util-north-feeder",
-    zhLoc: "北环路 · 220kV 配电分支井",
-    enLoc: "North Ring · Grid Feeder Vault",
-    leakX: 108,
-    leakZ: -121.8,
-    vanFromX: 136,
-    vanFromZ: -117.4,
-    vanParkX: 108,
-    vanParkZ: -117.4,
-    vanHeading: -Math.PI / 2,
-  },
-];
-
-function shuffledSite(cycle: number, count: number, salt: number): number {
-  const order = Array.from({ length: count }, (_, index) => index);
-  let seed = (Math.floor(cycle / count) * 173 + salt) | 0;
-  for (let index = count - 1; index > 0; index--) {
-    seed = Math.imul(seed ^ (seed >>> 13), 1597334677);
-    const other = (seed >>> 0) % (index + 1);
-    [order[index], order[other]] = [order[other], order[index]];
-  }
-  return order[cycle % count];
-}
-
-function sampleFireIncident(seconds: number) {
+export function sampleFireIncident(seconds: number) {
   const safeT = Math.max(0, seconds);
-  const slot = shuffledSite(Math.floor(safeT / FIRE_CYCLE), FIRE_SITES.length, 19);
+  const cycle = Math.floor(safeT / FIRE_CYCLE);
   const local = THREE.MathUtils.euclideanModulo(safeT, FIRE_CYCLE);
   const progress = local / FIRE_CYCLE;
-  const site = FIRE_SITES[slot];
+  const site = pickFireSite(cycle);
 
   // 0..0.18 火情初起 | 0.18..0.38 消防车疾驰抵达 | 0.38..0.82 高压水炮压制 | 0.82..1.0 余烬冷却复检
   const driveT = THREE.MathUtils.clamp((progress - 0.12) / 0.24, 0, 1);
@@ -369,12 +109,12 @@ function sampleFireIncident(seconds: number) {
   };
 }
 
-function sampleBurglarIncident(seconds: number) {
+export function sampleBurglarIncident(seconds: number) {
   const safeT = Math.max(0, seconds + 11);
-  const slot = shuffledSite(Math.floor(safeT / BURGLAR_CYCLE), BURGLAR_SITES.length, 29);
+  const cycle = Math.floor(safeT / BURGLAR_CYCLE);
   const local = THREE.MathUtils.euclideanModulo(safeT, BURGLAR_CYCLE);
   const progress = local / BURGLAR_CYCLE;
-  const site = BURGLAR_SITES[slot];
+  const site = pickBurglarSite(cycle);
 
   // 0..0.68 蒙面小偷扛赃物袋狂奔潜逃 + 警察徒步紧追 + 警车包抄拦截 | 0.68..1.0 合围举手投降抓获
   const runT = THREE.MathUtils.clamp(progress / 0.68, 0, 1);
@@ -414,12 +154,12 @@ function sampleBurglarIncident(seconds: number) {
   };
 }
 
-function sampleMedicalIncident(seconds: number) {
+export function sampleMedicalIncident(seconds: number) {
   const safeT = Math.max(0, seconds + 19);
-  const slot = shuffledSite(Math.floor(safeT / MEDICAL_CYCLE), MEDICAL_SITES.length, 37);
+  const cycle = Math.floor(safeT / MEDICAL_CYCLE);
   const local = THREE.MathUtils.euclideanModulo(safeT, MEDICAL_CYCLE);
   const progress = local / MEDICAL_CYCLE;
-  const site = MEDICAL_SITES[slot];
+  const site = pickMedicalSite(cycle);
 
   const driveT = THREE.MathUtils.clamp((progress - 0.1) / 0.28, 0, 1);
   const eased = 1 - Math.pow(1 - driveT, 2.0);
@@ -430,12 +170,12 @@ function sampleMedicalIncident(seconds: number) {
   return { site, progress, ambX, ambZ, treating };
 }
 
-function sampleUtilityIncident(seconds: number) {
+export function sampleUtilityIncident(seconds: number) {
   const safeT = Math.max(0, seconds + 25);
-  const slot = shuffledSite(Math.floor(safeT / UTILITY_CYCLE), UTILITY_SITES.length, 47);
+  const cycle = Math.floor(safeT / UTILITY_CYCLE);
   const local = THREE.MathUtils.euclideanModulo(safeT, UTILITY_CYCLE);
   const progress = local / UTILITY_CYCLE;
-  const site = UTILITY_SITES[slot];
+  const site = pickUtilitySite(cycle);
 
   const driveT = THREE.MathUtils.clamp((progress - 0.12) / 0.28, 0, 1);
   const eased = 1 - Math.pow(1 - driveT, 2.0);
@@ -574,23 +314,26 @@ export function getActiveCityIncidents(seconds: number, locale: Locale): ActiveC
       focusDistance: 26,
       focusHeight: 2.2,
     },
-    {
-      id: "traffic-crash-west",
-      kind: "traffic",
-      code: "TRAF-07",
-      severity: "warning",
-      title: zh ? "十字路口追尾与车主争执" : "Roadside Collision & Dispute",
-      locationName: zh ? "西城环路 · 南口 (-74, 70)" : "West Ring · South Junction",
-      phaseLabel: zh ? "💥 引擎冒烟 · 交警勘查调解" : "💥 Engine Smoke · Police On Scene",
-      detail: zh
-        ? "两车追尾引擎盖冒浓烟，双方车主当街理论，警车警戒疏导"
-        : "Two-car collision with hood smoke, arguing drivers & traffic cones",
-      progress: 0.65,
-      x: -73.5,
-      z: 69.5,
-      focusDistance: 25,
-      focusHeight: 1.8,
-    },
+    (() => {
+      const crash = getSessionTrafficCrashSite();
+      return {
+        id: crash.id,
+        kind: "traffic" as const,
+        code: "TRAF-07",
+        severity: "warning" as const,
+        title: zh ? "十字路口追尾与车主争执" : "Roadside Collision & Dispute",
+        locationName: zh ? crash.zhLoc : crash.enLoc,
+        phaseLabel: zh ? "💥 引擎冒烟 · 交警勘查调解" : "💥 Engine Smoke · Police On Scene",
+        detail: zh
+          ? "两车追尾引擎盖冒浓烟，双方车主当街理论，警车警戒疏导"
+          : "Two-car collision with hood smoke, arguing drivers & traffic cones",
+        progress: 0.65,
+        x: crash.originX,
+        z: crash.originZ,
+        focusDistance: 25,
+        focusHeight: 1.8,
+      };
+    })(),
   ];
 }
 
@@ -1380,6 +1123,11 @@ export function buildCityEvents(kit: CivicKit): { animate: (seconds: number) => 
       const half = unit.shell.length * 0.5 - unit.shell.width * 0.5;
       for (const k of [-1, 0, 1]) emergencyObstacles.push({ x: x + Math.sin(h) * half * k, z: z + Math.cos(h) * half * k, radius: unit.shell.width * 0.5, slow: 3 });
     }
+    const crash = getSessionTrafficCrashSite();
+    for (const vehicle of [crash.carRed, crash.carBlue, crash.police]) {
+      emergencyObstacles.push({ x: vehicle.x, z: vehicle.z, radius: 2.4, slow: 3 });
+    }
+    for (const [cx, cz] of crash.cones) emergencyObstacles.push({ x: cx, z: cz, radius: 0.6, slow: 3 });
     publishEventObstacles("emergency incidents", emergencyObstacles);
     for (let slot = 0; slot < 3; slot++) hideInstance(utilityVanBody, slot);
     for (let g = 3; g < 8; g++) hideInstance(emergencyGlass, g);
