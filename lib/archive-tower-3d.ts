@@ -55,7 +55,9 @@ type FloorModule = {
   landingDoorL: THREE.Mesh;
   landingDoorR: THREE.Mesh;
   edgeGlowMat: THREE.MeshStandardMaterial;
-  interiorLight: THREE.PointLight;
+  /** 室内灯位置锚点；整栋楼共用一盏跟随当前楼层的点光源（见 floorLight）。 */
+  interiorLight: THREE.Object3D;
+  interiorLightColor: THREE.Color;
   interiorRig: FloorInteriorRig;
   currentSlideZ: number;
   currentCurtainOpen: number;
@@ -268,7 +270,8 @@ export function buildArchiveTower3D(
     deckGroup.add(modGroup);
 
     // 室内专属点光源（镜头拉近选中时自动点亮室内全部 3D 细节）
-    const interiorLight = new THREE.PointLight(cfg.lightColor, 0, 22, 1.4);
+    const interiorLight = new THREE.Object3D();
+    interiorLight.name = "Archive floor light anchor";
     interiorLight.position.set(0, 6.2, 2.2);
     modGroup.add(interiorLight);
 
@@ -569,6 +572,7 @@ export function buildArchiveTower3D(
       landingDoorR,
       edgeGlowMat,
       interiorLight,
+      interiorLightColor: new THREE.Color(cfg.lightColor),
       interiorRig,
       currentSlideZ: 0,
       currentCurtainOpen: 0,
@@ -857,8 +861,13 @@ export function buildArchiveTower3D(
   doorRight.add(doorTrimRight);
 
   // ==================== 4b. 上传页面加建楼层（3F 起，每个 HTML 一层） ====================
-  const annexLight = new THREE.PointLight(0xffe2a8, 0, 18, 1.4);
-  group.add(annexLight);
+  // 原先两层内置楼层各一盏 + 加建楼层一盏点光源，平时强度为 0 却仍计入每个标准材质的逐像素光照循环。
+  // 同一时刻只有当前楼层需要室内灯，合并为一盏跟随选中楼层移动的灯（点光源总数 5 → 3）。
+  const annexLightColor = new THREE.Color(0xffe2a8);
+  const floorLight = new THREE.PointLight(annexLightColor, 0, 18, 1.4);
+  floorLight.name = "Archive active floor light";
+  group.add(floorLight);
+  const floorLightTarget = new THREE.Vector3();
   let annex: ArchiveAnnex | null = null;
   const tagUserData = (obj: THREE.Object3D, floorIndex?: number, isElevator?: boolean) => {
     obj.userData.place = "slot-8";
@@ -1002,6 +1011,7 @@ export function buildArchiveTower3D(
     }
 
     const panelW = (floorW - 0.8) / 4;
+    let activeLightIntensity = 0;
     for (const mod of floorModules) {
       const isFloorActive = isSelected && mod.index === clampedFloor;
       const targetCurtainOpen = isSelected ? (isFloorActive ? 1 : 0.72) : 0;
@@ -1058,11 +1068,13 @@ export function buildArchiveTower3D(
 
       mod.group.position.z = floorCenterZ + mod.currentSlideZ;
       mod.edgeGlowMat.emissiveIntensity = isFloorActive ? 2.3 : 0.8;
-      mod.interiorLight.intensity = THREE.MathUtils.lerp(
-        mod.interiorLight.intensity,
-        isSelected ? (isFloorActive ? 6.5 : 2.6) : 0,
-        safeDt * 6,
-      );
+      if (isFloorActive) {
+        activeLightIntensity = 6.5;
+        floorLight.color.copy(mod.interiorLightColor);
+        floorLight.distance = 22;
+        mod.interiorLight.getWorldPosition(floorLightTarget);
+        floorLight.position.copy(group.worldToLocal(floorLightTarget));
+      }
 
       mod.interiorRig.update(worldTime, isFloorActive);
     }
@@ -1081,8 +1093,13 @@ export function buildArchiveTower3D(
       mod.roomMat.emissiveIntensity = isFloorActive ? 0.9 : isSelected ? 0.45 : 0.32;
       if (isFloorActive) activeAnnexY = mod.baseY;
     }
-    if (activeAnnexY !== null) annexLight.position.set(floorCenterX, activeAnnexY + 2.8, floorCenterZ + 4.5);
-    annexLight.intensity = THREE.MathUtils.lerp(annexLight.intensity, activeAnnexY !== null ? 5 : 0, safeDt * 6);
+    if (activeAnnexY !== null) {
+      activeLightIntensity = 5;
+      floorLight.color.copy(annexLightColor);
+      floorLight.distance = 18;
+      floorLight.position.set(floorCenterX, activeAnnexY + 2.8, floorCenterZ + 4.5);
+    }
+    floorLight.intensity = THREE.MathUtils.lerp(floorLight.intensity, activeLightIntensity, safeDt * 6);
 
     return stillAnimating;
   }
