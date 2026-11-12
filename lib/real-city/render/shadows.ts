@@ -49,7 +49,9 @@ export class CityShadowController {
     this.focus.addScaledVector(this.up, snappedUp - upCoordinate);
     const moved = this.focus.distanceToSquared(this.previousFocus) > texel * texel * 0.5;
     const sunChanged = this.direction.distanceToSquared(this.previousDirection) > 0.00002;
-    const interval = (this.radius < 60 ? 100 : 250) * (this.radius < 60 ? 1 : this.intervalScale);
+    // 航拍半径（≥200m）下，动态投影只剩车辆和机构构件的几个纹素，刷新间隔再放宽 1.6 倍（250→400ms），
+    // 避免每秒四次整张阴影图重绘造成的周期性帧耗时尖峰；拉近后恢复。
+    const interval = this.radius < 60 ? 100 : 250 * this.intervalScale * (this.radius >= 200 && !moved ? 1.6 : 1);
     const elapsed = now - this.lastUpdate;
     const needsUpdate = this.force || !this.initialized || projectionChanged
       || (moving || moved || sunChanged) && elapsed >= interval;
