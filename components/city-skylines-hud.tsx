@@ -33,6 +33,7 @@ import type { Locale } from "@/lib/site-content";
 import { sampleSeasonState, type SeasonMode } from "@/lib/city-seasons";
 import { sampleCityClock } from "@/lib/city-physics";
 import { liveCityIncidents, type CityLifeSnapshot } from "@/lib/real-city/snapshot";
+import { useMounted } from "@/lib/use-mounted";
 
 type HudTab = "incidents" | "infra" | "chirper";
 type PolicyId = "smokeDetector" | "greenGrid" | "cruiseDutyFree" | "zeroDischarge";
@@ -100,9 +101,12 @@ export function CitySkylinesHud({
   const zh = locale === "zh";
   const t = (cn: string, en: string): string => (zh ? cn : en);
 
+  const eventsReady = useMounted();
   const telemetry = getCityTelemetry(worldSeconds, night);
-  const incidents = [...liveCityIncidents(cityLife, locale), ...getCityTimeline(worldSeconds, locale)];
-  const chirps = getCityChirps(worldSeconds, locale);
+  const incidents = eventsReady
+    ? [...liveCityIncidents(cityLife, locale), ...getCityTimeline(worldSeconds, locale)]
+    : [];
+  const chirps = eventsReady ? getCityChirps(worldSeconds, locale) : [];
   const season = sampleSeasonState(worldSeconds, seasonMode);
   const hour = sampleCityClock(worldSeconds).hour;
   const cityTime = `${String(Math.floor(hour)).padStart(2, "0")}:${String(Math.floor(hour % 1 * 60)).padStart(2, "0")}`;
@@ -277,7 +281,7 @@ export function CitySkylinesHud({
       >
         <span className="live-pulse-dot" aria-hidden="true" />
         <span>{t("城市生活", "City life")}</span>
-        <small title={t("模拟城市时间 / 正在发生的事件", "Simulated city time / active events")}>{seasonLabels[season.season]} · {cityTime} · {incidents.length}</small>
+        <small title={t("模拟城市时间 / 正在发生的事件", "Simulated city time / active events")}>{seasonLabels[season.season]} · {cityTime}{eventsReady ? ` · ${incidents.length}` : ""}</small>
         <ChevronRight size={14} aria-hidden="true" />
       </button>
     </aside>

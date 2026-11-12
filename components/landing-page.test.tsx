@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import type { PlaceId } from "@/lib/city-content";
@@ -330,5 +331,26 @@ describe("城市主页", () => {
       selected: null, touring: false,
       focusPoint: { x: 0, z: -9, distance: 200, height: 3 },
     });
+  });
+
+  it("静态 HTML 不输出按访问随机的事件坐标和数量，挂载后再绘制标记", () => {
+    const html = renderToString(<LandingPage />);
+    // Event dots use r="10" with a fill; lucide icons also use r="10" without one.
+    expect(html).not.toMatch(/r="10" fill="/);
+    expect(html).not.toMatch(/r="4.2"/);
+    expect(html).not.toContain("FIRE-119");
+    expect(html).not.toContain("PD-110");
+    expect(html).not.toContain("EMS-120");
+    expect(html).not.toContain("UTIL-95");
+    expect(html).not.toContain("TRAF-07");
+    expect(html).toMatch(/春(?:<!-- -->)? · (?:<!-- -->)?\d{2}:\d{2}(?:<!-- -->)?<\/small>/);
+
+    render(<LandingPage />);
+    const minimap = screen.getByRole("button", { name: "在小地图上定位" });
+    expect(minimap.querySelectorAll('circle[r="10"][fill]').length).toBeGreaterThan(0);
+    expect(minimap.querySelectorAll('circle[r="4.2"]').length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "展开城市生活与四季" }).textContent).toMatch(
+      /· \d{2}:\d{2} · \d+/,
+    );
   });
 });

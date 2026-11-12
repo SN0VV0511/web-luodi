@@ -63,6 +63,7 @@ import { BuildingExperiencePanel } from "@/components/building-experience-panel"
 import { CitySkylinesHud } from "@/components/city-skylines-hud";
 import { getBuildingExperience } from "@/lib/building-experience";
 import { getCityTimeline } from "@/lib/city-events";
+import { useMounted } from "@/lib/use-mounted";
 import { liveCityIncidents, type CityLifeSnapshot } from "@/lib/real-city/snapshot";
 import type { SeasonMode } from "@/lib/city-seasons";
 import type { QualityPreference, QualityTier } from "@/lib/real-city/render/quality";
@@ -121,6 +122,7 @@ export function LandingPage(): ReactNode {
   const [hologramCollapsed, setHologramCollapsed] = useState(false);
   const [worldSeconds, setWorldSeconds] = useState(0);
   const [cityLife, setCityLife] = useState<CityLifeSnapshot | null>(null);
+  const eventsReady = useMounted();
   const [towerPages, setTowerPages] = useState<readonly TowerPage[]>([]);
   const elevatorTimersRef = useRef<number[]>([]);
   const wheelCooldownRef = useRef(0);
@@ -1265,7 +1267,7 @@ export function LandingPage(): ReactNode {
                 strokeWidth={lot.id === selected ? "3" : "1.2"}
               />
             ))}
-            {[...liveCityIncidents(cityLife, locale), ...getCityTimeline(worldSeconds, locale)].map((inc) => {
+            {(eventsReady ? [...liveCityIncidents(cityLife, locale), ...getCityTimeline(worldSeconds, locale)] : []).map((inc) => {
               const color =
                 inc.kind === "fire"
                   ? "#ff453a"
