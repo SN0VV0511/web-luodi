@@ -1,0 +1,58 @@
+/* Reset, element defaults, selection. Split from app/globals.css; keep import order (see app/globals.css). */
+:root {
+  /* Colour, type and spacing tokens live in app/styles/tokens.css (imported first). */
+  color-scheme: dark;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+body {
+  font-family: var(--body);
+  color: var(--ink);
+  background: #102030;
+  -webkit-font-smoothing: antialiased;
+}
+button,
+input,
+textarea {
+  font: inherit;
+}
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+button {
+  color: inherit;
+  cursor: pointer;
+  border: 0;
+  background: none;
+}
+button:disabled {
+  opacity: 0.32;
+  cursor: default;
+}
+a {
+  text-decoration: none;
+  color: inherit;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+svg {
+  flex-shrink: 0;
+}
+::selection {
+  background: #f0c372;
+  color: #0e1b2a;
+}

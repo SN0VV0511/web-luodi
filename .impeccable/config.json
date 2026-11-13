@@ -7,7 +7,7 @@
         "rule": "side-tab",
         "value": "*",
         "files": [
-          "app/globals.css"
+          "app/styles/tower-rig.css"
         ],
         "createdAt": "2026-11-06T11:05:54.979Z",
         "reason": "Agent reviewed: the sole side-tab finding is the pre-existing .elevator-notice live status message in components/landing-page.tsx; its amber border conveys elevator status and is outside the city-events redesign."

@@ -1,0 +1,1209 @@
+/* World viewport, loading, header, city title, neighbourhood chips, Skylines console, view switch, camera tools, help, 3D building labels. Split from app/globals.css; keep import order (see app/globals.css). */
+.metropolis {
+  width: 100%;
+  height: 100dvh;
+  min-height: 480px;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.world-viewport,
+.city-scene,
+.city-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.city-canvas {
+  display: block;
+  outline: 0;
+  touch-action: none;
+}
+.world-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    #0a15246b 0,
+    transparent 20%,
+    transparent 74%,
+    #09142252 100%
+  );
+  z-index: 1;
+}
+.skip-link {
+  position: fixed;
+  top: 10px;
+  left: 25px;
+  z-index: 100;
+  background: #102234;
+  padding: 12px 20px;
+  border: 1px solid var(--accent);
+  transform: translateY(-150%);
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+.world-loading,
+.city-scene-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: radial-gradient(ellipse at 50% 40%, #244a6b, #0d1d2e 75%);
+  color: #e6eff8;
+  text-align: center;
+}
+.world-loading strong {
+  font-size: 23px;
+  letter-spacing: 7px;
+  font-weight: 400;
+}
+.world-loading span {
+  font: 9px var(--mono);
+  letter-spacing: 2px;
+  opacity: 0.7;
+}
+.world-loading i {
+  height: 2px;
+  width: 110px;
+  background: var(--gold);
+  animation: load 1.6s infinite ease;
+}
+/* 城市模型构建与首帧着色期间的加载提示（city-scene 渲染）。 */
+.city-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  background: radial-gradient(ellipse at 50% 40%, #244a6bd6, #0d1d2eee 75%);
+  color: #e6eff8;
+  text-align: center;
+  pointer-events: none;
+}
+.city-loading > span {
+  font: 9px var(--mono);
+  letter-spacing: 3px;
+  opacity: 0.75;
+}
+.city-loading > p {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  color: #cfe0f0;
+}
+.city-loading > i {
+  height: 2px;
+  width: 96px;
+  background: var(--gold);
+  animation: load 1.6s infinite ease;
+}
+.city-scene-fallback {
+  z-index: 1;
+  padding: 80px 22%;
+}
+.city-scene-fallback p {
+  font-size: 20px;
+  margin: 0;
+}
+.city-scene-fallback span {
+  max-width: 420px;
+  font-size: 12px;
+  line-height: 2;
+}
+.city-scene-fallback-icon {
+  font-size: 45px !important;
+  color: var(--accent);
+}
+.world-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 25px;
+  padding: 0 32px;
+  background: linear-gradient(180deg, #0b1624c7 0%, #0d1a2a4d 68%, transparent 100%);
+  border-bottom: 1px solid #d8eafc1a;
+}
+.city-brand {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  text-align: left;
+  padding: 4px 0;
+  transition: transform 0.18s ease;
+}
+.city-brand:hover .city-brand-icon {
+  border-color: #f0c372cc;
+  background: #1c3248cc;
+  box-shadow: 0 4px 18px #07121e80, inset 0 1px 0 #ffffff38;
+}
+.city-brand-icon {
+  height: 38px;
+  width: 38px;
+  border: 1px solid #f0c37288;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, #1a3047cc, #0f1e2fe6);
+  box-shadow: 0 4px 14px #08132066, inset 0 1px 0 #ffffff29;
+  color: #f0c372;
+  transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
+}
+.city-brand strong {
+  display: block;
+  font-size: 20px;
+  letter-spacing: -0.5px;
+  font-weight: 750;
+  line-height: 1.05;
+  color: #f7fafd;
+}
+.city-brand strong > span {
+  margin-left: 7px;
+  font-weight: 400;
+  letter-spacing: 3.2px;
+  font-size: 17px;
+  color: var(--gold);
+}
+.city-brand small {
+  display: block;
+  font: 7.5px var(--mono);
+  letter-spacing: 2.2px;
+  margin-top: 5px;
+  color: #bdd0e4;
+  opacity: 0.85;
+}
+.world-location {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 7px 15px;
+  border-radius: 999px;
+  background: #0d1b2bbf;
+  border: 1px solid #c8e0f82e;
+  box-shadow: 0 4px 18px #08132040, inset 0 1px 0 #ffffff1a;
+  backdrop-filter: blur(16px);
+  color: #e8f1fa;
+  font-size: 10.5px;
+  letter-spacing: 0.9px;
+  text-shadow: 0 1px 4px #08142299;
+}
+.location-beacon {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #5ce0a0;
+  box-shadow: 0 0 0 3px #5ce0a02e, 0 0 10px #5ce0a099;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.world-location > i {
+  width: 1px;
+  height: 12px;
+  background: #c8def433;
+}
+.world-header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.header-directory {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 9px 14px;
+  border: 1px solid #c8e0f838;
+  background: linear-gradient(145deg, #13253acc, #0c1929d9);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px #07121e4d, inset 0 1px 0 #ffffff1f;
+  backdrop-filter: blur(16px);
+  transition: background 0.18s, border-color 0.18s, transform 0.15s;
+}
+.header-directory:hover,
+.header-directory[aria-expanded="true"] {
+  background: #1d3550eb;
+  border-color: #f0c37280;
+}
+.header-directory:active {
+  background: #254261;
+  transform: translateY(1px);
+}
+.header-directory > span {
+  font: 600 9.5px var(--mono);
+  padding-left: 9px;
+  border-left: 1px solid #ffffff26;
+  color: var(--gold);
+  opacity: 0.95;
+}
+.locale-toggle {
+  font: 600 10px var(--mono);
+  letter-spacing: 0.8px;
+  padding: 8px 11px;
+  border-radius: 7px;
+  border: 1px solid #c8e0f82e;
+  background: #0e1d2ebf;
+  backdrop-filter: blur(14px);
+  transition: background 0.18s, border-color 0.18s;
+}
+.locale-toggle:hover {
+  background: #1b324bd9;
+  border-color: #c8e0f859;
+}
+.builder-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid #f0c37288;
+  box-shadow: 0 2px 10px #07121e59, inset 0 1px 0 #ffffff29;
+  font-family: Georgia, serif;
+  font-size: 14px;
+  color: #f9efd8;
+  background: linear-gradient(145deg, #203750e6, #112032f2);
+  transition: transform 0.18s, border-color 0.18s, background 0.18s;
+}
+.builder-avatar:hover {
+  border-color: #f6d594;
+  background: #294664;
+  transform: translateY(-1px);
+}
+.city-title {
+  position: absolute;
+  z-index: 2;
+  top: 108px;
+  left: 32px;
+  pointer-events: none;
+  text-shadow: 0 2px 18px #071320cc;
+}
+.city-title > p {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #0c1929b8;
+  border: 1px solid #c8e0f830;
+  font: 600 9px var(--mono);
+  letter-spacing: 2px;
+  margin: 0 0 12px;
+  color: #e8f1fa;
+  backdrop-filter: blur(10px);
+}
+.city-title > p > span {
+  color: var(--gold);
+  margin-right: 3px;
+}
+.city-title h1 {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  margin: 0 0 8px;
+  color: #ffffff;
+}
+.city-title > span {
+  display: block;
+  color: #dce8f5;
+  font-size: 11px;
+  letter-spacing: 0.35px;
+  padding-left: 10px;
+  border-left: 2px solid var(--gold);
+}
+.neighborhood-tour {
+  position: absolute;
+  z-index: 3;
+  top: 224px;
+  left: 32px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  max-width: 356px;
+}
+.neighborhood-tour > span {
+  width: 100%;
+  margin-bottom: 2px;
+  font: 600 8.5px var(--mono);
+  letter-spacing: 2.1px;
+  color: #eef5fc;
+  text-shadow: 0 1px 8px #081524;
+}
+.neighborhood-tour > button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6.5px 9.5px;
+  border: 1px solid #c8e0f833;
+  border-radius: 7px;
+  background: linear-gradient(145deg, #112236de, #0b1726e6);
+  box-shadow: 0 4px 16px #07121e45, inset 0 1px 0 #ffffff1a;
+  font-size: 10px;
+  color: #edf4fc;
+  backdrop-filter: blur(16px);
+  transition: background 0.16s, border-color 0.16s, transform 0.16s;
+}
+.neighborhood-tour > button > svg:first-child {
+  color: var(--gold);
+}
+.neighborhood-tour > button > svg:last-child {
+  opacity: 0.65;
+  transition: transform 0.16s, opacity 0.16s;
+}
+.neighborhood-tour > button:hover {
+  background: #1c3552eb;
+  border-color: #f0c37275;
+  transform: translateY(-1px);
+}
+.neighborhood-tour > button:hover > svg:last-child {
+  transform: translateX(2px);
+  opacity: 1;
+}
+.neighborhood-tour > button:active {
+  background: #254466;
+  transform: translateY(1px);
+}
+.live-scenes-panel.skylines-console {
+  position: absolute;
+  z-index: 4;
+  bottom: 206px;
+  left: 32px;
+  width: 332px;
+  max-height: min(64dvh, 480px);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 11px;
+  border-radius: 11px;
+  background: linear-gradient(160deg, #0b182ae8, #07111ef0);
+  border: 1px solid #88c2f03d;
+  border-top: 2px solid #52b8ff99;
+  box-shadow: 0 14px 38px #040b1580, inset 0 1px 0 #ffffff1c;
+  backdrop-filter: blur(20px);
+  overflow: hidden;
+  transition: opacity 0.24s ease, visibility 0.24s;
+}
+.live-scenes-panel.skylines-console.is-collapsed {
+  width: max-content;
+  max-width: calc(100vw - 64px);
+  max-height: 42px;
+  padding: 0;
+  border-top-width: 1px;
+  border-radius: 7px;
+  background: #0c1b2bee;
+  box-shadow: 0 4px 16px #040b1540;
+}
+.skylines-fold-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  min-height: 40px;
+  color: #e4edf1;
+  font-size: 12px;
+}
+.skylines-fold-toggle small {
+  color: #b3c6cd;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.skylines-fold-toggle:hover {
+  background: #254156;
+}
+.skylines-fold-toggle:focus-visible,
+.skylines-season-control select:focus-visible {
+  outline: 2px solid #ceddba;
+  outline-offset: -3px;
+}
+.skylines-season-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  color: #d6e1df;
+  font-size: 11px;
+}
+.skylines-season-control select {
+  flex: 1;
+  min-height: 32px;
+  border: 1px solid #698083;
+  border-radius: 4px;
+  color: #edf1e5;
+  background: #152735;
+  padding: 4px 8px;
+  font: inherit;
+}
+.skylines-season-control small {
+  color: #c3d0cf;
+  font-variant-numeric: tabular-nums;
+}
+.is-inspecting-landmark .skylines-console {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.skylines-topbar {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex-shrink: 0;
+}
+.skylines-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.live-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #b2cca1;
+  box-shadow: 0 0 0 3px #b2cca11f;
+}
+.skylines-brand-row > strong {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: #dbe6de;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.skylines-rci {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: #06101c;
+  border: 1px solid #9cc8ee2b;
+}
+.rci-bar {
+  width: 4px;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  background: #ffffff14;
+  border-radius: 1px;
+  overflow: hidden;
+}
+.rci-bar > i {
+  display: block;
+  width: 100%;
+  border-radius: 1px;
+}
+.rci-bar.is-res > i {
+  background: #44d66c;
+}
+.rci-bar.is-com > i {
+  background: #3da5ff;
+}
+.rci-bar.is-off > i {
+  background: #f5b942;
+}
+.skylines-icon-btn {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  color: #b4cce4;
+  background: #13253a99;
+  border: 1px solid #9cc8ee26;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.skylines-icon-btn:hover,
+.skylines-icon-btn.is-active {
+  background: #214063;
+  color: #ffe09e;
+  border-color: #f0c37280;
+}
+.skylines-metrics-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+.skylines-metric-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 5px;
+  border-radius: 5px;
+  background: #0f2034b8;
+  border: 1px solid #9cc8ee24;
+  font: 600 8.5px var(--mono);
+  color: #e8f2fc;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+button.skylines-metric-pill:hover {
+  background: #1a3554;
+  border-color: #6bc2ff80;
+}
+.skylines-metric-pill svg.is-amber {
+  color: #ffc247;
+}
+.skylines-metric-pill svg.is-cyan {
+  color: #4ad8ff;
+}
+.skylines-metric-pill svg.is-green {
+  color: #4ee38b;
+}
+.skylines-metric-pill svg.is-gold {
+  color: #f6d379;
+}
+.skylines-policy-drawer {
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: 7px;
+  background: #071220db;
+  border: 1px solid #7ab8f536;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex-shrink: 0;
+}
+.policy-telemetry-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+.policy-telemetry-grid > div {
+  padding: 5px 7px;
+  border-radius: 5px;
+  background: #0f213699;
+  border: 1px solid #9cc8ee1c;
+}
+.policy-telemetry-grid small {
+  display: block;
+  font: 6.5px var(--mono);
+  letter-spacing: 0.6px;
+  color: #8fb0cf;
+}
+.policy-telemetry-grid strong {
+  display: block;
+  margin-top: 2px;
+  font: 700 9.5px var(--mono);
+  color: #eff7ff;
+}
+.policy-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.policy-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 7px;
+  border-radius: 5px;
+  background: #10213680;
+  border: 1px solid #9cc8ee1f;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.policy-toggle-row.is-on {
+  background: #15324ecc;
+  border-color: #54c2ff66;
+}
+.policy-check {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid #8fb4d866;
+  background: #081320;
+  display: grid;
+  place-items: center;
+  color: #5ce0a0;
+  flex-shrink: 0;
+}
+.policy-toggle-row.is-on .policy-check {
+  border-color: #5ce0a0;
+  background: #12362a;
+}
+.policy-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.policy-copy strong {
+  font-size: 9.5px;
+  font-weight: 550;
+  color: #eef6ff;
+}
+.policy-copy small {
+  font-size: 8px;
+  color: #93b3cf;
+}
+.skylines-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: 8px;
+  padding: 3px;
+  border-radius: 7px;
+  background: #06101cd9;
+  border: 1px solid #9cc8ee24;
+  flex-shrink: 0;
+}
+.skylines-tabs > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 4px;
+  border-radius: 5px;
+  font-size: 9.5px;
+  font-weight: 500;
+  color: #9eb9d4;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.skylines-tabs > button.is-active {
+  background: linear-gradient(145deg, #245785, #183d61);
+  color: #f5fbff;
+  box-shadow: inset 0 1px 0 #8bd0ff45;
+}
+.skylines-tabs > button em {
+  font: 700 7.5px var(--mono);
+  font-style: normal;
+  padding: 1px 4px;
+  border-radius: 99px;
+  background: #ff453a38;
+  color: #ff9b94;
+}
+.skylines-tab-body {
+  margin-top: 7px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #5b82a855 transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 2px;
+}
+.skylines-incident-list,
+.skylines-infra-list,
+.skylines-chirp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.skylines-incident-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  background: #102136a8;
+  border: 1px solid #9cc8ee24;
+  text-align: left;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+.skylines-incident-card:hover {
+  background: #183250db;
+  border-color: #79c4ff88;
+  transform: translateX(2px);
+}
+.skylines-incident-card.is-fire {
+  border-left: 2.5px solid #ff5548;
+}
+.skylines-incident-card.is-life {
+  border-color: #7c9b7955;
+}
+.incident-code.is-life {
+  color: #b8cfae;
+  background: #294632;
+}
+.skylines-incident-card.is-burglar {
+  border-left: 2.5px solid #3c9dff;
+}
+.skylines-incident-card.is-cruise {
+  border-left: 2.5px solid #44d9e8;
+}
+.skylines-incident-card.is-medical {
+  border-left: 2.5px solid #38d996;
+}
+.skylines-incident-card.is-utility,
+.skylines-incident-card.is-traffic {
+  border-left: 2.5px solid #f5b038;
+}
+.incident-card-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.incident-code {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font: 700 7px var(--mono);
+  letter-spacing: 0.6px;
+  flex-shrink: 0;
+}
+.incident-code.is-fire {
+  background: #ff453a2e;
+  color: #ff948b;
+  border: 1px solid #ff453a66;
+}
+.incident-code.is-burglar {
+  background: #0a84ff30;
+  color: #8ac6ff;
+  border: 1px solid #0a84ff66;
+}
+.incident-code.is-cruise {
+  background: #2ad4e82b;
+  color: #8ef0fc;
+  border: 1px solid #2ad4e866;
+}
+.incident-code.is-medical {
+  background: #30d15829;
+  color: #84f5a4;
+  border: 1px solid #30d15860;
+}
+.incident-code.is-utility,
+.incident-code.is-traffic {
+  background: #ffd60a26;
+  color: #ffe074;
+  border: 1px solid #ffd60a59;
+}
+.incident-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 10px;
+  font-weight: 600;
+  color: #f2f8ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.incident-arrow {
+  color: #8eb0d0;
+  flex-shrink: 0;
+}
+.incident-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 8px;
+}
+.incident-loc {
+  color: #9ec0df;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.incident-phase {
+  font: 600 7.5px var(--mono);
+  color: #ffd98a;
+  flex-shrink: 0;
+}
+.incident-detail {
+  margin: 0;
+  font-size: 8.5px;
+  line-height: 1.45;
+  color: #adc5dc;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.incident-progress {
+  height: 2.5px;
+  border-radius: 99px;
+  background: #ffffff14;
+  overflow: hidden;
+}
+.incident-progress > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #4cc3ff, #6df0b2);
+}
+.skylines-street-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-top: 3px;
+  border-top: 1px solid #9cc8ee1f;
+}
+.street-chip-btn {
+  flex: 1;
+  min-width: 84px;
+  padding: 5px 6px;
+  border-radius: 5px;
+  background: #0d1d30cc;
+  border: 1px solid #9cc8ee26;
+  font-size: 8.5px;
+  color: #d6e8fa;
+  text-align: center;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.street-chip-btn:hover {
+  background: #193452;
+  border-color: #f0c37275;
+}
+.skylines-infra-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  background: #102136a8;
+  border: 1px solid #9cc8ee24;
+  text-align: left;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+.skylines-infra-card:hover {
+  background: #193454db;
+  border-color: #7cc6ff88;
+  transform: translateX(2px);
+}
+.infra-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: #16324f;
+  color: #84d2ff;
+  border: 1px solid #84d2ff40;
+}
+.infra-icon.accent-emerald {
+  background: #12362d;
+  color: #6df0b2;
+  border-color: #6df0b240;
+}
+.infra-icon.accent-amber {
+  background: #382a12;
+  color: #ffd166;
+  border-color: #ffd16645;
+}
+.infra-icon.accent-gold {
+  background: #362c16;
+  color: #f6d58e;
+  border-color: #f6d58e45;
+}
+.infra-icon.accent-violet {
+  background: #282042;
+  color: #c5a8ff;
+  border-color: #c5a8ff45;
+}
+.infra-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.infra-copy strong {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #f0f7ff;
+}
+.infra-copy strong em {
+  font: 700 6.5px var(--mono);
+  font-style: normal;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #ffffff14;
+  color: #b8d6f2;
+}
+.infra-copy small {
+  font-size: 8.5px;
+  color: #9cb9d6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.skylines-chirp-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 7px 9px;
+  border-radius: 7px;
+  background: #0f2136b0;
+  border: 1px solid #9cc8ee26;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.skylines-chirp-card:hover {
+  background: #183454d9;
+  border-color: #6cc4ff88;
+}
+.skylines-chirp-card.mood-alert {
+  border-left: 2.5px solid #ff645a;
+}
+.skylines-chirp-card.mood-praise {
+  border-left: 2.5px solid #4ad8ff;
+}
+.skylines-chirp-card.mood-chat {
+  border-left: 2.5px solid #6df0b2;
+}
+.chirp-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 8.5px;
+}
+.chirp-header strong {
+  color: #eff7ff;
+  font-weight: 600;
+}
+.chirp-header span {
+  color: #7fa4c8;
+  font: 7.5px var(--mono);
+}
+.chirp-header em {
+  margin-left: auto;
+  font-style: normal;
+  font: 600 7.5px var(--mono);
+  color: #6bc8ff;
+}
+.skylines-chirp-card p {
+  margin: 0;
+  font-size: 9px;
+  line-height: 1.48;
+  color: #c6dcf2;
+}
+.view-switch {
+  position: absolute;
+  top: 98px;
+  right: 28px;
+  z-index: 5;
+  display: flex;
+  border: 1px solid #c8e0f833;
+  background: #0c1828d9;
+  backdrop-filter: blur(18px);
+  border-radius: 9px;
+  padding: 4px;
+  gap: 3px;
+  box-shadow: 0 8px 26px #07121e4d, inset 0 1px 0 #ffffff1a;
+}
+.view-switch > button {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  font-size: 10.5px;
+  font-weight: 500;
+  padding: 8px 12px;
+  border-radius: 6px;
+  color: #b8cadc;
+  transition: background 0.16s, color 0.16s;
+}
+.view-switch > button[aria-pressed="true"] {
+  background: linear-gradient(145deg, #f3cd82, #dfb15b);
+  color: #0e1c2b;
+  font-weight: 600;
+  box-shadow: 0 2px 10px #07121e4d;
+}
+.view-switch > button:hover:not([aria-pressed="true"]) {
+  background: #233c5866;
+  color: #f2f7fc;
+}
+.view-switch > button:active:not([aria-pressed="true"]) {
+  background: #2b496b88;
+}
+.camera-tools {
+  position: absolute;
+  right: 28px;
+  top: 50%;
+  transform: translateY(-45%);
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  padding: 5px;
+  gap: 3px;
+  background: #0c1828de;
+  border: 1px solid #c8e0f830;
+  border-radius: 9px;
+  box-shadow: 0 8px 28px #07121e4d, inset 0 1px 0 #ffffff1a;
+  backdrop-filter: blur(16px);
+}
+.camera-tools > button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  color: #cce0f2;
+  transition: background 0.16s, color 0.16s;
+}
+.camera-tools > button:hover,
+.camera-tools > button[aria-pressed="true"] {
+  background: #f0c37229;
+  color: #f6d594;
+}
+.camera-tools > button:active {
+  background: #f0c37240;
+}
+.camera-tools > span {
+  height: 1px;
+  margin: 3px 6px;
+  background: #ffffff1f;
+}
+.help-panel {
+  position: absolute;
+  right: 84px;
+  top: 50%;
+  z-index: 12;
+  width: 268px;
+  padding: 20px;
+  transform: translateY(-30%);
+  border: 1px solid #c8e0f833;
+  background: var(--glass);
+  border-radius: 11px;
+  backdrop-filter: blur(24px);
+  box-shadow: 0 14px 48px #06101c80, inset 0 1px 0 #ffffff1c;
+}
+.help-panel > strong {
+  font-size: 12.5px;
+  display: block;
+  margin-bottom: 16px;
+  color: #f4f8fc;
+}
+.help-panel p {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-size: 10.5px;
+  color: var(--muted);
+  margin: 11px 0;
+}
+.help-panel kbd {
+  font: 500 9.5px var(--body);
+  color: #eaf2fa;
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: #ffffff14;
+  border: 1px solid #ffffff29;
+  border-bottom-width: 2px;
+}
+.help-panel > small {
+  display: block;
+  font-size: 9.5px;
+  line-height: 1.75;
+  color: #9cb2c9;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  margin-top: 15px;
+}
+.city-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 2;
+}
+.city-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: linear-gradient(135deg, #0e1d30f0, #091320f0);
+  border: 1px solid color-mix(in srgb, var(--label-color, #f0c372) 55%, #ffffff2e);
+  box-shadow: 0 8px 24px #06101c66, inset 0 1px 0 #ffffff24;
+  color: #f4f8fc;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7.5px 11px;
+  white-space: nowrap;
+  font-size: 10.5px;
+  pointer-events: auto;
+  backdrop-filter: blur(14px);
+  will-change: transform;
+  transition: background 0.16s, border-color 0.16s, color 0.16s, box-shadow 0.16s;
+}
+.city-label::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -12px;
+  height: 11px;
+  width: 1px;
+  background: linear-gradient(#f0c372cc, #f0c3722e);
+}
+.city-label::after {
+  content: "";
+  position: absolute;
+  left: calc(50% - 2.5px);
+  bottom: -15px;
+  width: 5px;
+  height: 5px;
+  background: var(--label-color, #f0c372);
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--label-color, #f0c372) 28%, transparent);
+}
+.city-label-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--label-color, #f0c372);
+  box-shadow: 0 0 6px var(--label-color, #f0c372);
+  flex-shrink: 0;
+}
+.city-label.is-vacant .city-label-dot {
+  background: #7f93a6;
+  box-shadow: none;
+  opacity: 0.6;
+}
+.city-label-number {
+  font: 600 8.5px var(--mono);
+  color: var(--label-color, #f0c372);
+  padding-right: 7px;
+  border-right: 1px solid #b4cce438;
+}
+.city-label-name {
+  font-size: 10.5px;
+  font-weight: 550;
+  letter-spacing: 0.15px;
+}
+.city-label.is-vacant {
+  background: #101c2bf0;
+  border-color: #8da2b852;
+}
+.city-label:hover,
+.city-label.is-selected,
+.city-label.is-hovered {
+  background: linear-gradient(135deg, #f5d28b, #e2b45d);
+  color: #0d1a29;
+  border-color: #ffebbf;
+  box-shadow: 0 10px 28px #07121e80;
+}
+.city-label:hover .city-label-dot,
+.city-label.is-selected .city-label-dot,
+.city-label.is-hovered .city-label-dot {
+  background: #0d1a29;
+  box-shadow: none;
+}
+.city-label.is-selected .city-label-number,
+.city-label:hover .city-label-number,
+.city-label.is-hovered .city-label-number {
+  color: #16293d;
+  border-color: #16293d44;
+}

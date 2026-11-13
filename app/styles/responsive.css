@@ -1,0 +1,423 @@
+/* Breakpoint overrides (≤1100px, ≤760px, short screens). Split from app/globals.css; keep import order (see app/globals.css). */
+@media (max-width: 1100px) {
+  .world-location {
+    display: none;
+  }
+  .city-title {
+    top: 104px;
+    left: 25px;
+  }
+  .city-title h1 {
+    font-size: 22px;
+  }
+  .city-title > span {
+    font-size: 9px;
+  }
+  .dock-city-state {
+    display: none;
+  }
+  .city-dock {
+    height: 68px;
+    gap: 13px;
+  }
+  .map-corner {
+    width: 135px;
+    bottom: 26px;
+    left: 20px;
+  }
+  .minimap {
+    height: 110px;
+  }
+}
+@media (max-width: 760px) {
+  .neighborhood-tour {
+    top: 176px;
+    left: 18px;
+    right: 18px;
+    max-width: none;
+    flex-wrap: nowrap;
+    gap: 5px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .neighborhood-tour > span,
+  .neighborhood-tour > button > svg:last-child {
+    display: none;
+  }
+  .neighborhood-tour > button {
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-size: 9px;
+    padding: 8px;
+    gap: 4px;
+  }
+  .metropolis {
+    min-height: 400px;
+  }
+  .world-header {
+    height: 66px;
+    padding: 0 18px;
+    gap: 13px;
+  }
+  .city-brand {
+    gap: 8px;
+  }
+  .city-brand-icon {
+    width: 31px;
+    height: 32px;
+  }
+  .city-brand-icon svg {
+    width: 21px;
+  }
+  .city-brand strong {
+    font-size: 17px;
+  }
+  .city-brand strong > span {
+    font-size: 14px;
+    letter-spacing: 2px;
+    margin-left: 5px;
+  }
+  .city-brand small {
+    font-size: 5px;
+    letter-spacing: 1px;
+  }
+  .world-header-actions {
+    gap: 12px;
+  }
+  .header-directory {
+    font-size: 0;
+    gap: 0;
+    padding: 8px;
+    border: 0;
+    background: none;
+  }
+  .header-directory > span {
+    display: none;
+  }
+  .locale-toggle {
+    font-size: 9px;
+  }
+  .builder-avatar {
+    width: 26px;
+    height: 26px;
+    font-size: 14px;
+  }
+  .city-title {
+    left: 21px;
+    top: 93px;
+  }
+  .city-title > p {
+    font-size: 7px;
+    margin-bottom: 11px;
+  }
+  .city-title h1 {
+    font-size: 22px;
+    margin-bottom: 9px;
+  }
+  .city-title > span {
+    font-size: 8px;
+  }
+  .view-switch {
+    top: auto;
+    right: auto;
+    left: 50%;
+    bottom: 94px;
+    transform: translateX(-50%);
+    padding: 3px;
+    white-space: nowrap;
+  }
+  .view-switch > button {
+    font-size: 8px;
+    gap: 5px;
+    padding: 8px 10px;
+  }
+  .view-switch > button svg {
+    width: 12px;
+  }
+  .camera-tools {
+    right: 14px;
+    top: 43%;
+    padding: 3px;
+    gap: 2px;
+  }
+  .camera-tools > button {
+    width: 30px;
+    height: 32px;
+  }
+  .camera-tools svg {
+    width: 16px;
+  }
+  .city-label {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+  .city-label-number {
+    font-size: 6px;
+    padding-right: 5px;
+  }
+  .city-label-name {
+    font-size: 8px;
+  }
+  .city-label::before {
+    height: 8px;
+    bottom: -9px;
+  }
+  .city-label::after {
+    width: 4px;
+    height: 4px;
+    bottom: -11px;
+  }
+  .map-corner {
+    display: none;
+  }
+  .city-dock {
+    bottom: 16px;
+    height: 61px;
+    padding: 6px 10px;
+    gap: 10px;
+    width: calc(100% - 26px);
+    max-width: 470px;
+    justify-content: space-between;
+    border-radius: 7px;
+  }
+  .dock-navigation {
+    gap: 1px;
+  }
+  .dock-navigation > button {
+    min-width: 41px;
+    height: 47px;
+    font-size: 8px;
+    gap: 5px;
+  }
+  .dock-navigation > button svg {
+    width: 17px;
+    height: 17px;
+  }
+  .dock-navigation > button.is-active::after {
+    left: 16px;
+    right: 16px;
+  }
+  .dock-scene-controls {
+    gap: 4px;
+  }
+  .dock-scene-controls > button {
+    min-width: 30px;
+    font-size: 7px;
+  }
+  .dock-scene-controls > button svg {
+    width: 16px;
+  }
+  .dock-divider {
+    height: 29px;
+  }
+  .gesture-hint {
+    display: none;
+  }
+  .directory-panel {
+    top: 82px;
+    right: 13px;
+    left: 13px;
+    width: auto;
+    bottom: 140px;
+    max-height: 650px;
+  }
+  .panel-heading {
+    padding: 18px 19px 15px;
+  }
+  .panel-heading h2 {
+    font-size: 17px;
+  }
+  .directory-building {
+    padding: 11px 6px;
+  }
+  .place-detail {
+    top: auto;
+    bottom: 141px;
+    left: 13px;
+    right: 13px;
+    width: auto;
+    max-height: calc(100dvh - 226px);
+    overflow-y: auto;
+  }
+  .place-detail.is-spatial-3d-rig {
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    overflow: visible;
+  }
+  .spatial-elevator-console {
+    left: 12px;
+    right: 12px;
+    top: 72px;
+    width: auto;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  .spatial-tether-line {
+    display: none;
+  }
+  .spatial-hologram-stage {
+    left: 12px;
+    right: 12px;
+    top: auto;
+    bottom: 84px;
+    height: 44dvh;
+    width: auto;
+    min-width: 0;
+    transform: none;
+  }
+  .elevator-search-input input {
+    font-size: 16px;
+  }
+  .detail-banner {
+    height: 63px;
+    padding: 14px 19px;
+  }
+  .detail-banner > svg {
+    width: 24px;
+  }
+  .detail-banner > span {
+    font-size: 8px;
+  }
+  .detail-banner strong {
+    font-size: 5px;
+    margin-top: 5px;
+  }
+  .detail-body {
+    padding: 17px 19px;
+  }
+  .place-category {
+    font-size: 6px;
+    margin-bottom: 8px;
+  }
+  .detail-body h2 {
+    font-size: 23px;
+    margin-bottom: 8px;
+  }
+  .place-description {
+    font-size: 10px;
+    line-height: 1.9;
+    margin-bottom: 14px;
+  }
+  .detail-facts {
+    padding: 10px 0;
+    margin-bottom: 14px;
+  }
+  .source-link {
+    margin-top: 12px;
+  }
+  .help-panel {
+    right: 57px;
+    width: 260px;
+    max-width: calc(100% - 75px);
+    top: 44%;
+    padding: 17px;
+  }
+
+  .community-grid {
+    padding: 32px 23px 23px;
+  }
+  .section-kicker {
+    font-size: 7px;
+    letter-spacing: 1px;
+  }
+  .section-kicker > span {
+    font-size: 6px;
+  }
+  .community-heading h2 {
+    font-size: 24px;
+  }
+  .community-heading p {
+    font-size: 10px;
+  }
+  .journal-entry {
+    gap: 12px;
+    padding: 22px 0;
+  }
+  .journal-entry-copy h3 {
+    font-size: 13px;
+  }
+  .journal-entry-copy p {
+    font-size: 10px;
+  }
+  .guestbook-note {
+    padding: 15px;
+    margin: 21px 0 18px;
+  }
+  .guestbook-note > p {
+    font-size: 11px;
+  }
+  .guestbook-note > footer {
+    font-size: 9px;
+  }
+  .guestbook-note > footer > small {
+    font-size: 6px;
+  }
+  .guestbook-actions {
+    gap: 15px;
+  }
+  .guestbook-actions > .form-note {
+    font-size: 8px;
+  }
+  .guestbook-save {
+    padding: 10px 12px;
+    font-size: 10px;
+    gap: 7px;
+  }
+
+
+
+  .city-scene-fallback {
+    padding: 130px 45px;
+  }
+
+  /* 触屏输入不小于 16px，避免微信/iOS 聚焦时自动放大页面。 */
+  .directory-search input,
+  .guestbook-form input,
+  .guestbook-form textarea {
+    font-size: 16px;
+  }
+  .directory-search {
+    padding: 11px 12px;
+  }
+  .guestbook-form input,
+  .guestbook-form textarea {
+    padding: 12px 13px;
+  }
+  .guestbook-save {
+    min-height: 44px;
+  }
+  .icp-record {
+    right: 50%;
+    bottom: 3px;
+    transform: translateX(50%);
+    letter-spacing: 0.4px;
+  }
+}
+@media (max-height: 600px) and (min-width: 761px) {
+  .city-title {
+    top: 96px;
+  }
+  .city-title h1 {
+    font-size: 21px;
+  }
+  .city-title > span {
+    display: none;
+  }
+  .directory-panel {
+    top: 95px;
+    bottom: 115px;
+  }
+  .view-switch {
+    display: none;
+  }
+  .place-detail {
+    top: 94px;
+    max-height: calc(100dvh - 205px);
+    overflow: auto;
+  }
+  .detail-banner {
+    height: 66px;
+  }
+}

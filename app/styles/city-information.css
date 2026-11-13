@@ -1,0 +1,344 @@
+/* In-world information card, overlay hiding, global reduced motion. Split from app/globals.css; keep import order (see app/globals.css). */
+.city-information-anchor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+.city-information-anchor::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: calc(50% + var(--anchor-offset, 0px));
+  width: 1px;
+  height: 28px;
+  background: linear-gradient(#c49c74, #fff2d6);
+  opacity: 0;
+  transition: opacity 500ms ease;
+}
+.city-information-anchor[data-visible="true"]::after {
+  opacity: 1;
+}
+.city-information-anchor[data-in-frame="false"] {
+  visibility: hidden;
+  opacity: 0;
+}
+.city-information-anchor[data-fallback="true"] {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) !important;
+  visibility: visible;
+  opacity: 1;
+}
+.city-information-anchor[data-fallback="true"]::after {
+  display: none;
+}
+.city-information {
+  --accent: #a86640;
+  width: min(440px, calc(100vw - 40px));
+  max-height: min(560px, 66dvh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color-scheme: light;
+  color: #252c2c;
+  background: linear-gradient(130deg, #fffdf7, #f5eee2);
+  border: 1px solid #fffaf0;
+  border-top: 2px solid #b7825a;
+  border-radius: 7px;
+  box-shadow: 0 14px 48px #17262233, 0 2px 7px #1726221a;
+  text-shadow: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(15px) scale(0.98);
+  transform-origin: bottom center;
+  transition: opacity 500ms ease, transform 500ms cubic-bezier(0.22, 1, 0.36, 1), visibility 500ms;
+  pointer-events: none;
+}
+.city-information-anchor[data-visible="true"] .city-information {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+.city-information-heading {
+  position: relative;
+  flex-shrink: 0;
+  padding: 21px 26px 18px;
+  border-bottom: 1px solid #4334231c;
+}
+.city-information-heading > p {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 30px 11px 0;
+  color: #7a6a58;
+  font: 8px/1.4 var(--mono);
+  letter-spacing: 1.3px;
+}
+.city-information-heading > p > span {
+  color: #a3653d;
+  border-right: 1px solid #b28c6d66;
+  padding-right: 10px;
+}
+.city-information-heading > h2 {
+  margin: 0;
+  font: 500 25px/1.25 "Iowan Old Style", "Songti SC", "STSong", Georgia, serif;
+  letter-spacing: 0.3px;
+}
+.city-information-close {
+  position: absolute;
+  top: 16px;
+  right: 15px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  color: #6d6256;
+  border: 1px solid #7b66501f;
+  border-radius: 50%;
+  transition: background 180ms, color 180ms;
+}
+.city-information-close:hover {
+  color: #282722;
+  background: #dfcfbb6b;
+}
+.city-information-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #b8a087 transparent;
+  padding: 20px 26px 23px;
+}
+.city-information .city-builder-intro {
+  font-size: 16px;
+  line-height: 1.6;
+  font-weight: 500;
+  margin: 0 0 9px;
+}
+.city-information .city-builder-description {
+  color: #71695e;
+  font-size: 12px;
+  line-height: 1.9;
+  margin: 0;
+}
+.city-information .city-builder-profile {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 19px;
+  padding: 19px 0 17px;
+  margin-top: 17px;
+  border-top: 1px solid #4334231c;
+}
+.city-information .city-builder-profile h3 {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+.city-information .city-builder-profile p {
+  font-size: 11px;
+  line-height: 1.8;
+  color: #71695e;
+  margin: 0;
+}
+.city-information .city-builder-interests {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 14px;
+  color: #8c5b3c;
+  font-size: 10px;
+}
+.city-information .city-builder-interests > span::before {
+  content: "+";
+  margin-right: 5px;
+  color: #bd926d;
+}
+.city-information .city-builder-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 0 0;
+  margin-top: 19px;
+  border-top: 1px solid #4334231c;
+  font-size: 12px;
+}
+.city-information .city-builder-link > span {
+  flex: 1;
+}
+.city-information .city-builder-link small {
+  display: block;
+  color: #928270;
+  font: 8px var(--mono);
+  margin-top: 4px;
+}
+.city-information .city-builder-link:hover {
+  color: #9f5f36;
+}
+.city-information .city-builder-link + .city-builder-link {
+  margin-top: 0;
+  border-top: 0;
+  padding-top: 14px;
+}
+.city-information .community-grid {
+  padding: 0;
+}
+.city-information .section-kicker,
+.city-information .community-heading h2 {
+  display: none;
+}
+.city-information .community-heading p {
+  color: #71695e;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.city-information .journal-label {
+  color: #977653;
+  margin: 16px 0 9px;
+  font-size: 8px;
+  letter-spacing: 0.7px;
+}
+.city-information .journal-entry {
+  gap: 13px;
+  padding: 17px 0;
+  border-color: #4334231c;
+}
+.city-information .journal-number,
+.city-information .journal-entry-copy small,
+.city-information .journal-entry > svg {
+  color: #a3653d;
+}
+.city-information .journal-entry-copy h3 {
+  font-size: 14px;
+  line-height: 1.4;
+  margin: 5px 0 6px;
+}
+.city-information .journal-entry-copy p {
+  color: #71695e;
+  font-size: 11px;
+  line-height: 1.75;
+}
+.city-information .journal-entry:hover {
+  color: #9f5f36;
+}
+.city-information .button {
+  color: #fffaf2;
+  background: #343d3c;
+  border-color: #343d3c;
+  border-radius: 3px;
+  font-size: 11px;
+  padding: 10px 13px;
+}
+.city-information .button:hover {
+  background: #4d5551;
+}
+.city-information .guestbook-note {
+  background: #fffdf688;
+  border-color: #bea48b66;
+  padding: 14px 16px;
+  margin: 17px 0 18px;
+}
+.city-information .guestbook-note-label,
+.city-information .guestbook-note > footer,
+.city-information .guestbook-stamp {
+  color: #9b7657;
+}
+.city-information .guestbook-stamp {
+  border-color: #b18e7170;
+}
+.city-information .guestbook-note > p {
+  color: #4e4a43;
+  font: 13px/1.85 "Iowan Old Style", "Songti SC", "STSong", Georgia, serif;
+  margin: 15px 0;
+}
+.city-information .guestbook-note > footer {
+  font-size: 10px;
+}
+.city-information .guestbook-note > footer > small {
+  font-size: 7px;
+}
+.city-information .guestbook-form {
+  margin-top: 16px;
+  gap: 7px;
+}
+.city-information .field-row {
+  color: #5e554b;
+  font-size: 11px;
+}
+.city-information .field-row > span {
+  color: #9c8a76;
+}
+.city-information .guestbook-form input,
+.city-information .guestbook-form textarea {
+  color: #2c3533;
+  background: #fffdf7;
+  border-color: #ad96804d;
+  padding: 9px 11px;
+  font-size: 12px;
+}
+.city-information .guestbook-form input::placeholder,
+.city-information .guestbook-form textarea::placeholder {
+  color: #a59683;
+}
+.city-information .guestbook-form textarea {
+  min-height: 78px;
+}
+.city-information .guestbook-actions {
+  gap: 14px;
+  align-items: flex-start;
+}
+.city-information .form-note {
+  color: #8b7b67;
+  font-size: 9px;
+}
+.city-information .form-status {
+  color: #546653;
+}
+.city-information .form-status[data-error="true"] {
+  color: #a3442d;
+}
+.has-city-information :is(.city-title, .neighborhood-tour, .live-scenes-panel, .map-corner, .view-switch, .camera-tools, .help-panel, .gesture-hint) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 250ms ease, visibility 250ms;
+}
+@media (max-width: 760px) {
+  .live-scenes-panel {
+    display: none;
+  }
+  .city-information {
+    width: min(390px, calc(100vw - 28px));
+    max-height: min(390px, 46dvh);
+  }
+  .city-information-heading {
+    padding: 17px 20px 14px;
+  }
+  .city-information-heading > p {
+    font-size: 7px;
+    letter-spacing: 0.8px;
+    margin-bottom: 9px;
+  }
+  .city-information-heading > h2 {
+    font-size: 23px;
+  }
+  .city-information-body {
+    padding: 17px 20px 20px;
+  }
+  /* 覆盖信息卡内的输入框字号与内距（选择器需与卡片内规则同权重）。 */
+  .city-information .guestbook-form input,
+  .city-information .guestbook-form textarea {
+    font-size: 16px;
+    padding: 12px 13px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

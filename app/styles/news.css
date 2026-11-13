@@ -1,0 +1,314 @@
+/* Daily news (News component) + final phone overrides. Split from app/globals.css; keep import order (see app/globals.css). */
+/* ==================== 城市日报: 每日新闻(News组件) ====================
+   基础样式面向深色墨绿主题；嵌入 city-information 纸质信息卡时通过
+   局部变量切换为暖纸配色，结构与间距保持一套。 */
+.content-section {
+  --news-ink: var(--ink);
+  --news-muted: var(--muted);
+  --news-line: var(--line);
+  --news-surface: #ffffff0a;
+  --news-accent: var(--accent);
+  margin: 0 0 24px;
+}
+.city-information .content-section {
+  --news-ink: #2c3533;
+  --news-muted: #71695e;
+  --news-line: #4334231f;
+  --news-surface: #fffdf6;
+  --news-accent: #a3653d;
+}
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 0 0 13px;
+}
+.section-heading h2 {
+  margin: 0 0 5px;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  color: var(--news-ink);
+}
+.section-heading p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--news-muted);
+}
+.section-heading > span {
+  flex-shrink: 0;
+  margin-top: 3px;
+  font: 8px var(--mono);
+  letter-spacing: 1.2px;
+  color: var(--news-accent);
+  opacity: 0.75;
+}
+.news-inner {
+  display: flex;
+  flex-direction: column;
+}
+.news-categories {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.news-categories::-webkit-scrollbar {
+  display: none;
+}
+.news-cat-btn {
+  flex-shrink: 0;
+  padding: 6px 11px;
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  color: var(--news-muted);
+  background: transparent;
+  border: 1px solid var(--news-line);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: color 0.16s, border-color 0.16s, background 0.16s;
+}
+.news-cat-btn:hover {
+  color: var(--news-ink);
+  border-color: color-mix(in srgb, var(--news-accent) 45%, transparent);
+}
+.news-cat-btn:active {
+  background: color-mix(in srgb, var(--news-accent) 10%, transparent);
+}
+.news-cat-btn.active {
+  background: var(--news-accent);
+  border-color: var(--news-accent);
+  color: #172623;
+  font-weight: 600;
+}
+.city-information .news-cat-btn.active {
+  /* 纸质卡上的选中态沿用卡内按钮的墨色，与暖底拉开对比。 */
+  background: #343d3c;
+  border-color: #343d3c;
+  color: #fffaf2;
+}
+.news-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.news-card {
+  padding: 11px 13px 12px;
+  background: var(--news-surface);
+  border: 1px solid var(--news-line);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: border-color 0.16s, background 0.16s;
+}
+.news-card:hover {
+  border-color: color-mix(in srgb, var(--news-accent) 45%, transparent);
+}
+.news-card:focus-visible {
+  outline: 2px solid var(--news-accent);
+  outline-offset: 2px;
+}
+.news-card:active {
+  background: color-mix(in srgb, var(--news-accent) 7%, var(--news-surface));
+}
+.news-card.is-expanded {
+  border-color: color-mix(in srgb, var(--news-accent) 55%, transparent);
+  background: color-mix(in srgb, var(--news-accent) 6%, var(--news-surface));
+}
+.news-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+.news-badge {
+  font: 8px var(--mono);
+  letter-spacing: 0.8px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  color: var(--news-accent);
+  background: color-mix(in srgb, var(--news-accent) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--news-accent) 32%, transparent);
+  white-space: nowrap;
+}
+.news-time {
+  font: 9px var(--mono);
+  letter-spacing: 0.4px;
+  color: var(--news-muted);
+  white-space: nowrap;
+}
+.news-card-title {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  margin: 0 0 5px;
+  color: var(--news-ink);
+}
+.news-card-content {
+  font-size: 11px;
+  line-height: 1.75;
+  color: var(--news-muted);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+/* 折叠态按行数截断，中英文长度自适应，替代按字符数硬切。 */
+.news-card:not(.is-expanded) .news-card-content {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.news-expand-hint {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 7px;
+  font: 9px var(--mono);
+  letter-spacing: 0.8px;
+  color: var(--news-accent);
+}
+.news-expand-hint::after {
+  content: "▾";
+  margin-left: 4px;
+  font-size: 8px;
+}
+.news-card.is-expanded .news-expand-hint::after {
+  display: inline-block;
+  transform: rotate(180deg);
+}
+.news-card.is-skeleton {
+  pointer-events: none;
+}
+.skeleton-row {
+  height: 10px;
+  border-radius: 2px;
+  margin: 8px 0;
+  background: linear-gradient(
+    90deg,
+    var(--news-line),
+    color-mix(in srgb, var(--news-accent) 16%, var(--news-line)),
+    var(--news-line)
+  );
+  background-size: 200% 100%;
+  animation: news-shimmer 1.4s infinite ease;
+}
+.skeleton-row.skeleton-tag {
+  width: 30%;
+  height: 8px;
+  margin-bottom: 11px;
+}
+@keyframes news-shimmer {
+  50% {
+    background-position: -100% 0;
+  }
+}
+.news-empty {
+  padding: 22px 14px;
+  text-align: center;
+  color: var(--news-muted);
+  font-size: 11px;
+  line-height: 1.8;
+  border: 1px dashed var(--news-line);
+  border-radius: 5px;
+}
+.news-empty p {
+  margin: 0 0 11px;
+}
+.news-retry {
+  padding: 8px 16px;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: var(--news-accent);
+  border: 1px solid color-mix(in srgb, var(--news-accent) 45%, transparent);
+  border-radius: 3px;
+  transition: background 0.16s;
+}
+.news-retry:hover {
+  background: color-mix(in srgb, var(--news-accent) 12%, transparent);
+}
+.news-retry:active {
+  background: color-mix(in srgb, var(--news-accent) 20%, transparent);
+}
+.news-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px solid var(--news-line);
+}
+.news-page-btn {
+  min-width: 34px;
+  height: 30px;
+  padding: 0 10px;
+  display: grid;
+  place-items: center;
+  color: var(--news-ink);
+  border: 1px solid var(--news-line);
+  border-radius: 3px;
+  font-size: 11px;
+  transition: color 0.16s, border-color 0.16s;
+}
+.news-page-btn:hover:not(:disabled) {
+  color: var(--news-accent);
+  border-color: color-mix(in srgb, var(--news-accent) 45%, transparent);
+}
+.news-page-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.news-page-info {
+  font: 9px var(--mono);
+  letter-spacing: 1px;
+  color: var(--news-muted);
+}
+
+/* ==================== 手机(≤760px)适配 ====================
+   置于文件末尾，确保覆盖上方同权重的桌面规则。 */
+@media (max-width: 760px) {
+  .city-information-close {
+    width: 36px;
+    height: 36px;
+  }
+  .content-section {
+    margin-bottom: 20px;
+  }
+  .news-cat-btn {
+    padding: 9px 13px;
+    font-size: 11px;
+  }
+  .news-card {
+    padding: 12px 13px 13px;
+  }
+  .news-card-title {
+    font-size: 13.5px;
+  }
+  .news-card-content {
+    font-size: 12px;
+  }
+  .news-page-btn {
+    min-width: 44px;
+    height: 38px;
+  }
+  .news-retry {
+    min-height: 40px;
+    padding: 8px 20px;
+  }
+  .live-scenes-panel.skylines-console {
+    bottom: 140px;
+    left: 14px;
+    right: 54px;
+    width: auto;
+    max-height: min(57dvh, 390px);
+    padding: 8px 9px;
+  }
+  .live-scenes-panel.skylines-console.is-collapsed {
+    right: auto;
+    width: max-content;
+    max-height: 42px;
+    padding: 0;
+  }
+}

@@ -1,8 +1,18 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+// Global CSS, in cascade order (later files override same-specificity rules in earlier ones).
+// tokens → base → HUD → panels → tower rig → map/dock → community → responsive → info card → news → landmarks.
 import "./styles/tokens.css";
-import "./globals.css";
+import "./styles/base.css";
+import "./styles/hud.css";
+import "./styles/panels.css";
+import "./styles/tower-rig.css";
+import "./styles/map-dock.css";
+import "./styles/community.css";
+import "./styles/responsive.css";
+import "./styles/city-information.css";
+import "./styles/news.css";
 import "./landmarks.css";
 
 export const metadata: Metadata = {
