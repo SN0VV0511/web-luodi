@@ -226,12 +226,17 @@ export const officeTenants: Partial<Record<`slot-${number}`, Omit<CityPlace, "id
 ```text
 web-luodi/
 ├── app/                       # Next.js App Router 布局与样式
-│   ├── globals.css            # 全局响应式排版与空间 HUD 样式
+│   ├── styles/                # 全局样式（按 layout.tsx 中的顺序层叠）
+│   │   ├── tokens.css         # 语义设计令牌：颜色 / 字号下限 / 间距 / 触控尺寸
+│   │   ├── hud.css …          # base · hud · panels · tower-rig · map-dock · community · responsive · city-information · news
+│   │   └── hud-mobile.css     # 手机 HUD：12px 字号下限、底栏 5 格 + 更多面板
+│   ├── not-found.tsx          # 品牌 404 页
 │   └── landmarks.css          # 建筑漫游非模态导览抽屉样式
 ├── components/                # React 交互组件
 │   ├── city-scene.tsx         # Three.js 主画布、渲染循环、相机飞行与交互
 │   ├── landing-page.tsx       # 页面外壳、控制工具栏、小地图与目录
 │   └── building-experience-panel.tsx # 建筑机构导览分步控制台
+├── design-system/             # UI UX Pro Max 生成的设计系统 + 项目决策（MASTER.md）
 ├── lib/                       # 核心业务与 3D 过程式构建系统
 │   ├── city-content.ts        # 楼宇租户、元数据统一配置源
 │   ├── city-world.ts          # 城市主地形、道路网络与楼群生成
