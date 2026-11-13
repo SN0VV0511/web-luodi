@@ -1,0 +1,73 @@
+/* SN0VV CITY semantic design tokens.
+   Source of truth: design-system/sn0vv-city/MASTER.md ("Project decisions").
+   Navy + gold identity, glass HUD panels, system font stacks only (no web-font download). */
+:root {
+  /* Color: surfaces */
+  --color-bg: #102030;
+  --color-surface: #0c1624e8;          /* glass HUD panel */
+  --color-surface-strong: #0a1320f5;   /* sheets, menus over busy scene */
+  --color-surface-raised: #ffffff0f;   /* chips/buttons on glass */
+  --color-surface-hover: #ffffff1a;
+  --color-border: #ffffff1f;
+  --color-border-strong: #ffffff38;
+  /* Color: content */
+  --color-fg: #f4f7fb;
+  --color-fg-muted: #a6b8ca;           /* 8.9:1 on --color-surface */
+  --color-fg-subtle: #8fa3b8;          /* 7.0:1 on --color-surface, captions only */
+  /* Color: brand + state */
+  --color-gold: #f0c372;               /* primary brand / active state */
+  --color-on-gold: #0e1b2a;
+  --color-accent: #72c2e8;             /* links, focus on dark */
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-danger: #ff6b5e;
+  --color-focus: #f0c372;
+
+  /* Type */
+  --font-sans: "Avenir Next", "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: "SFMono-Regular", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, "Liberation Mono", monospace;
+  --font-serif: Georgia, "Songti SC", "Noto Serif SC", serif;
+  --text-2xs: 11px;  /* desktop-only micro caps (letter-spaced kickers); mobile floors to --text-xs */
+  --text-xs: 12px;   /* minimum on phones */
+  --text-sm: 13px;
+  --text-base: 14px; /* HUD body copy */
+  --text-md: 16px;   /* inputs (prevents iOS zoom), reading copy */
+  --text-lg: 20px;
+  --text-xl: 24px;
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.75;
+
+  /* Shape, space, elevation */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --shadow-panel: 0 18px 48px #02060c66, inset 0 1px 0 #ffffff14;
+  --blur-glass: 16px;
+
+  /* Interaction */
+  --tap-min: 24px;   /* WCAG 2.2 AA target size */
+  --tap: 44px;       /* primary touch controls */
+  --focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-focus);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 150ms;
+  --dur-base: 220ms;
+  --dur-slow: 320ms;
+
+  /* Legacy aliases (pre-token names still used across the HUD CSS). */
+  --ink: var(--color-fg);
+  --muted: var(--color-fg-muted);
+  --line: var(--color-border);
+  --accent: var(--color-accent);
+  --gold: var(--color-gold);
+  --glass: var(--color-surface);
+  --body: var(--font-sans);
+  --mono: var(--font-mono);
+}

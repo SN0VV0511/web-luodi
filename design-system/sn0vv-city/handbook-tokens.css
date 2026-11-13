@@ -1,0 +1,47 @@
+/* SN0VV handbook tokens · source: design-system/sn0vv-city/handbook-tokens.css
+   Shared by the standalone long-form pages (Biglink, LoRA, tower floors).
+   System font stacks only: no web-font download, CJK falls back to the OS face. */
+:root {
+  --hb-font-sans: "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --hb-font-serif: "Songti SC", "Noto Serif SC", "Source Han Serif SC", STSong, "Times New Roman", serif;
+  --hb-font-mono: "JetBrains Mono", "SFMono-Regular", "Cascadia Code", Menlo, Consolas, "Liberation Mono", monospace;
+  --hb-text-xs: 12px;   /* hard floor: labels, badges, captions */
+  --hb-text-sm: 13.5px; /* meta, table cells */
+  --hb-text-base: 16px; /* body copy */
+  --hb-text-lg: 18px;
+  --hb-leading: 1.75;
+  --hb-leading-tight: 1.3;
+  --hb-measure: 72ch;
+  --hb-radius: 12px;
+  --hb-tap-min: 24px;   /* WCAG 2.2 target size (minimum) */
+  --hb-tap: 44px;       /* primary controls */
+  --hb-focus-color: #f0c372; /* SN0VV gold */
+  --hb-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --hb-dur: 200ms;
+}
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+h1, h2, h3, h4 { text-wrap: balance; }
+p, li, dd, blockquote { text-wrap: pretty; }
+:where(a, button, summary, select, input, textarea, [role="button"], [tabindex]):focus-visible {
+  outline: 2px solid var(--hb-focus-color);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+:where(button, summary, select, [role="button"]) { min-height: var(--hb-tap-min); }
+img, video, canvas { max-width: 100%; height: auto; }
+pre { max-width: 100%; overflow-x: auto; }
+@media (max-width: 860px) {
+  /* Wide tables scroll inside their own box instead of widening the page. */
+  table { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+input[type="range"] { min-height: 28px; accent-color: currentColor; }
+input[type="checkbox"], input[type="radio"] { width: 18px; height: 18px; vertical-align: -3px; }
+label:has(> input[type="checkbox"], > input[type="radio"]) { display: inline-flex; align-items: center; gap: 6px; min-height: var(--hb-tap-min); cursor: pointer; }

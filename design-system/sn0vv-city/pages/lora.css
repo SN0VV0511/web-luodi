@@ -1,0 +1,19 @@
+/* LoRA page layer: keep the paper/green identity, map onto handbook tokens. */
+body { font-family: var(--hb-font-sans); }
+.code-pre, .lx-formula, .lx-narr .code, .lx-wrap code, .lx-mat span, .lx-big, .lx-out b, .lx-out small, .lx-tok small { font-family: var(--hb-font-mono); }
+.lx-out small { color: #7fa9a1; }                    /* was #5f8a83 on #03100f */
+/* Inline term buttons stay inline in the prose, but their hit area grows to >=24px tall. */
+.term-link::after { content: ""; position: absolute; inset: -5px -3px; }
+.formula-inline .term-link, .formula-expression .term-link, .formula-number .term-link, .formula-matrices .term-link { display: inline-block; min-width: 24px; text-align: center; }
+summary { min-height: var(--hb-tap); display: flex; align-items: center; cursor: pointer; }
+.quiet-button, .mode-button, .lx-btn, .formula-controls button, .term-related button, .term-back, .term-close,
+.buttons > button, .stage-controls button, .training-controls button, .code-actions button, .tensor-buttons button, .proof-buttons button { min-height: 36px; }
+.formula-timeline button { width: 36px; height: 36px; }
+.chapter { min-height: var(--hb-tap); }
+.lesson-route a { min-height: 36px; display: inline-flex; align-items: center; }
+@media (max-width: 760px) {
+  .quiet-button, .mode-button, .lx-btn, .buttons > button, .stage-controls button, .training-controls button,
+  .formula-controls button, .code-actions button, .tensor-buttons button, .proof-buttons button, .lesson-route a { min-height: var(--hb-tap); }
+  .topbar .eyebrow { letter-spacing: 0.6px; }
+  .intro { font-size: 15px; line-height: var(--hb-leading); }
+}

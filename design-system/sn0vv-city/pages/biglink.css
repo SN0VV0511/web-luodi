@@ -1,0 +1,25 @@
+/* Biglink page layer: keep the dark teal identity, map it onto handbook tokens. */
+:root { --sans: var(--hb-font-sans); --mono: var(--hb-font-mono); --mut: #7fa9a1; }
+html { line-height: var(--hb-leading); }
+.main p, .main li, details.qa .a { line-height: var(--hb-leading); }
+.main > section > p, .main > header p { max-width: var(--hb-measure); }
+h1 { line-height: var(--hb-leading-tight); }
+.btn { min-height: 36px; padding-inline: 14px; transition: background var(--hb-dur) var(--hb-ease), border-color var(--hb-dur) var(--hb-ease); }
+.side a { min-height: 36px; align-items: center; }
+details.qa > summary { min-height: var(--hb-tap); display: flex; align-items: center; }
+.stat b { overflow-wrap: anywhere; }
+@media (max-width: 860px) {
+  h1 { font-size: 26px; }
+  h2 { font-size: 22px; }
+  .main { padding-inline: 16px; }
+  .btn { min-height: var(--hb-tap); }
+  .stat b { font-size: 21px; }
+  .scenes, .ctrl { flex-wrap: wrap; }
+  svg { max-width: 100%; height: auto; }
+}
+@media (max-width: 860px) {
+  /* Inline desktop column templates (e.g. 1.5fr 1fr) must collapse on phones too. */
+  [class^="grid"][style*="grid-template-columns"], [class*=" grid"][style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+}
+/* Grid/flex children may shrink below their longest code line; the <pre> scrolls instead. */
+.grid2 > *, .grid3 > *, .calc > *, .mech > *, .narr > * { min-width: 0; }
