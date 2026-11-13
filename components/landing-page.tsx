@@ -44,6 +44,7 @@ import {
   Volume2,
   Gauge,
   VolumeX,
+  SlidersHorizontal,
 } from "lucide-react";
 import { cityBuildings, safeAppUrl, type CityPlace, type PlaceId } from "@/lib/city-content";
 import {
@@ -110,6 +111,10 @@ export function LandingPage(): ReactNode {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [helpOpen, setHelpOpen] = useState(false);
+  // 手机底栏只放 5 个入口，场景开关收进“更多”面板。
+  const [dockMoreOpen, setDockMoreOpen] = useState(false);
+  const dockRef = useRef<HTMLElement>(null);
+  const dockMoreRef = useRef<HTMLButtonElement>(null);
   const [focusPoint, setFocusPoint] = useState<{ x: number; z: number; distance?: number; height?: number }>();
   const [activeFloorIndex, setActiveFloorIndex] = useState(0);
   const [experienceChapter, setExperienceChapter] = useState(0);
@@ -279,6 +284,25 @@ export function LandingPage(): ReactNode {
     setPanel(id === "news" || id === "guestbook" || id === "about" ? id : null);
     // 选楼只进入空间探索；真实应用链接由导览中的原生链接显式打开。
   }, [clearElevatorTimers]);
+  useEffect(() => {
+    if (!dockMoreOpen) return;
+    function onKey(event: KeyboardEvent): void {
+      if (event.key !== "Escape") return;
+      setDockMoreOpen(false);
+      dockMoreRef.current?.focus({ preventScroll: true });
+    }
+    function onPointer(event: PointerEvent): void {
+      if (event.target instanceof Node && dockRef.current?.contains(event.target)) return;
+      setDockMoreOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("pointerdown", onPointer, true);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pointerdown", onPointer, true);
+    };
+  }, [dockMoreOpen]);
+
   function closeBuilding(): void {
     clearElevatorTimers();
     setSelected(null);
@@ -387,7 +411,7 @@ export function LandingPage(): ReactNode {
       </div>
       <div className="world-vignette" aria-hidden="true" />
 
-      <header className="world-header">
+      <header className="world-header" data-hud-zone="">
         <button
           className="city-brand"
           type="button"
@@ -442,6 +466,7 @@ export function LandingPage(): ReactNode {
 
       <section
         className="city-title"
+        data-hud-zone=""
         aria-label={t("当前街区", "Current district")}
       >
         <p>
@@ -456,7 +481,7 @@ export function LandingPage(): ReactNode {
         </span>
       </section>
 
-      <nav className="neighborhood-tour" aria-label={t("漫步街区", "Explore neighborhoods")}>
+      <nav className="neighborhood-tour" data-hud-zone="" aria-label={t("漫步街区", "Explore neighborhoods")}>
         <span>{t("去走走", "TAKE A WALK")}</span>
         {[
           { name: t("西岸老城", "West town"), x: -142.5, z: -2.5, distance: 150, height: 7 },
@@ -496,6 +521,7 @@ export function LandingPage(): ReactNode {
 
       <div
         className="view-switch"
+        data-hud-zone=""
         role="group"
         aria-label={t("相机视角", "Camera view")}
       >
@@ -533,6 +559,7 @@ export function LandingPage(): ReactNode {
 
       <div
         className="camera-tools"
+        data-hud-zone=""
         role="group"
         aria-label={t("地图工具", "Map tools")}
       >
@@ -1194,7 +1221,7 @@ export function LandingPage(): ReactNode {
         </aside>
       )}
 
-      <div className="map-corner">
+      <div className="map-corner" data-hud-zone="">
         <div className="minimap-topline">
           <span>
             <Navigation size={10} /> N
@@ -1307,8 +1334,8 @@ export function LandingPage(): ReactNode {
         </button>
       </div>
 
-      <footer className="city-dock">
-        <div className="dock-navigation">
+      <footer ref={dockRef} className={`city-dock${dockMoreOpen ? " is-more-open" : ""}`} data-hud-zone="">
+        <div className="dock-navigation" onClick={() => setDockMoreOpen(false)}>
           <button
             type="button"
             aria-label={t("城市总览", "City overview")}
@@ -1336,8 +1363,25 @@ export function LandingPage(): ReactNode {
             <span>{t("留言", "Guestbook")}</span>
           </button>
         </div>
+        <button
+          ref={dockMoreRef}
+          type="button"
+          className="dock-more"
+          aria-expanded={dockMoreOpen}
+          aria-controls="dock-scene-controls"
+          aria-label={t("更多场景设置", "More scene settings")}
+          onClick={() => setDockMoreOpen((value) => !value)}
+        >
+          <SlidersHorizontal size={20} aria-hidden="true" />
+          <span>{t("更多", "More")}</span>
+        </button>
         <span className="dock-divider" />
-        <div className="dock-scene-controls">
+        <div
+          id="dock-scene-controls"
+          className="dock-scene-controls"
+          role="group"
+          aria-label={t("场景设置", "Scene settings")}
+        >
           <button
             type="button"
             aria-label={
@@ -1427,6 +1471,7 @@ export function LandingPage(): ReactNode {
             onClick={() => setPaused((value) => !value)}
           >
             {paused ? <Play size={17} /> : <Pause size={17} />}
+            <span className="dock-sheet-label">{paused ? t("播放", "Play") : t("暂停", "Pause")}</span>
           </button>
         </div>
         <div className="dock-city-state">

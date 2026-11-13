@@ -416,6 +416,24 @@ export default function CityScene(props: CitySceneProps) {
     let referenceDistance = 450;
     let lastReportedZoom = 1;
     let lastOcclusionCheck = -Infinity;
+    // 楼牌避让 HUD：标题、街区按钮、视角切换、底栏等区域（data-hud-zone）内不显示楼牌。
+    // 区域矩形按 500ms 缓存，只在 projectLabels 开头集中读取，不在逐帧写入后再读布局。
+    let hudZones: { left: number; top: number; right: number; bottom: number }[] = [];
+    let hudZonesAt = -Infinity;
+    function readHudZones(now: number) {
+      if (now - hudZonesAt < 500 || !container) return;
+      hudZonesAt = now;
+      const origin = container.getBoundingClientRect();
+      const root = container.closest(".metropolis") ?? document;
+      hudZones = [];
+      for (const zone of root.querySelectorAll<HTMLElement>("[data-hud-zone]")) {
+        const rect = zone.getBoundingClientRect();
+        if (rect.width < 1 || rect.height < 1) continue;
+        const style = getComputedStyle(zone);
+        if (style.visibility === "hidden" || Number(style.opacity) < 0.05) continue;
+        hudZones.push({ left: rect.left - origin.left, top: rect.top - origin.top, right: rect.right - origin.left, bottom: rect.bottom - origin.top });
+      }
+    }
     let labelsDirty = true;
     let lastHoverCheck = 0;
     let lastControlChange = -Infinity;
@@ -668,6 +686,8 @@ export default function CityScene(props: CitySceneProps) {
         Number(b === current.current.selected || b === hovered) - Number(a === current.current.selected || a === hovered));
       // 先集中读取尺寸，避免逐个写入 transform 后反复触发布局计算。
       const labelWidths = new Map([...labelsRef.current].map(([id, element]) => [id, Math.max(88, element.offsetWidth)]));
+      const labelHeights = new Map([...labelsRef.current].map(([id, element]) => [id, Math.max(24, element.offsetHeight)]));
+      readHudZones(now);
       for (const [id, anchor] of labels) {
         const element = labelsRef.current.get(id);
         if (!element) continue;
@@ -688,6 +708,13 @@ export default function CityScene(props: CitySceneProps) {
         const labelWidth = labelWidths.get(id) ?? 88;
         if (show && !active && occupied.some((other) => Math.abs(y - other.y) < 39 && Math.abs(x - other.x) < (labelWidth + other.width) / 2 + 12))
           show = false;
+        if (show && !active) {
+          const labelHeight = labelHeights.get(id) ?? 30;
+          const left = x - labelWidth / 2 - 8, right = x + labelWidth / 2 + 8, top = y - labelHeight - 8, bottom = y + 14;
+          if (hudZones.some((zone) => left < zone.right && right > zone.left && top < zone.bottom && bottom > zone.top)) show = false;
+          // 半截露在屏幕外的楼牌读不全也点不准，直接淡出。
+          if (x - labelWidth / 2 < 0 || x + labelWidth / 2 > width) show = false;
+        }
         if (show) occupied.push({ x, y, width: labelWidth });
         element.style.visibility = show ? "visible" : "hidden";
         element.style.opacity = show ? "1" : "0";
@@ -909,6 +936,7 @@ export default function CityScene(props: CitySceneProps) {
       else if ((previousAspect < 0.8) !== (camera.aspect < 0.8) && !current.current.selected)
         cameraView(activeView);
       lastOcclusionCheck = -Infinity;
+      hudZonesAt = -Infinity;
       schedule();
     }
 

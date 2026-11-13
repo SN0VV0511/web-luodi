@@ -270,7 +270,7 @@ export function CitySkylinesHud({
   ];
 
   if (collapsed) return (
-    <aside className="live-scenes-panel skylines-console is-collapsed" aria-label={t("城市生活", "City life")}>
+    <aside className="live-scenes-panel skylines-console is-collapsed" data-hud-zone="" aria-label={t("城市生活", "City life")}>
       <button
         ref={foldButtonRef}
         type="button"
@@ -292,6 +292,7 @@ export function CitySkylinesHud({
       ref={expandedPanelRef}
       tabIndex={-1}
       className={`live-scenes-panel skylines-console${collapsed ? " is-collapsed" : ""}`}
+      data-hud-zone=""
       aria-label={t("城市生活与四季", "City life and seasons")}
       onKeyDown={(event) => {
         if (event.key === "Escape") { event.stopPropagation(); collapse(); }

@@ -1,0 +1,181 @@
+/* Phone HUD refresh (≤760px). Imported after news.css so it wins over earlier same-specificity rules.
+   Rules: 12px text floor (--fs-floor), 14px body copy, ≥44px primary touch targets,
+   bottom dock = 5 slots (总览 · 应用 · 新闻 · 留言 · 更多), scene controls in a 更多 sheet. */
+@media (max-width: 760px) {
+  /* Header */
+  .city-brand small {
+    display: none; /* decorative tagline; would overflow at a readable size */
+  }
+  .header-directory,
+  .locale-toggle {
+    min-width: var(--tap);
+    min-height: var(--tap);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .builder-avatar {
+    width: 36px;
+    height: 36px;
+    position: relative;
+  }
+  .builder-avatar::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
+  }
+
+  /* Hero + neighbourhood chips */
+  .city-title > p {
+    margin-bottom: var(--space-2);
+  }
+  .city-title > span {
+    display: block;
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: calc(100vw - 48px);
+  }
+  .neighborhood-tour {
+    top: 200px;
+  }
+  .neighborhood-tour > button {
+    min-height: 40px;
+    padding: 0 12px;
+    font-size: var(--text-xs);
+    gap: 6px;
+  }
+
+  /* Camera tools + view switch */
+  .camera-tools > button {
+    width: var(--tap);
+    height: var(--tap);
+  }
+  .view-switch {
+    bottom: 100px;
+  }
+  .view-switch > button {
+    min-height: 40px;
+    padding: 0 12px;
+    font-size: var(--text-xs);
+  }
+
+  /* 3D building labels */
+  .city-label {
+    min-height: 30px;
+    padding: 6px 10px;
+  }
+  .city-label-name {
+    font-size: var(--text-xs);
+  }
+
+  /* Bottom dock: 4 destinations + 更多 */
+  .city-dock {
+    height: auto;
+    min-height: 64px;
+    padding: 6px;
+    gap: 4px;
+    justify-content: stretch;
+    border-radius: var(--radius-lg);
+  }
+  .dock-navigation {
+    flex: 4 1 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 2px;
+  }
+  .dock-navigation > button,
+  .dock-more {
+    min-width: 0;
+    height: 52px;
+    gap: 4px;
+    font-size: var(--text-xs);
+    border-radius: var(--radius-md);
+  }
+  .dock-navigation > button svg,
+  .dock-more svg {
+    width: 20px;
+    height: 20px;
+  }
+  .dock-more {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #b4c8dc;
+    transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  }
+  .dock-more[aria-expanded="true"],
+  .dock-more:hover {
+    background: #f0c37224;
+    color: #f9e2b3;
+  }
+  .dock-divider {
+    display: none;
+  }
+  .dock-scene-controls {
+    display: none;
+  }
+  .city-dock.is-more-open .dock-scene-controls {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 8px);
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    padding: 10px;
+    background: var(--color-surface-strong);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-panel);
+    backdrop-filter: blur(var(--blur-glass));
+    animation: dock-sheet-in var(--dur-base) var(--ease-out);
+  }
+  .city-dock.is-more-open .dock-scene-controls > button {
+    min-width: 0;
+    height: 60px;
+    gap: 6px;
+    font-size: var(--text-xs);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-raised);
+  }
+  .city-dock.is-more-open .dock-scene-controls > button svg {
+    width: 20px;
+    height: 20px;
+  }
+  .city-dock.is-more-open .dock-scene-controls > button.dock-quality {
+    display: flex; /* the sheet has room for the quality toggle again */
+  }
+  .city-dock.is-more-open .dock-scene-controls > button.dock-quality > b {
+    top: 6px;
+    right: 8px;
+    min-width: 16px;
+    height: 16px;
+    line-height: 16px;
+    border-radius: 8px;
+  }
+  .dock-sheet-label {
+    display: inline;
+  }
+
+  /* Reading copy inside panels and the in-world card: 14px body */
+  .place-description,
+  .community-heading p,
+  .journal-entry-copy p,
+  .guestbook-note > p,
+  .news-card-content,
+  .city-information-body p {
+    font-size: var(--text-base);
+    line-height: 1.7;
+  }
+}
+@keyframes dock-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}

@@ -9,7 +9,7 @@
   border: 1px solid #c8e0f838;
   border-radius: 7px;
   overflow: hidden;
-  box-shadow: 0 12px 32px #050d1766, inset 0 1px 0 #ffffff1f;
+  box-shadow: 0 12px 32px #050d1766, inset 0 1px 0 var(--color-border);
   backdrop-filter: blur(16px);
 }
 .minimap-topline {
@@ -17,7 +17,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font: 6.5px var(--mono);
+  font: max(var(--fs-floor), 6.5px) var(--mono);
   letter-spacing: 1.1px;
   padding: 0 10px;
   color: #dce8f5;
@@ -62,7 +62,7 @@
   left: 0;
   right: 0;
   background: linear-gradient(180deg, transparent, #081422eb 35%);
-  font: 6px var(--mono);
+  font: max(var(--fs-floor), 6px) var(--mono);
   letter-spacing: 0.9px;
   padding: 9px 6px 5px;
   text-align: center;
@@ -85,7 +85,7 @@
   border-radius: 10px;
   box-shadow:
     0 16px 52px #040b1485,
-    0 1px 0 #ffffff1f inset;
+    0 1px 0 var(--color-border) inset;
   backdrop-filter: blur(26px);
 }
 .dock-navigation {
@@ -103,7 +103,7 @@
   height: 53px;
   border-radius: 6px;
   color: #b4c8dc;
-  font-size: 9px;
+  font-size: max(var(--fs-floor), 9px);
   position: relative;
   transition: background 0.16s ease, color 0.16s ease;
 }
@@ -124,7 +124,7 @@
   bottom: 2px;
   height: 2px;
   border-radius: 2px;
-  background: #f0c372;
+  background: var(--color-gold);
   box-shadow: 0 0 8px #f0c37299;
 }
 .dock-divider {
@@ -145,7 +145,7 @@
   justify-content: center;
   align-items: center;
   gap: 6px;
-  font-size: 8px;
+  font-size: max(var(--fs-floor), 8px);
   color: #bcd0e4;
   border-radius: 5px;
 }
@@ -158,7 +158,7 @@
   background: #f0c37238;
 }
 .dock-scene-controls > button:first-child > svg {
-  color: #f0c372;
+  color: var(--color-gold);
 }
 .dock-scene-controls > button.dock-quality {
   position: relative;
@@ -174,11 +174,11 @@
   height: 12px;
   padding: 0 2px;
   border-radius: 6px;
-  font-size: 8px;
+  font-size: max(var(--fs-floor), 8px);
   line-height: 12px;
   font-weight: 600;
   color: #10202f;
-  background: #f0c372;
+  background: var(--color-gold);
 }
 /* 手机底栏本来就满了：小屏不放画质按钮，交给自动档（小屏默认中档并按帧耗时自适应）。 */
 @media (max-width: 760px) {
@@ -190,7 +190,7 @@
   color: #9fd3a8;
 }
 .dock-city-state {
-  min-width: 159px;
+  min-width: 190px;
   padding-left: 15px;
   border-left: 1px solid #c8e0f829;
 }
@@ -198,7 +198,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 7px;
+  font-size: max(var(--fs-floor), 7px);
   color: #a4bcd4;
   letter-spacing: 0.5px;
 }
@@ -218,7 +218,8 @@
   color: #f2f7fc;
 }
 .dock-city-state small {
-  font: 8px var(--body);
+  white-space: nowrap;
+  font: max(var(--fs-floor), 8px) var(--body);
   color: #9cb4cc;
   margin-right: 9px;
 }
@@ -235,7 +236,7 @@
   transform: translateX(-50%);
   z-index: 3;
   margin: 0;
-  font: 7px var(--mono);
+  font: max(var(--fs-floor), 7px) var(--mono);
   color: #d0dfcf;
   text-shadow: 0 1px 5px #10231f;
   letter-spacing: 1px;
@@ -246,7 +247,7 @@
   right: 28px;
   bottom: 7px;
   z-index: 3;
-  font: 7px var(--mono);
+  font: max(var(--fs-floor), 7px) var(--mono);
   letter-spacing: 0.8px;
   color: #c6d4c3;
   opacity: 0.66;
@@ -255,4 +256,9 @@
 .icp-record:hover {
   color: #e6f0da;
   opacity: 1;
+}
+/* 手机“更多”入口与面板标签：桌面底栏空间足够，全部开关直接显示。 */
+.dock-more,
+.dock-sheet-label {
+  display: none;
 }

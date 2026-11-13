@@ -164,6 +164,30 @@ describe("城市主页", () => {
     expect(screen.queryByRole("complementary", { name: "建筑详情" })).not.toBeInTheDocument();
   });
 
+  it("手机底栏“更多”展开场景设置，Escape 与外部点击收起并归还焦点", () => {
+    render(<LandingPage />);
+    const more = screen.getByRole("button", { name: "更多场景设置" });
+    const sheet = screen.getByRole("group", { name: "场景设置" });
+    expect(more).toHaveAttribute("aria-expanded", "false");
+    expect(more).toHaveAttribute("aria-controls", sheet.id);
+    expect(within(sheet).getByRole("button", { name: "暂停城市动画" })).toHaveTextContent("暂停");
+
+    fireEvent.click(more);
+    expect(more).toHaveAttribute("aria-expanded", "true");
+    expect(more.closest("footer")).toHaveClass("is-more-open");
+    // 场景开关在面板里仍然可用，且不会收起面板
+    fireEvent.click(within(sheet).getByRole("button", { name: "移轴微缩镜头" }));
+    expect(more).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(more).toHaveAttribute("aria-expanded", "false");
+    expect(more).toHaveFocus();
+
+    fireEvent.click(more);
+    fireEvent.pointerDown(document.body);
+    expect(more).toHaveAttribute("aria-expanded", "false");
+  });
+
   it("昼夜、暂停、楼牌和双向缩放保持一致，按钮限制缩放范围", () => {
     render(<LandingPage />);
     expect(sceneProps.mock.lastCall?.[0]).toMatchObject({
