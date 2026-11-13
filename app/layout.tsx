@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+import "./styles/tokens.css";
 import "./globals.css";
 import "./landmarks.css";
 

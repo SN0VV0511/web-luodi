@@ -1,12 +1,5 @@
 :root {
-  --ink: #f4f7fb;
-  --muted: #a6b8ca;
-  --line: #ffffff1f;
-  --accent: #72c2e8;
-  --gold: #f0c372;
-  --glass: #0c1624e8;
-  --body: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
-  --mono: "SFMono-Regular", Consolas, monospace;
+  /* Colour, type and spacing tokens live in app/styles/tokens.css (imported first). */
   color-scheme: dark;
 }
 * {
