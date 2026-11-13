@@ -38,3 +38,11 @@ public domain (CC0) or MIT; attribution is recorded here for provenance (and req
 
 All shipped model data totals ~580 KB (meshopt-compressed geometry + 512 px WebP). The files are fetched only after the scene is ready; if they fail to load, residents, cars and trees fall back to the
 procedural versions.
+
+## UI tooling and fonts (UI refresh, 2026-11-13)
+
+| Item | Used for | Source | License | Shipped files |
+| --- | --- | --- | --- | --- |
+| NextLevelBuilder — *UI UX Pro Max* skill v2.15.0 (design-system generator + guideline data) | Generated `design-system/sn0vv-city/MASTER.md` and `pages/handbook.md` (reference text only; nothing from the tool runs on the site) | https://github.com/nextlevelbuilder/ui-ux-pro-max-skill | [MIT](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill/blob/main/LICENSE) — Copyright (c) 2024 Next Level Builder | none |
+| Fonts | HUD, 404 and handbook pages | Operating-system font stacks only (Avenir Next / PingFang SC / HarmonyOS Sans SC / Noto Sans SC / Microsoft YaHei; SFMono / JetBrains Mono / Consolas — whichever the visitor already has installed) | n/a — no font files are shipped or downloaded | none |
+| Icons on the 404 page | Lucide (`lucide-react`, already a dependency) | https://lucide.dev | ISC | bundled JS (existing dependency) |
