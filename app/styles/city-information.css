@@ -74,7 +74,7 @@
   gap: 10px;
   margin: 0 30px 11px 0;
   color: #7a6a58;
-  font: 8px/1.4 var(--mono);
+  font: max(var(--fs-floor), 8px)/1.4 var(--mono);
   letter-spacing: 1.3px;
 }
 .city-information-heading > p > span {
@@ -138,7 +138,7 @@
   margin: 0 0 6px;
 }
 .city-information .city-builder-profile p {
-  font-size: 11px;
+  font-size: max(var(--fs-floor), 11px);
   line-height: 1.8;
   color: #71695e;
   margin: 0;
@@ -148,7 +148,7 @@
   flex-wrap: wrap;
   gap: 7px 14px;
   color: #8c5b3c;
-  font-size: 10px;
+  font-size: max(var(--fs-floor), 10px);
 }
 .city-information .city-builder-interests > span::before {
   content: "+";
@@ -170,7 +170,7 @@
 .city-information .city-builder-link small {
   display: block;
   color: #928270;
-  font: 8px var(--mono);
+  font: max(var(--fs-floor), 8px) var(--mono);
   margin-top: 4px;
 }
 .city-information .city-builder-link:hover {
@@ -196,7 +196,7 @@
 .city-information .journal-label {
   color: #977653;
   margin: 16px 0 9px;
-  font-size: 8px;
+  font-size: max(var(--fs-floor), 8px);
   letter-spacing: 0.7px;
 }
 .city-information .journal-entry {
@@ -216,7 +216,7 @@
 }
 .city-information .journal-entry-copy p {
   color: #71695e;
-  font-size: 11px;
+  font-size: max(var(--fs-floor), 11px);
   line-height: 1.75;
 }
 .city-information .journal-entry:hover {
@@ -227,7 +227,7 @@
   background: #343d3c;
   border-color: #343d3c;
   border-radius: 3px;
-  font-size: 11px;
+  font-size: max(var(--fs-floor), 11px);
   padding: 10px 13px;
 }
 .city-information .button:hover {
@@ -253,10 +253,10 @@
   margin: 15px 0;
 }
 .city-information .guestbook-note > footer {
-  font-size: 10px;
+  font-size: max(var(--fs-floor), 10px);
 }
 .city-information .guestbook-note > footer > small {
-  font-size: 7px;
+  font-size: max(var(--fs-floor), 7px);
 }
 .city-information .guestbook-form {
   margin-top: 16px;
@@ -264,7 +264,7 @@
 }
 .city-information .field-row {
   color: #5e554b;
-  font-size: 11px;
+  font-size: max(var(--fs-floor), 11px);
 }
 .city-information .field-row > span {
   color: #9c8a76;
@@ -290,7 +290,7 @@
 }
 .city-information .form-note {
   color: #8b7b67;
-  font-size: 9px;
+  font-size: max(var(--fs-floor), 9px);
 }
 .city-information .form-status {
   color: #546653;
@@ -316,7 +316,7 @@
     padding: 17px 20px 14px;
   }
   .city-information-heading > p {
-    font-size: 7px;
+    font-size: max(var(--fs-floor), 7px);
     letter-spacing: 0.8px;
     margin-bottom: 9px;
   }

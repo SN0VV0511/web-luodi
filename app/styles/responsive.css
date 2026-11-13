@@ -11,7 +11,7 @@
     font-size: 22px;
   }
   .city-title > span {
-    font-size: 9px;
+    font-size: max(var(--fs-floor), 9px);
   }
   .dock-city-state {
     display: none;
@@ -47,7 +47,7 @@
   .neighborhood-tour > button {
     white-space: nowrap;
     flex-shrink: 0;
-    font-size: 9px;
+    font-size: max(var(--fs-floor), 9px);
     padding: 8px;
     gap: 4px;
   }
@@ -78,7 +78,7 @@
     margin-left: 5px;
   }
   .city-brand small {
-    font-size: 5px;
+    font-size: max(var(--fs-floor), 5px);
     letter-spacing: 1px;
   }
   .world-header-actions {
@@ -95,7 +95,7 @@
     display: none;
   }
   .locale-toggle {
-    font-size: 9px;
+    font-size: max(var(--fs-floor), 9px);
   }
   .builder-avatar {
     width: 26px;
@@ -107,7 +107,7 @@
     top: 93px;
   }
   .city-title > p {
-    font-size: 7px;
+    font-size: max(var(--fs-floor), 7px);
     margin-bottom: 11px;
   }
   .city-title h1 {
@@ -115,7 +115,7 @@
     margin-bottom: 9px;
   }
   .city-title > span {
-    font-size: 8px;
+    font-size: max(var(--fs-floor), 8px);
   }
   .view-switch {
     top: auto;
@@ -127,7 +127,7 @@
     white-space: nowrap;
   }
   .view-switch > button {
-    font-size: 8px;
+    font-size: max(var(--fs-floor), 8px);
     gap: 5px;
     padding: 8px 10px;
   }
@@ -152,11 +152,11 @@
     gap: 6px;
   }
   .city-label-number {
-    font-size: 6px;
+    font-size: max(var(--fs-floor), 6px);
     padding-right: 5px;
   }
   .city-label-name {
-    font-size: 8px;
+    font-size: max(var(--fs-floor), 8px);
   }
   .city-label::before {
     height: 8px;
@@ -186,7 +186,7 @@
   .dock-navigation > button {
     min-width: 41px;
     height: 47px;
-    font-size: 8px;
+    font-size: max(var(--fs-floor), 8px);
     gap: 5px;
   }
   .dock-navigation > button svg {
@@ -202,7 +202,7 @@
   }
   .dock-scene-controls > button {
     min-width: 30px;
-    font-size: 7px;
+    font-size: max(var(--fs-floor), 7px);
   }
   .dock-scene-controls > button svg {
     width: 16px;
@@ -278,17 +278,17 @@
     width: 24px;
   }
   .detail-banner > span {
-    font-size: 8px;
+    font-size: max(var(--fs-floor), 8px);
   }
   .detail-banner strong {
-    font-size: 5px;
+    font-size: max(var(--fs-floor), 5px);
     margin-top: 5px;
   }
   .detail-body {
     padding: 17px 19px;
   }
   .place-category {
-    font-size: 6px;
+    font-size: max(var(--fs-floor), 6px);
     margin-bottom: 8px;
   }
   .detail-body h2 {
@@ -296,7 +296,7 @@
     margin-bottom: 8px;
   }
   .place-description {
-    font-size: 10px;
+    font-size: max(var(--fs-floor), 10px);
     line-height: 1.9;
     margin-bottom: 14px;
   }
@@ -319,17 +319,17 @@
     padding: 32px 23px 23px;
   }
   .section-kicker {
-    font-size: 7px;
+    font-size: max(var(--fs-floor), 7px);
     letter-spacing: 1px;
   }
   .section-kicker > span {
-    font-size: 6px;
+    font-size: max(var(--fs-floor), 6px);
   }
   .community-heading h2 {
     font-size: 24px;
   }
   .community-heading p {
-    font-size: 10px;
+    font-size: max(var(--fs-floor), 10px);
   }
   .journal-entry {
     gap: 12px;
@@ -339,30 +339,30 @@
     font-size: 13px;
   }
   .journal-entry-copy p {
-    font-size: 10px;
+    font-size: max(var(--fs-floor), 10px);
   }
   .guestbook-note {
     padding: 15px;
     margin: 21px 0 18px;
   }
   .guestbook-note > p {
-    font-size: 11px;
+    font-size: max(var(--fs-floor), 11px);
   }
   .guestbook-note > footer {
-    font-size: 9px;
+    font-size: max(var(--fs-floor), 9px);
   }
   .guestbook-note > footer > small {
-    font-size: 6px;
+    font-size: max(var(--fs-floor), 6px);
   }
   .guestbook-actions {
     gap: 15px;
   }
   .guestbook-actions > .form-note {
-    font-size: 8px;
+    font-size: max(var(--fs-floor), 8px);
   }
   .guestbook-save {
     padding: 10px 12px;
-    font-size: 10px;
+    font-size: max(var(--fs-floor), 10px);
     gap: 7px;
   }
 

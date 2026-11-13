@@ -27,6 +27,7 @@
   --font-sans: "Avenir Next", "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --font-mono: "SFMono-Regular", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, "Liberation Mono", monospace;
   --font-serif: Georgia, "Songti SC", "Noto Serif SC", serif;
+  --fs-floor: 11px; /* smallest rendered text; every sub-12px size is written max(var(--fs-floor), Npx) */
   --text-2xs: 11px;  /* desktop-only micro caps (letter-spaced kickers); mobile floors to --text-xs */
   --text-xs: 12px;   /* minimum on phones */
   --text-sm: 13px;
@@ -70,4 +71,11 @@
   --glass: var(--color-surface);
   --body: var(--font-sans);
   --mono: var(--font-mono);
+}
+
+/* Phones: nothing renders below 12px. */
+@media (max-width: 760px) {
+  :root {
+    --fs-floor: 12px;
+  }
 }

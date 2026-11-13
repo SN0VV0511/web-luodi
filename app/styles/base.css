@@ -45,14 +45,17 @@ a {
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
-textarea:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 4px;
+textarea:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
 }
 svg {
   flex-shrink: 0;
 }
 ::selection {
-  background: #f0c372;
-  color: #0e1b2a;
+  background: var(--color-gold);
+  color: var(--color-on-gold);
 }

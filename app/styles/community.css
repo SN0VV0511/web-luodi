@@ -13,7 +13,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  font: 8px var(--mono);
+  font: max(var(--fs-floor), 8px) var(--mono);
   color: #b8d2a6;
   letter-spacing: 1.5px;
   margin: 0 0 22px;
@@ -21,7 +21,7 @@
 .section-kicker > span {
   margin-left: auto;
   padding-right: 25px;
-  font-size: 7px;
+  font-size: max(var(--fs-floor), 7px);
 }
 .community-heading h2 {
   font-size: 30px;
@@ -36,7 +36,7 @@
   margin: 0;
 }
 .journal-label {
-  font: 8px var(--mono);
+  font: max(var(--fs-floor), 8px) var(--mono);
   color: #92ad87;
   letter-spacing: 1px;
   margin: 23px 0 9px;
@@ -60,7 +60,7 @@
   color: #d7ebba;
 }
 .journal-number {
-  font: 10px var(--mono);
+  font: max(var(--fs-floor), 10px) var(--mono);
   color: #aac98d;
   margin-top: 4px;
 }
@@ -68,7 +68,7 @@
   flex: 1;
 }
 .journal-entry-copy small {
-  font: 8px var(--mono);
+  font: max(var(--fs-floor), 8px) var(--mono);
   letter-spacing: 1px;
   color: #96b186;
 }
@@ -78,7 +78,7 @@
   margin: 8px 0 7px;
 }
 .journal-entry-copy p {
-  font-size: 11px;
+  font-size: max(var(--fs-floor), 11px);
   line-height: 1.8;
   color: #a7ba9a;
   margin: 0;
@@ -100,7 +100,7 @@
   margin: 25px 0 20px;
 }
 .guestbook-note-label {
-  font: 7px var(--mono);
+  font: max(var(--fs-floor), 7px) var(--mono);
   color: #a3bb8d;
   letter-spacing: 1px;
 }
@@ -128,10 +128,10 @@
   justify-content: space-between;
   gap: 15px;
   color: #9eb88c;
-  font-size: 10px;
+  font-size: max(var(--fs-floor), 10px);
 }
 .guestbook-note > footer > small {
-  font: 7px var(--mono);
+  font: max(var(--fs-floor), 7px) var(--mono);
   align-self: flex-end;
 }
 .guestbook-form {
@@ -143,12 +143,12 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 10px;
+  font-size: max(var(--fs-floor), 10px);
   color: #b4c7a4;
   margin-top: 4px;
 }
 .field-row > span {
-  font: 8px var(--mono);
+  font: max(var(--fs-floor), 8px) var(--mono);
   color: #90a880;
 }
 .guestbook-form input,
@@ -178,7 +178,7 @@
   margin-top: 6px;
 }
 .form-note {
-  font-size: 9px;
+  font-size: max(var(--fs-floor), 9px);
   color: #9fb08e;
   line-height: 1.8;
   margin: 0;
@@ -191,7 +191,7 @@
   color: #1f3928;
   border-color: #aec899;
   white-space: nowrap;
-  font-size: 11px;
+  font-size: max(var(--fs-floor), 11px);
 }
 .guestbook-save svg {
   width: 14px;
